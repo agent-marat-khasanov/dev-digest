@@ -26,3 +26,13 @@ export function formatSeconds(ms: number): string {
 export function formatTokens(tokensIn: number, tokensOut: number): string {
   return `${(tokensIn / 1000).toFixed(0)}k→${(tokensOut / 1000).toFixed(1)}k`;
 }
+
+/** Total tokens with thin-space thousands grouping (e.g. "9 119 tok"). Nulls render as "—". */
+export function formatTokensTotal(
+  tokensIn: number | null | undefined,
+  tokensOut: number | null | undefined,
+): string {
+  if (tokensIn == null && tokensOut == null) return "—";
+  const total = (tokensIn ?? 0) + (tokensOut ?? 0);
+  return `${total.toLocaleString("en-US").replace(/,/g, " ")} tok`;
+}
