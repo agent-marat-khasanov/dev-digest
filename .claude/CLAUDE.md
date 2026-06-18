@@ -74,4 +74,5 @@ See `server/.env.example` and `client/.env.example` for all variables.
 
 ## Session Wrap-Up
 
-On session completion, run `/engineering-insights` to capture learnings into the relevant module's INSIGHTS.md. Do not skip this step.
+- **After every non-trivial task** (feature, bugfix, review fix) — run `/engineering-insights` immediately, before reporting completion. Do not batch insights until the end of the session; capture them while context is fresh.
+- Trivial changes (typo, config tweak, single-line fix with no surprises) may skip this step.

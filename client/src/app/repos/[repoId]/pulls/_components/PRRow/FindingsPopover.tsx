@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Icon, SeverityBadge, CategoryTag, ConfidenceNum } from "@devdigest/ui";
+import { Icon, Skeleton, SeverityBadge, CategoryTag, ConfidenceNum } from "@devdigest/ui";
 import type { ReviewRecord } from "@devdigest/shared";
 import { usePrReviews } from "@/lib/hooks/reviews";
 import { s } from "../../styles";
@@ -66,38 +66,47 @@ export function FindingsPopover({
             <Icon.AlertTriangle size={13} />
             {t("list.findingsPopover.title", { count: totalCount })}
           </div>
-          {groups.map((group) => {
-            if (rendered >= MAX_FINDINGS) return null;
-            const slice = group.findings.slice(0, MAX_FINDINGS - rendered);
-            rendered += slice.length;
-            return (
-              <div key={group.agentName} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={s.findingsPopoverAgent}>{group.agentName}</div>
-                {slice.map((f) => (
-                  <div key={f.id} style={s.findingsPopoverItem}>
-                    <div style={s.findingsPopoverItemTitle}>
-                      <SeverityBadge severity={f.severity} compact />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                        {f.title}
-                      </span>
-                      <CategoryTag category={f.category} />
-                    </div>
-                    <div style={s.findingsPopoverItemMeta}>
-                      <span className="mono" style={{ color: "var(--accent-text)", fontSize: 12 }}>
-                        {f.file}:{f.start_line}
-                      </span>
-                      <ConfidenceNum value={f.confidence} />
-                    </div>
-                    <div style={s.findingsPopoverRationale}>{f.rationale}</div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-          {remaining > 0 && (
-            <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
-              {t("list.findingsPopover.more", { count: remaining })}
+          {!reviews ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "4px 0" }}>
+              <Skeleton height={60} />
+              <Skeleton height={60} />
             </div>
+          ) : (
+            <>
+              {groups.map((group) => {
+                if (rendered >= MAX_FINDINGS) return null;
+                const slice = group.findings.slice(0, MAX_FINDINGS - rendered);
+                rendered += slice.length;
+                return (
+                  <div key={group.agentName} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={s.findingsPopoverAgent}>{group.agentName}</div>
+                    {slice.map((f) => (
+                      <div key={f.id} style={s.findingsPopoverItem}>
+                        <div style={s.findingsPopoverItemTitle}>
+                          <SeverityBadge severity={f.severity} compact />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                            {f.title}
+                          </span>
+                          <CategoryTag category={f.category} />
+                        </div>
+                        <div style={s.findingsPopoverItemMeta}>
+                          <span className="mono" style={{ color: "var(--accent-text)", fontSize: 12 }}>
+                            {f.file}:{f.start_line}
+                          </span>
+                          <ConfidenceNum value={f.confidence} />
+                        </div>
+                        <div style={s.findingsPopoverRationale}>{f.rationale}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+              {remaining > 0 && (
+                <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
+                  {t("list.findingsPopover.more", { count: remaining })}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
