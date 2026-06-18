@@ -22,11 +22,17 @@ export function FindingsPopover({
   const t = useTranslations("prReview");
   const [show, setShow] = React.useState(false);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
 
   const { data: reviews } = usePrReviews(show ? prId : null);
 
   const open = () => {
     if (timer.current) clearTimeout(timer.current);
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: rect.right - 340 });
+    }
     setShow(true);
   };
   const close = () => {
@@ -47,11 +53,11 @@ export function FindingsPopover({
   const remaining = totalCount - MAX_FINDINGS;
 
   return (
-    <div onMouseEnter={open} onMouseLeave={close}>
+    <div ref={triggerRef} onMouseEnter={open} onMouseLeave={close}>
       {children}
-      {show && (
+      {show && pos && (
         <div
-          style={s.findingsPopover}
+          style={{ ...s.findingsPopover, top: pos.top, left: pos.left }}
           onClick={(e) => e.stopPropagation()}
           onMouseEnter={open}
           onMouseLeave={close}

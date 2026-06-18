@@ -47,9 +47,7 @@ export const s = {
     position: "relative",
   } satisfies CSSProperties,
   findingsPopover: {
-    position: "absolute",
-    top: "calc(100% + 8px)",
-    right: 0,
+    position: "fixed",
     width: 340,
     maxHeight: 420,
     overflowY: "auto",
