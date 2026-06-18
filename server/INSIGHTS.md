@@ -18,6 +18,7 @@
 - Every Fastify module is a plugin registered in src/modules/index.ts (no autoload)
 - DI container in platform/container.ts is the single composition root
 - Secrets never in DB — always in ~/.devdigest/secrets.json (mode 0600)
+- Any query that aggregates findings through `findings JOIN reviews` MUST filter `reviews.kind = 'review'` — the `reviews` table also holds `kind='summary'` rows (and may gain more kinds). Omitting the filter silently inflates counts. Both `pulls/routes.ts` (PR list) and `run.repo.ts` (timeline) enforce this
 
 ## Tool & Library Notes
 

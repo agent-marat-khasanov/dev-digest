@@ -46,6 +46,54 @@ function renderRuns(runs: RunSummary[]) {
   );
 }
 
+describe("RunHistory — severity badges", () => {
+  it("shows SeverityBadge counts when sev_* fields are present", () => {
+    renderRuns([run({
+      status: "done",
+      findings_count: 6,
+      blockers: 2,
+      score: 30,
+      sev_critical: 2,
+      sev_warning: 3,
+      sev_suggestion: 1,
+    })]);
+    const badges = screen.getAllByText(/^[0-9]+$/, { selector: ".tnum" });
+    const counts = badges.map((el) => el.textContent);
+    expect(counts).toContain("2");
+    expect(counts).toContain("3");
+    expect(counts).toContain("1");
+    expect(screen.queryByText(/finding\(s\)/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to plain text when sev_* are null (pre-migration runs)", () => {
+    renderRuns([run({
+      status: "done",
+      findings_count: 4,
+      blockers: 0,
+      score: 65,
+      sev_critical: null,
+      sev_warning: null,
+      sev_suggestion: null,
+    })]);
+    expect(screen.getByText(/4 finding/)).toBeInTheDocument();
+  });
+
+  it("hides zero-count severities (only shows non-zero)", () => {
+    renderRuns([run({
+      status: "done",
+      findings_count: 2,
+      blockers: 0,
+      score: null,
+      sev_critical: 0,
+      sev_warning: 2,
+      sev_suggestion: 0,
+    })]);
+    const badges = screen.getAllByText(/^[0-9]+$/, { selector: ".tnum" });
+    expect(badges).toHaveLength(1);
+    expect(badges[0]!.textContent).toBe("2");
+  });
+});
+
 describe("RunHistory — outcome badge", () => {
   it("a done run WITH blockers reads 'rejected' (never green 'done') + shows the score ring", () => {
     renderRuns([run({ status: "done", findings_count: 5, blockers: 5, score: 0 })]);
