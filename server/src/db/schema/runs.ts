@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision } from 'drizzle-orm/pg-core';
 import { workspaces } from './core';
 import { agents } from './agents';
 import { pullRequests } from './pulls';
@@ -28,6 +28,10 @@ export const agentRuns = pgTable('agent_runs', {
   score: integer('score'),
   /** Findings that tripped the agent's gate (severity ≥ ciFailOn). */
   blockers: integer('blockers'),
+  /** USD cost of the run (OpenRouter usage.cost when available, otherwise
+   *  estimateCost(model, tokensIn, tokensOut)). Null on failed/cancelled runs
+   *  and on rows created before the column was reintroduced. */
+  costUsd: doublePrecision('cost_usd'),
 });
 
 /** Whole trace of one run as a SINGLE jsonb document. */

@@ -59,6 +59,7 @@ export async function listRunsForPull(
     duration_ms: run.durationMs,
     tokens_in: run.tokensIn,
     tokens_out: run.tokensOut,
+    cost_usd: run.costUsd,
     findings_count: run.findingsCount,
     grounding: run.grounding,
     ran_at: run.ranAt ? run.ranAt.toISOString() : null,
@@ -152,6 +153,8 @@ export async function completeAgentRun(
     score?: number | null;
     /** Findings that tripped the agent's gate; 0 on failed/cancelled runs. */
     blockers?: number | null;
+    /** USD cost of the run; null when the model is off-catalog or on failed/cancelled. */
+    costUsd?: number | null;
     /** Failure reason (status='failed') / cancellation note. Null clears it. */
     error?: string | null;
   },
@@ -167,6 +170,7 @@ export async function completeAgentRun(
       grounding: values.grounding,
       score: values.score ?? null,
       blockers: values.blockers ?? null,
+      costUsd: values.costUsd ?? null,
       error: values.error ?? null,
     })
     .where(eq(t.agentRuns.id, runId));
