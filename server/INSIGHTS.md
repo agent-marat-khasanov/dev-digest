@@ -5,6 +5,7 @@
 - Route -> Service -> Repository plugin structure per module
 - Zod schemas on both sides (validate request + serialize response via fastify-type-provider-zod)
 - All queries scoped by workspace_id
+- Nullable Drizzle columns (`doublePrecision('cost_usd')` without `.notNull()`) for backward-compatible schema evolution — existing rows get `null`, no default needed, tests pass with `cost_usd: null` in mocks
 
 ## What Doesn't Work
 
@@ -25,6 +26,7 @@
 - fastify-type-provider-zod: response schema mismatch throws 500 (not 422) — always validate both sides
 - drizzle-kit generate: must run before db:migrate, otherwise migration is empty
 - testcontainers: slow on first run (pulls Docker image); fast on subsequent runs
+- Drizzle `doublePrecision` maps to PostgreSQL `double precision` — use it for fractional values like USD costs (not `integer`). Cost computation happens in `run-executor.ts` using OpenRouter's `usage.cost` when available, falling back to `estimateCost(model, tokensIn, tokensOut)`
 
 ## Recurring Errors & Fixes
 
@@ -35,7 +37,12 @@
 
 ## Session Notes
 
-<!-- Dated session summaries — add after each significant session -->
+### 2026-06-18 — Run Cost Badge
+- Added `cost_usd` column to `agent_runs` table (nullable `doublePrecision`)
+- Cost flows through shared Zod contracts: `RunStats`, `RunSummary`, `PrMeta`
+- `PrMeta.cost_usd` is aggregated sum over a PR's done agent_runs (computed in SQL/pulls route)
+- Shared contracts live in BOTH `server/src/vendor/shared/` and `client/src/vendor/shared/` — both must be updated in sync
+- Test contract fixture in `server/test/contracts.test.ts` must include `cost_usd` to pass Zod validation
 
 ## Open Questions
 
