@@ -45,6 +45,12 @@
 - RunHistory fallback: when `sev_*` fields are null (pre-migration runs), falls back to the plain-text "X finding(s)" display. New fields are checked via `!= null` rather than truthiness to distinguish 0 from null
 - Adding new nullable fields to shared contracts (`RunSummary`, `PrMeta`) requires updating ALL test mock factories that spread partial overrides — TypeScript strict catches missing required fields in the factory defaults (e.g. `RunHistory.test.tsx` run() factory needed `sev_critical: null` etc.)
 
+### 2026-06-18 — Findings Hover Popover
+- Hover popover pattern for PR list: no Radix/Floating UI in the project — use `position: absolute` on a container with `position: relative`, same as the Dropdown component in `vendor/ui/kit/Dropdown.tsx`. Close with a 150ms `setTimeout` delay on `mouseLeave` to prevent flicker when cursor moves between trigger and popover
+- Lazy data fetch on hover: pass `null` to `usePrReviews(show ? prId : null)` — TanStack Query's `enabled: !!prId` skips the fetch until hover triggers. Once fetched, the cache keeps it instant for subsequent hovers
+- `onClick={e => e.stopPropagation()}` on the popover is essential — PRRow is a clickable row that navigates on click, and the popover sits inside it. Without stopPropagation, clicking a finding card navigates away
+- `vendor/ui` exports `ConfidenceNum` and `CategoryTag` alongside `SeverityBadge` — all three are useful for compact finding summaries in popovers/tooltips
+
 ## Open Questions
 
 <!-- What remains unresolved -->
