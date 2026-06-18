@@ -44,6 +44,12 @@
 - Shared contracts live in BOTH `server/src/vendor/shared/` and `client/src/vendor/shared/` — both must be updated in sync
 - Test contract fixture in `server/test/contracts.test.ts` must include `cost_usd` to pass Zod validation
 
+### 2026-06-18 — Findings Severity Badges
+- Per-severity findings counts (CRITICAL/WARNING/SUGGESTION) added to both `PrMeta` (as nested `findings_by_severity` object) and `RunSummary` (as flat `sev_critical`/`sev_warning`/`sev_suggestion` — matching the existing flat scalar pattern on RunSummary)
+- No DB schema changes needed: severity breakdown is computed at query time via `findings JOIN reviews GROUP BY severity` — the `findings` table already stores severity per row
+- Pattern for cross-table aggregation on the PR list: the pulls route stacks multiple IN-queries (score, cost, findings) gated by `if (prIds.length > 0)`, each building a `Map<prId, value>` consumed in the final `.map()` return. New aggregations follow this same pattern
+- `run.repo.ts` `listRunsForPull()` now includes a secondary query for per-run severity breakdown via `reviews.run_id` join — the function is no longer a single-query mapper
+
 ## Open Questions
 
 <!-- What remains unresolved -->

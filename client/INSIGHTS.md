@@ -39,6 +39,12 @@
 - `PrMeta.cost_usd` is aggregated server-side; client just displays it
 - i18n labels added to `messages/en/prReview.json` and `messages/en/runs.json` for the COST stat
 
+### 2026-06-18 — Findings Severity Badges
+- PR list grid expanded from 7 to 8 columns (GRID constant in `constants.ts`). COLUMN_KEYS array order must match GRID template and the header/row rendering order exactly — misalignment silently misplaces column content
+- `SeverityBadge` from `vendor/ui` supports `compact` prop (icon + count only, no label text) — ideal for inline/table use. Import it alongside other Badge variants
+- RunHistory fallback: when `sev_*` fields are null (pre-migration runs), falls back to the plain-text "X finding(s)" display. New fields are checked via `!= null` rather than truthiness to distinguish 0 from null
+- Adding new nullable fields to shared contracts (`RunSummary`, `PrMeta`) requires updating ALL test mock factories that spread partial overrides — TypeScript strict catches missing required fields in the factory defaults (e.g. `RunHistory.test.tsx` run() factory needed `sev_critical: null` etc.)
+
 ## Open Questions
 
 <!-- What remains unresolved -->

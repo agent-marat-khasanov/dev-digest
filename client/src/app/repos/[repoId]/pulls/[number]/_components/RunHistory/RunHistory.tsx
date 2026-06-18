@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
+import { Badge, Icon, CircularScore, SeverityBadge, type IconName } from "@devdigest/ui";
 import type { RunSummary, PrCommit } from "@devdigest/shared";
 import { formatCost } from "@/lib/format-cost";
 import { formatTokensTotal } from "../RunTraceDrawer/helpers";
@@ -191,9 +191,23 @@ export function RunHistory({
                 </div>
               )}
               {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                  {r.sev_critical != null || r.sev_warning != null || r.sev_suggestion != null ? (
+                    <>
+                      {(r.sev_critical ?? 0) > 0 && <SeverityBadge severity="CRITICAL" count={r.sev_critical!} compact />}
+                      {(r.sev_warning ?? 0) > 0 && <SeverityBadge severity="WARNING" count={r.sev_warning!} compact />}
+                      {(r.sev_suggestion ?? 0) > 0 && <SeverityBadge severity="SUGGESTION" count={r.sev_suggestion!} compact />}
+                    </>
+                  ) : (
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {t("runStatus.findings", { count: r.findings_count ?? 0 })}
+                    </span>
+                  )}
+                  {(r.blockers ?? 0) > 0 && (
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {t("runStatus.blockers", { count: r.blockers ?? 0 })}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

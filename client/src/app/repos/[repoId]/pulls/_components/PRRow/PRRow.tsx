@@ -4,7 +4,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Icon, Avatar, Badge, CircularScore } from "@devdigest/ui";
+import { Icon, Avatar, Badge, CircularScore, SeverityBadge } from "@devdigest/ui";
 import type { PrMeta } from "@/lib/types";
 import { formatCost } from "@/lib/format-cost";
 import { SIZE_COLOR, STATUS_META } from "../../constants";
@@ -50,6 +50,24 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
       <div style={s.scoreCell}>
         {reviewed ? (
           <CircularScore score={pr.score!} size={34} stroke={3} />
+        ) : (
+          <span style={s.muted}>—</span>
+        )}
+      </div>
+      <div style={s.findingsCell}>
+        {pr.findings_by_severity &&
+        (pr.findings_by_severity.CRITICAL + pr.findings_by_severity.WARNING + pr.findings_by_severity.SUGGESTION) > 0 ? (
+          <>
+            {pr.findings_by_severity.CRITICAL > 0 && (
+              <SeverityBadge severity="CRITICAL" count={pr.findings_by_severity.CRITICAL} compact />
+            )}
+            {pr.findings_by_severity.WARNING > 0 && (
+              <SeverityBadge severity="WARNING" count={pr.findings_by_severity.WARNING} compact />
+            )}
+            {pr.findings_by_severity.SUGGESTION > 0 && (
+              <SeverityBadge severity="SUGGESTION" count={pr.findings_by_severity.SUGGESTION} compact />
+            )}
+          </>
         ) : (
           <span style={s.muted}>—</span>
         )}
