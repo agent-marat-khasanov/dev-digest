@@ -38,6 +38,11 @@ Cross-package imports use **tsconfig path aliases**, not npm publishing.
 - Always write secure code (SQL/XSS/command injection)
 - TypeScript strict — all types explicit
 
+## Workflow Rules
+
+- **Plan first** — Before any project change, enter plan mode, design the approach, and present it for user approval. Do not start implementation until the plan is approved.
+- **Ask, don't assume** — Use AskUserQuestion for any decision where the user's preference matters: feature scope, UI placement, architectural choices, naming, etc. Never silently pick an approach when multiple valid options exist.
+
 ## Read When
 
 Read these **only when you are about to touch** the related topic:
