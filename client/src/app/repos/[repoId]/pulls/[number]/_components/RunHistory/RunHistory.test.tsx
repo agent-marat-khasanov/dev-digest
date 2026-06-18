@@ -5,9 +5,9 @@
  * and shows the review score ring.
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary } from "@devdigest/shared";
+import type { RunSummary, ReviewRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
@@ -38,10 +38,10 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[]) {
+function renderRuns(runs: RunSummary[], reviews?: ReviewRecord[]) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} />
+      <RunHistory runs={runs} reviews={reviews} onOpenTrace={() => {}} />
     </NextIntlClientProvider>,
   );
 }
@@ -91,6 +91,58 @@ describe("RunHistory — severity badges", () => {
     const badges = screen.getAllByText(/^[0-9]+$/, { selector: ".tnum" });
     expect(badges).toHaveLength(1);
     expect(badges[0]!.textContent).toBe("2");
+  });
+});
+
+describe("RunHistory — findings popover", () => {
+  const testReview: ReviewRecord = {
+    id: "rev-1",
+    pr_id: "pr-1",
+    agent_id: "a1",
+    run_id: "run-1",
+    agent_name: "Security Reviewer",
+    kind: "review",
+    verdict: "comment",
+    summary: "Found issues",
+    score: 72,
+    model: "deepseek/deepseek-v4-flash",
+    grounding: null,
+    created_at: "2026-06-11T18:44:34.000Z",
+    findings: [{
+      id: "f1",
+      review_id: "rev-1",
+      severity: "WARNING",
+      category: "perf",
+      title: "N+1 query in loop",
+      file: "src/api/users.ts",
+      start_line: 45,
+      end_line: 50,
+      rationale: "The loop issues one query per row.",
+      suggestion: "Use a single IN clause.",
+      confidence: 0.86,
+      kind: "finding",
+      trifecta_components: null,
+      evidence: null,
+      accepted_at: null,
+      dismissed_at: null,
+    }],
+  };
+
+  it("shows finding details on hover when reviews are provided", () => {
+    renderRuns(
+      [run({ run_id: "run-1", status: "done", findings_count: 1, sev_warning: 1, sev_critical: 0, sev_suggestion: 0, score: 72 })],
+      [testReview],
+    );
+    const badge = screen.getByText("1", { selector: ".tnum" });
+    fireEvent.mouseEnter(badge.closest("div")!);
+    expect(screen.getByText("1 FINDINGS")).toBeInTheDocument();
+    expect(screen.getByText("N+1 query in loop")).toBeInTheDocument();
+    expect(screen.getByText(/src\/api\/users\.ts:45/)).toBeInTheDocument();
+  });
+
+  it("does not show popover when no reviews are passed", () => {
+    renderRuns([run({ status: "done", findings_count: 1, sev_warning: 1, sev_critical: 0, sev_suggestion: 0 })]);
+    expect(screen.queryByText("FINDINGS")).not.toBeInTheDocument();
   });
 });
 

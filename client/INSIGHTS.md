@@ -50,6 +50,7 @@
 - Lazy data fetch on hover: pass `null` to `usePrReviews(show ? prId : null)` — TanStack Query's `enabled: !!prId` skips the fetch until hover triggers. Once fetched, the cache keeps it instant for subsequent hovers
 - `onClick={e => e.stopPropagation()}` on the popover is essential — PRRow is a clickable row that navigates on click, and the popover sits inside it. Without stopPropagation, clicking a finding card navigates away
 - `vendor/ui` exports `ConfidenceNum` and `CategoryTag` alongside `SeverityBadge` — all three are useful for compact finding summaries in popovers/tooltips
+- Two popover data strategies depending on context: PR list uses lazy-fetch (`usePrReviews(show ? prId : null)`) because reviews aren't loaded on the list page. Agent runs timeline reuses already-loaded `ReviewRecord[]` passed via prop from FindingsTab — no extra fetch needed. When the parent already has the data, prefer passing it down over re-fetching
 
 ## Open Questions
 

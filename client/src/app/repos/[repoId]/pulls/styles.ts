@@ -48,7 +48,7 @@ export const s = {
   } satisfies CSSProperties,
   findingsPopover: {
     position: "fixed",
-    width: 340,
+    width: 420,
     maxHeight: 420,
     overflowY: "auto",
     background: "var(--bg-elevated)",
@@ -101,6 +101,7 @@ export const s = {
     alignItems: "center",
     gap: 8,
     fontSize: 12,
+    minWidth: 0,
   } satisfies CSSProperties,
   findingsPopoverRationale: {
     fontSize: 12,

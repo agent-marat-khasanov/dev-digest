@@ -31,7 +31,7 @@ export function FindingsPopover({
     if (timer.current) clearTimeout(timer.current);
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      setPos({ top: rect.bottom + 8, left: rect.right - 340 });
+      setPos({ top: rect.bottom + 8, left: rect.right - 420 });
     }
     setShow(true);
   };
@@ -90,7 +90,7 @@ export function FindingsPopover({
                           <CategoryTag category={f.category} />
                         </div>
                         <div style={s.findingsPopoverItemMeta}>
-                          <span className="mono" style={{ color: "var(--accent-text)", fontSize: 12 }}>
+                          <span className="mono" style={{ color: "var(--accent-text)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
                             {f.file}:{f.start_line}
                           </span>
                           <ConfidenceNum value={f.confidence} />
