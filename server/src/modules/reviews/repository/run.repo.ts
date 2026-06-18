@@ -59,7 +59,7 @@ export async function listRunsForPull(
       })
       .from(t.findings)
       .innerJoin(t.reviews, eq(t.reviews.id, t.findings.reviewId))
-      .where(inArray(t.reviews.runId, runIds))
+      .where(and(inArray(t.reviews.runId, runIds), eq(t.reviews.kind, 'review')))
       .groupBy(t.reviews.runId, t.findings.severity);
     for (const row of sevRows) {
       if (!row.runId) continue;
