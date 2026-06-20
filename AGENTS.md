@@ -13,7 +13,7 @@ Next.js 15 · React 19 · Fastify 5 · Drizzle ORM · Postgres 16 + pgvector · 
 ./scripts/e2e.sh              # hermetic e2e tests (needs agent-browser)
 ```
 
-Per-module commands: see each module CLAUDE.md.
+Per-module commands: see each module AGENTS.md.
 
 ## Project Map
 
@@ -40,8 +40,8 @@ Cross-package imports use **tsconfig path aliases**, not npm publishing.
 
 ## Workflow Rules
 
-- **Plan first** — Before any project change, enter plan mode, design the approach, and present it for user approval. Do not start implementation until the plan is approved.
-- **Ask, don't assume** — Use AskUserQuestion for any decision where the user's preference matters: feature scope, UI placement, architectural choices, naming, etc. Never silently pick an approach when multiple valid options exist.
+- **Plan first** — Before any project change, design the approach and present it for user approval. Do not start implementation until the plan is approved.
+- **Ask, don't assume** — For any decision where the user's preference matters (feature scope, UI placement, architectural choices, naming, etc.), ask first. Never silently pick an approach when multiple valid options exist.
 
 ## Read When
 
@@ -74,5 +74,5 @@ See `server/.env.example` and `client/.env.example` for all variables.
 
 ## Session Wrap-Up
 
-- **After every non-trivial task** (feature, bugfix, review fix) — run `/engineering-insights` immediately, before reporting completion. Do not batch insights until the end of the session; capture them while context is fresh.
+- **After every non-trivial task** (feature, bugfix, review fix) — capture engineering insights into the relevant module `INSIGHTS.md` immediately, before reporting completion. Do not batch insights until the end of the session; capture them while context is fresh. (Claude Code users: run `/engineering-insights`.)
 - Trivial changes (typo, config tweak, single-line fix with no surprises) may skip this step.
