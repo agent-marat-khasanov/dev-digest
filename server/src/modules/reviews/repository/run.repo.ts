@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
 import type { RunSummary, RunTrace } from '@devdigest/shared';
@@ -48,6 +48,29 @@ export async function listRunsForPull(
     .leftJoin(t.agents, eq(t.agents.id, t.agentRuns.agentId))
     .where(and(eq(t.agentRuns.workspaceId, workspaceId), eq(t.agentRuns.prId, prId)))
     .orderBy(desc(t.agentRuns.ranAt));
+  const runIds = rows.map(({ run }) => run.id);
+  const sevMap = new Map<string, { CRITICAL: number; WARNING: number; SUGGESTION: number }>();
+  if (runIds.length > 0) {
+    const sevRows = await db
+      .select({
+        runId: t.reviews.runId,
+        severity: t.findings.severity,
+        cnt: sql<number>`count(*)::int`,
+      })
+      .from(t.findings)
+      .innerJoin(t.reviews, eq(t.reviews.id, t.findings.reviewId))
+      .where(and(inArray(t.reviews.runId, runIds), eq(t.reviews.kind, 'review')))
+      .groupBy(t.reviews.runId, t.findings.severity);
+    for (const row of sevRows) {
+      if (!row.runId) continue;
+      const entry = sevMap.get(row.runId) ?? { CRITICAL: 0, WARNING: 0, SUGGESTION: 0 };
+      if (row.severity === 'CRITICAL' || row.severity === 'WARNING' || row.severity === 'SUGGESTION') {
+        entry[row.severity] = row.cnt;
+      }
+      sevMap.set(row.runId, entry);
+    }
+  }
+
   return rows.map(({ run, agentName }) => ({
     run_id: run.id,
     agent_id: run.agentId,
@@ -65,6 +88,9 @@ export async function listRunsForPull(
     ran_at: run.ranAt ? run.ranAt.toISOString() : null,
     score: run.score,
     blockers: run.blockers,
+    sev_critical: sevMap.get(run.id)?.CRITICAL ?? null,
+    sev_warning: sevMap.get(run.id)?.WARNING ?? null,
+    sev_suggestion: sevMap.get(run.id)?.SUGGESTION ?? null,
   }));
 }
 

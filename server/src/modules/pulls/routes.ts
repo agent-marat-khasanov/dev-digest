@@ -113,11 +113,11 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
 
     // Latest-review SCORE per PR for the list's score ring. Computed on read
     // from reviews (no FK denorm); the list is small, so one IN-query + JS
-    // grouping is cheap. (The per-severity FINDINGS breakdown is intentionally
-    // not surfaced on the list — findings live on the PR detail page.)
+    // grouping is cheap.
     const prIds = rows.map((r) => r.id);
     const latestReviewByPr = new Map<string, { score: number | null }>();
     const costByPr = new Map<string, number>();
+    const findingsByPr = new Map<string, { CRITICAL: number; WARNING: number; SUGGESTION: number }>();
     if (prIds.length > 0) {
       const reviewRows = await container.db
         .select({ prId: t.reviews.prId, score: t.reviews.score })
@@ -150,6 +150,30 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
           costByPr.set(c.prId, Number(c.cost));
         }
       }
+
+      const findingsRows = await container.db
+        .select({
+          prId: t.reviews.prId,
+          severity: t.findings.severity,
+          cnt: sql<number>`count(*)::int`,
+        })
+        .from(t.findings)
+        .innerJoin(t.reviews, eq(t.reviews.id, t.findings.reviewId))
+        .where(
+          and(
+            inArray(t.reviews.prId, prIds),
+            eq(t.reviews.kind, 'review'),
+          ),
+        )
+        .groupBy(t.reviews.prId, t.findings.severity);
+      for (const row of findingsRows) {
+        if (!row.prId) continue;
+        const entry = findingsByPr.get(row.prId) ?? { CRITICAL: 0, WARNING: 0, SUGGESTION: 0 };
+        if (row.severity === 'CRITICAL' || row.severity === 'WARNING' || row.severity === 'SUGGESTION') {
+          entry[row.severity] = row.cnt;
+        }
+        findingsByPr.set(row.prId, entry);
+      }
     }
 
     const now = Date.now();
@@ -177,6 +201,7 @@ export default async function pullsRoutes(appBase: FastifyInstance) {
         updated_at: r.updatedAt?.toISOString() ?? null,
         score: review ? review.score : null,
         cost_usd: costByPr.get(r.id) ?? null,
+        findings_by_severity: findingsByPr.get(r.id) ?? null,
       };
     });
   });

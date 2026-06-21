@@ -2,8 +2,8 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
-import type { RunSummary, PrCommit } from "@devdigest/shared";
+import { Badge, Icon, CircularScore, SeverityBadge, CategoryTag, ConfidenceNum, type IconName } from "@devdigest/ui";
+import type { RunSummary, PrCommit, ReviewRecord } from "@devdigest/shared";
 import { formatCost } from "@/lib/format-cost";
 import { formatTokensTotal } from "../RunTraceDrawer/helpers";
 
@@ -86,15 +86,104 @@ function tsOf(s: string | null | undefined): number {
   return Number.isNaN(n) ? 0 : n;
 }
 
+const POPOVER_DELAY = 150;
+
+function RunFindingsPopover({
+  review,
+  children,
+}: {
+  review: ReviewRecord;
+  children: React.ReactNode;
+}) {
+  const [show, setShow] = React.useState(false);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState<{ top: number; left: number } | null>(null);
+
+  const open = () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setPos({ top: rect.bottom + 8, left: Math.max(8, rect.left) });
+    }
+    setShow(true);
+  };
+  const close = () => {
+    timer.current = setTimeout(() => setShow(false), POPOVER_DELAY);
+  };
+
+  const findings = review.findings;
+  if (findings.length === 0) return <>{children}</>;
+
+  return (
+    <div ref={ref} onMouseEnter={open} onMouseLeave={close} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      {children}
+      {show && pos && (
+        <div
+          style={{
+            position: "fixed",
+            top: pos.top,
+            left: pos.left,
+            width: 420,
+            maxHeight: 380,
+            overflowY: "auto",
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-strong)",
+            borderRadius: 10,
+            boxShadow: "var(--shadow-modal)",
+            padding: 12,
+            zIndex: 50,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+          onMouseEnter={open}
+          onMouseLeave={close}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+            <Icon.AlertTriangle size={13} />
+            {findings.length} FINDINGS
+          </div>
+          {findings.slice(0, 8).map((f) => (
+            <div key={f.id} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 10px", borderRadius: 8, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>
+                <SeverityBadge severity={f.severity} compact />
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{f.title}</span>
+                <CategoryTag category={f.category} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, minWidth: 0 }}>
+                <span className="mono" style={{ color: "var(--accent-text)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>
+                  {f.file}:{f.start_line}
+                </span>
+                <ConfidenceNum value={f.confidence} />
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                {f.rationale}
+              </div>
+            </div>
+          ))}
+          {findings.length > 8 && (
+            <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
+              and {findings.length - 8} more…
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function RunHistory({
   runs,
   commits = [],
+  reviews,
   onOpenTrace,
   onGoToReview,
   onDelete,
 }: {
   runs: RunSummary[];
   commits?: PrCommit[];
+  reviews?: ReviewRecord[];
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -102,6 +191,14 @@ export function RunHistory({
   onDelete?: (runId: string) => void;
 }) {
   const t = useTranslations("prReview");
+  const reviewByRunId = React.useMemo(() => {
+    const map = new Map<string, ReviewRecord>();
+    for (const r of reviews ?? []) {
+      if (r.run_id && r.kind === "review") map.set(r.run_id, r);
+    }
+    return map;
+  }, [reviews]);
+
   if (runs.length === 0 && commits.length === 0) return null;
 
   const items: TimelineItem[] = [
@@ -190,12 +287,33 @@ export function RunHistory({
                   {r.error}
                 </div>
               )}
-              {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
-                </div>
-              )}
+              {settled && (() => {
+                const hasSev = r.sev_critical != null || r.sev_warning != null || r.sev_suggestion != null;
+                const review = reviewByRunId.get(r.run_id);
+                const badges = hasSev ? (
+                  <>
+                    {(r.sev_critical ?? 0) > 0 && <SeverityBadge severity="CRITICAL" count={r.sev_critical!} compact />}
+                    {(r.sev_warning ?? 0) > 0 && <SeverityBadge severity="WARNING" count={r.sev_warning!} compact />}
+                    {(r.sev_suggestion ?? 0) > 0 && <SeverityBadge severity="SUGGESTION" count={r.sev_suggestion!} compact />}
+                  </>
+                ) : (
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {t("runStatus.findings", { count: r.findings_count ?? 0 })}
+                  </span>
+                );
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+                    {review && hasSev && review.findings.length > 0 ? (
+                      <RunFindingsPopover review={review}>{badges}</RunFindingsPopover>
+                    ) : badges}
+                    {(r.blockers ?? 0) > 0 && (
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {t("runStatus.blockers", { count: r.blockers ?? 0 })}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
               {r.ran_at && <span>{new Date(r.ran_at).toLocaleTimeString()}</span>}

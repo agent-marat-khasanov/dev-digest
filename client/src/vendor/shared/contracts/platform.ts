@@ -173,6 +173,11 @@ export const PrMeta = z.object({
   // Sum of cost_usd over this PR's done agent_runs (list endpoint only;
   // null/absent until at least one done run produced a usage cost).
   cost_usd: z.number().nullish(),
+  findings_by_severity: z.object({
+    CRITICAL: z.number().int(),
+    WARNING: z.number().int(),
+    SUGGESTION: z.number().int(),
+  }).nullish(),
 });
 export type PrMeta = z.infer<typeof PrMeta>;
 
