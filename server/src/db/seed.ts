@@ -6,6 +6,7 @@ import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
+  TEST_QUALITY_REVIEWER_PROMPT,
 } from './seed-prompts.js';
 
 /** Default provider/model for the built-in reviewer agents. */
@@ -211,6 +212,17 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description: 'Flags uncovered branches, missed corner cases, over-mocking, and flakes.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   for (const a of seedAgents) {
     const [existing] = await db
@@ -218,6 +230,150 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       .from(t.agents)
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, a.name)));
     if (!existing) await db.insert(t.agents).values(a);
+  }
+
+  // ---- demo skills (the right-pane list in the Skills Lab design) ----
+  // Six short skill bodies, idempotent by (workspace, name). Real bodies are
+  // intentionally compact — they exist so the demo + screenshots have content.
+  const seedSkills: Array<typeof t.skills.$inferInsert> = [
+    {
+      workspaceId,
+      name: 'pr-quality-rubric',
+      description: 'A four-axis rubric (clarity, scope, tests, risk) the reviewer scores the PR against.',
+      type: 'rubric',
+      source: 'manual',
+      body: `Score every PR on four axes (1–5 each) and lead the summary with the totals:
+- Clarity: can a teammate understand the change without asking the author?
+- Scope: does the diff do one thing, or did unrelated work sneak in?
+- Tests: do the new/changed code paths have assertions that would catch a regression?
+- Risk: blast radius if this ships wrong (call sites touched, data migrated, contracts changed).
+Call out the lowest-scoring axis explicitly in the summary.`,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'no-then-chains',
+      description: 'Project convention: async/await everywhere; never .then() chains in new code.',
+      type: 'convention',
+      source: 'manual',
+      body: `This codebase uses async/await exclusively. Flag any new \`.then(...)\` or \`.catch(...)\` chain
+introduced in this diff and suggest the await rewrite. Existing chains in unchanged code are out of scope.
+Promise.all is fine; .then on the result of Promise.all is not.`,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'secret-leakage-gate',
+      description: 'Refuse to approve a diff that introduces a hardcoded secret or API key.',
+      type: 'security',
+      source: 'manual',
+      body: `Reject any diff that introduces a hardcoded secret. Common shapes to flag as CRITICAL:
+- \`sk_live_*\`, \`sk_test_*\` (Stripe), \`xox[bpars]-\` (Slack), \`ghp_\` / \`gho_\` / \`ghu_\` (GitHub)
+- \`AKIA[0-9A-Z]{16}\` (AWS access key), Google \`AIza\` keys, private-key PEM blocks
+- \`PASSWORD\` / \`API_KEY\` / \`SECRET\` assigned to a literal string in committed source
+- A new \`.env*\` file that is not \`.env.example\` with placeholder values
+Don't flag values that are obviously placeholders (\`xxx\`, \`changeme\`, \`<set-me>\`).`,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'lethal-trifecta',
+      description: 'Flag a single flow that combines untrusted input + private data + exfiltration.',
+      type: 'security',
+      source: 'manual',
+      body: `The lethal trifecta is the agent-specific risk where ONE flow reaches all three of:
+(1) UNTRUSTED content the agent ingests (PR body, web page, file, tool output),
+(2) PRIVATE data the agent can read,
+(3) an EXFILTRATION channel (outbound HTTP, tool call, attacker-readable output).
+Only set \`kind: "lethal_trifecta"\` when you can cite a concrete file:line for each of the three.
+A normal authenticated endpoint that returns user data is NOT a trifecta — that is plain authz.`,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'phantom-api-gate',
+      description: 'Block usage of APIs/functions/methods that do not exist in the codebase or its deps.',
+      type: 'security',
+      source: 'manual',
+      body: `Flag (CRITICAL) any call in the diff to a function, method, or module that does not exist in
+the codebase or its declared dependencies. AI-assisted edits sometimes hallucinate a plausible-sounding
+helper — the test suite will fail at runtime, but a missed import-only path can ship.
+For each finding name the file:line, the called symbol, and the closest real symbol if one exists.`,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'test-coverage-nudge',
+      description: 'Nudge the author to add a test for any new branch in production code.',
+      type: 'custom',
+      source: 'manual',
+      body: `For every new conditional (\`if\` / \`switch\` / ternary / early return) in production code in
+this diff, check that at least one test asserts the new branch's behaviour. Missing branch coverage on a
+function with a fall-through default is a WARNING; missing coverage on an error/exception path is CRITICAL.
+Ignore tests that exist but only exercise the happy path — name the specific branch that lacks an assertion.`,
+      enabled: true,
+    },
+  ];
+  for (const s of seedSkills) {
+    const [existing] = await db
+      .select()
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, s.name)));
+    if (!existing) {
+      const [row] = await db.insert(t.skills).values(s).returning();
+      await db.insert(t.skillVersions).values({
+        skillId: row!.id,
+        version: 1,
+        body: s.body!,
+      });
+    }
+  }
+
+  // ---- agent_skills bindings matching the design (Image #4) ----
+  // Security Reviewer: 6 bound, 3 enabled. Test Quality Reviewer: 1 bound, enabled.
+  // Idempotent — fetch ids each run; insert only when the link is missing.
+  const skillRows = await db
+    .select({ id: t.skills.id, name: t.skills.name })
+    .from(t.skills)
+    .where(eq(t.skills.workspaceId, workspaceId));
+  const skillByName = new Map(skillRows.map((r) => [r.name, r.id]));
+
+  const agentRows = await db
+    .select({ id: t.agents.id, name: t.agents.name })
+    .from(t.agents)
+    .where(eq(t.agents.workspaceId, workspaceId));
+  const agentByName = new Map(agentRows.map((r) => [r.name, r.id]));
+
+  const securityId = agentByName.get('Security Reviewer');
+  const testQualityId = agentByName.get('Test Quality Reviewer');
+
+  const securityBindings: Array<{ skill: string; enabled: boolean }> = [
+    { skill: 'pr-quality-rubric',   enabled: true },
+    { skill: 'no-then-chains',      enabled: false },
+    { skill: 'secret-leakage-gate', enabled: true },
+    { skill: 'lethal-trifecta',     enabled: true },
+    { skill: 'phantom-api-gate',    enabled: false },
+    { skill: 'test-coverage-nudge', enabled: false },
+  ];
+  if (securityId) {
+    for (let i = 0; i < securityBindings.length; i++) {
+      const b = securityBindings[i]!;
+      const skillId = skillByName.get(b.skill);
+      if (!skillId) continue;
+      await db
+        .insert(t.agentSkills)
+        .values({ agentId: securityId, skillId, order: i, enabled: b.enabled })
+        .onConflictDoNothing();
+    }
+  }
+  if (testQualityId) {
+    const skillId = skillByName.get('test-coverage-nudge');
+    if (skillId) {
+      await db
+        .insert(t.agentSkills)
+        .values({ agentId: testQualityId, skillId, order: 0, enabled: true })
+        .onConflictDoNothing();
+    }
   }
 
   return { workspaceId, userId };

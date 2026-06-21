@@ -8,7 +8,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { RunSummary, ReviewRecord } from "@devdigest/shared";
-import messages from "../../../../../../../../messages/en/prReview.json";
+import messages from "@messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
 afterEach(cleanup);

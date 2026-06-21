@@ -56,15 +56,24 @@ const UpdateAgentBody = z.object({
   enabled: z.boolean().optional(),
 });
 
-/** Either set the whole ordered set (`skill_ids`) or link one (`skill_id`). */
+/**
+ * Either replace the full ordered set with per-link state (`links`) — which is
+ * what the Skills editor tab sends on every reorder/toggle — or link a single
+ * skill (`skill_id`, `order?`, `enabled?`) without touching the rest.
+ */
+const SkillLinkBody = z.object({
+  skill_id: z.string().uuid(),
+  enabled: z.boolean().optional(),
+});
 const SetSkillsBody = z
   .object({
-    skill_ids: z.array(z.string().uuid()).optional(),
+    links: z.array(SkillLinkBody).optional(),
     skill_id: z.string().uuid().optional(),
     order: z.number().int().optional(),
+    enabled: z.boolean().optional(),
   })
-  .refine((b) => b.skill_ids !== undefined || b.skill_id !== undefined, {
-    message: 'Provide skill_ids (set/reorder) or skill_id (link one)',
+  .refine((b) => b.links !== undefined || b.skill_id !== undefined, {
+    message: 'Provide links (set/reorder/toggle) or skill_id (link one)',
   });
 
 export default async function agentsRoutes(appBase: FastifyInstance) {
@@ -156,9 +165,22 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
       const { workspaceId } = await getContext(app.container, req);
       const body = req.body;
       const links =
-        body.skill_ids !== undefined
-          ? await service.setSkills(workspaceId, req.params.id, body.skill_ids)
-          : await service.linkSkill(workspaceId, req.params.id, body.skill_id!, body.order);
+        body.links !== undefined
+          ? await service.setSkills(
+              workspaceId,
+              req.params.id,
+              body.links.map((l) => ({
+                skillId: l.skill_id,
+                ...(l.enabled !== undefined ? { enabled: l.enabled } : {}),
+              })),
+            )
+          : await service.linkSkill(
+              workspaceId,
+              req.params.id,
+              body.skill_id!,
+              body.order,
+              body.enabled,
+            );
       if (!links) throw new NotFoundError('Agent not found');
       return links;
     },

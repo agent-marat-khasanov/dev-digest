@@ -36,9 +36,24 @@ export const ToolCall = z.object({
 });
 export type ToolCall = z.infer<typeof ToolCall>;
 
+export const SkillBlock = z.object({
+  id: z.string(),
+  name: z.string(),
+  body: z.string(),
+  tokens: z.number().int().nonnegative(),
+});
+export type SkillBlock = z.infer<typeof SkillBlock>;
+
 export const PromptAssembly = z.object({
   system: z.string(),
+  /** @deprecated Pre-skills traces stored the concatenated skill bodies here.
+   *  New runs populate `skill_blocks` instead; renderer falls back to this
+   *  field only when `skill_blocks` is null. */
   skills: z.string().nullish(),
+  /** One entry per enabled skill bound to the agent at run time. The trace
+   *  viewer renders one collapsible PromptBlock per entry. Null for runs
+   *  predating the skills lesson. */
+  skill_blocks: z.array(SkillBlock).nullish(),
   memory: z.string().nullish(),
   specs: z.string().nullish(),
   /** Callers-of-changed-symbols digest (repo-intel); null when absent. */
