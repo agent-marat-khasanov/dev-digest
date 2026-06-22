@@ -1,6 +1,6 @@
 ---
 name: engineering-insights
-description: "Capture engineering insights during and after work sessions. Use this skill when you encounter non-obvious behavior, surprising solutions, dead ends, dependency quirks, recurring errors, or architectural decisions worth remembering. Also use as a session wrap-up after meaningful work (>30 min) that involved problem-solving, debugging, or discovery. Writes to the INSIGHTS.md file of the module you worked on (server, client, reviewer-core, or e2e). Do NOT use for trivial changes (typo fixes, config tweaks, boilerplate)."
+description: "Capture engineering insights during and after work sessions. Use this skill when you encounter non-obvious behavior, surprising solutions, dead ends, dependency quirks, recurring errors, or architectural decisions worth remembering. Also use as a session wrap-up after meaningful work (>30 min) that involved problem-solving, debugging, or discovery. Writes to the INSIGHTS.md file of the module you worked on (server, client, reviewer-core, or e2e), or .ai/skills/INSIGHTS.md for repo-meta work on skills or root docs that fits no code module. Do NOT use for trivial changes (typo fixes, config tweaks, boilerplate)."
 ---
 
 # Engineering Insights
@@ -21,6 +21,7 @@ Which module(s) did this session touch?
 - `client/INSIGHTS.md`
 - `reviewer-core/INSIGHTS.md`
 - `e2e/INSIGHTS.md`
+- `.ai/skills/INSIGHTS.md` — repo-meta work on skills or root docs (`AGENTS.md`/`CLAUDE.md`) that fits no code module
 
 If work spanned multiple modules, write to each relevant file.
 

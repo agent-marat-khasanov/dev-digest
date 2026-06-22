@@ -40,8 +40,32 @@ Cross-package imports use **tsconfig path aliases**, not npm publishing.
 
 ## Workflow Rules
 
-- **Plan first** — Before any project change, design the approach and present it for user approval. Do not start implementation until the plan is approved.
-- **Ask, don't assume** — For any decision where the user's preference matters (feature scope, UI placement, architectural choices, naming, etc.), ask first. Never silently pick an approach when multiple valid options exist.
+- **Ask, don't assume.** If something is unclear, ask before writing a single line. Never make silent assumptions about intent, architecture, or requirements.
+- **Simplest solution first.** Always implement the simplest thing that could work. Do not add abstractions or flexibility that weren't explicitly requested.
+- **Don't touch unrelated code.** If a file or function is not directly part of the current task, do not modify it, even if you think it could be improved.
+- **Flag uncertainty explicitly.** If you are not confident about an approach or technical detail, say so before proceeding. Confidence without certainty causes more damage than admitting a gap.
+- **Suggest better ways.** I'm always open to ideas on better ways to do things. Please don't hesitate to suggest a better way.
+
+## Skill Routing
+
+Before writing code in these domains you MUST invoke the matching skill via the Skill tool
+**first** — this is not discretionary. When several apply, invoke the architecture/placement skill
+before the framework skill.
+
+| When you are about to… | Invoke (in order) |
+|---|---|
+| touch any file under `client/` (component, hook, page) | `frontend-architecture` → `react-best-practices` / `next-best-practices` |
+| add/move backend code across layers or wire the container (`server/`) | `onion-architecture` |
+| write/modify a Fastify route, plugin, or hook | `fastify-best-practices` |
+| write/modify a Drizzle schema or query | `drizzle-orm-patterns` |
+| design/alter a Postgres table, index, or migration | `postgresql-table-design` |
+| write/modify a Zod contract in `vendor/shared` | `zod` |
+| write/modify React component or hook tests | `react-testing-library` |
+| implement auth, handle user input, or review for vulnerabilities | `security` |
+| do non-trivial TypeScript type-level work | `typescript-expert` |
+
+(Manual/utility skills — `pr-self-review`, `engineering-insights`, `mermaid-diagram` — are NOT in
+this table by design; invoke them only per their own rules.)
 
 ## Read When
 

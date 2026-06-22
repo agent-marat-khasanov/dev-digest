@@ -7,6 +7,7 @@ import {
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
   TEST_QUALITY_REVIEWER_PROMPT,
+  API_CONTRACT_REVIEWER_PROMPT,
 } from './seed-prompts.js';
 
 /** Default provider/model for the built-in reviewer agents. */
@@ -223,6 +224,17 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'API Contract Reviewer',
+      description: 'Catches breaking API changes — routes, response schemas, semver, deprecation.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: API_CONTRACT_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
   for (const a of seedAgents) {
     const [existing] = await db
@@ -313,6 +325,135 @@ function with a fall-through default is a WARNING; missing coverage on an error/
 Ignore tests that exist but only exercise the happy path — name the specific branch that lacks an assertion.`,
       enabled: true,
     },
+    // ---- API Contract Reviewer skill set (4 skills, all bound to that agent) ----
+    {
+      workspaceId,
+      name: 'breaking-change',
+      description: 'Flag any modification or removal of a public API contract.',
+      type: 'convention',
+      source: 'manual',
+      body: `# breaking-change
+
+Flag any modification or removal of a public API contract (routes, method signatures, required parameters).
+
+## Rules
+- Renaming a route path is a breaking change
+- Removing a route is a breaking change
+- Changing an HTTP method (GET→POST) is a breaking change
+- Making an optional parameter required is a breaking change
+- Removing a required request field is a breaking change
+
+## Bad (breaking)
+\`\`\`ts
+// Before
+app.get('/api/users/:id', handler)
+
+// After — BREAKING: path changed
+app.get('/api/user/:id', handler)
+\`\`\`
+
+## Good
+\`\`\`ts
+// Add new route alongside old one (non-breaking)
+app.get('/api/users/:id', handler)        // keep old
+app.get('/api/v2/users/:userId', handler) // add new
+\`\`\``,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'response-schema',
+      description: 'Flag changes to response object shape: renamed/removed fields, changed types.',
+      type: 'convention',
+      source: 'manual',
+      body: `# response-schema
+
+Flag changes to response object shape: renamed fields, changed types, removed fields, changed optionality.
+
+## Rules
+- Renaming a response field is breaking (clients reference field by name)
+- Changing a field type (string→number) is breaking
+- Removing a field from response is breaking
+- Making a previously guaranteed field optional/nullable is breaking
+
+## Bad
+\`\`\`ts
+// Before
+return { userId: string, userName: string }
+
+// After — BREAKING: renamed field
+return { userId: string, name: string }
+\`\`\`
+
+## Good
+\`\`\`ts
+// Add new field, keep old (non-breaking)
+return { userId: string, userName: string, name: string }
+\`\`\``,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'semver-discipline',
+      description: 'Enforce correct semantic versioning bumps based on the type of change.',
+      type: 'convention',
+      source: 'manual',
+      body: `# semver-discipline
+
+Enforce correct semantic versioning bumps based on the type of change.
+
+## Rules
+- Any breaking change (route removed/renamed, field removed/renamed, type changed) REQUIRES a major version bump (X.0.0)
+- New endpoints or optional fields → minor bump (0.X.0)
+- Bug fixes, internal refactors with no contract change → patch bump (0.0.X)
+- Flag if a breaking change is merged without updating the version
+
+## Bad
+\`\`\`json
+// package.json: "version": "1.4.2"
+// PR removes a public endpoint — should be 2.0.0
+\`\`\`
+
+## Good
+\`\`\`json
+// Breaking change → "version": "2.0.0"
+// New feature     → "version": "1.5.0"
+// Bug fix         → "version": "1.4.3"
+\`\`\``,
+      enabled: true,
+    },
+    {
+      workspaceId,
+      name: 'deprecation-policy',
+      description: 'Enforce proper deprecation instead of silent deletion.',
+      type: 'convention',
+      source: 'manual',
+      body: `# deprecation-policy
+
+Enforce proper deprecation instead of silent deletion.
+
+## Rules
+- Never silently remove a public endpoint; add @deprecated notice first in a prior release
+- Deprecated endpoints must return a \`Deprecation\` response header with sunset date
+- Mark deprecated fields in response schema with JSDoc \`@deprecated\`
+- Maintain deprecated endpoint for minimum 1 major version before removal
+
+## Bad
+\`\`\`ts
+// Simply deleting the route — VIOLATION
+// router.get('/api/v1/users', oldHandler)  ← just removed
+\`\`\`
+
+## Good
+\`\`\`ts
+router.get('/api/v1/users', (req, res) => {
+  res.setHeader('Deprecation', 'true')
+  res.setHeader('Sunset', 'Sat, 01 Jan 2026 00:00:00 GMT')
+  return oldHandler(req, res)
+})
+\`\`\``,
+      enabled: true,
+    },
   ];
   for (const s of seedSkills) {
     const [existing] = await db
@@ -373,6 +514,159 @@ Ignore tests that exist but only exercise the happy path — name the specific b
         .insert(t.agentSkills)
         .values({ agentId: testQualityId, skillId, order: 0, enabled: true })
         .onConflictDoNothing();
+    }
+  }
+
+  // API Contract Reviewer: all four contract skills bound and enabled.
+  const apiContractId = agentByName.get('API Contract Reviewer');
+  if (apiContractId) {
+    const apiSkills = ['breaking-change', 'response-schema', 'semver-discipline', 'deprecation-policy'];
+    for (let i = 0; i < apiSkills.length; i++) {
+      const skillId = skillByName.get(apiSkills[i]!);
+      if (!skillId) continue;
+      await db
+        .insert(t.agentSkills)
+        .values({ agentId: apiContractId, skillId, order: i, enabled: true })
+        .onConflictDoNothing();
+    }
+  }
+
+  // ---- eval cases for the pr-quality-rubric skill (Skill → Evals tab) ----
+  // Gold cases the skill is graded against. Runs are NOT seeded — every case
+  // starts "never run"; status + the X/Y-passing badge populate after a real
+  // LLM run. Idempotent by (workspace, owner_kind, owner_id, name).
+  const rubricId = skillByName.get('pr-quality-rubric');
+  if (rubricId) {
+    const evalCases: Array<{ name: string; inputDiff: string; expectedOutput: unknown }> = [
+      {
+        name: 'stripe-key-leak',
+        inputDiff: `diff --git a/src/config.ts b/src/config.ts
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -8,3 +8,5 @@
+   timeoutMs: 5000,
++  // billing integration
++  stripeKey: "sk_live_EXAMPLE_FAKE_KEY_DO_NOT_USE",
+   retries: 3,
+ };
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'Hardcoded Stripe secret key',
+            file: 'src/config.ts',
+            start_line: 10,
+            end_line: 10,
+          },
+        ],
+      },
+      {
+        name: 'ssrf-webhook',
+        inputDiff: `diff --git a/src/webhook.ts b/src/webhook.ts
+--- a/src/webhook.ts
++++ b/src/webhook.ts
+@@ -12,2 +12,5 @@
+ export async function forward(req: Request) {
++  const target = req.query.url as string;
++  // forwards to a caller-controlled URL — SSRF
++  return fetch(target);
+ }
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'SSRF: webhook forwards to a caller-controlled URL',
+            file: 'src/webhook.ts',
+            start_line: 13,
+            end_line: 15,
+          },
+        ],
+      },
+      {
+        name: 'missing-retry-after',
+        inputDiff: `diff --git a/src/client.ts b/src/client.ts
+--- a/src/client.ts
++++ b/src/client.ts
+@@ -20,3 +20,7 @@
+ async function call() {
+   const res = await fetch(url);
++  if (res.status === 429) {
++    await sleep(1000); // ignores the Retry-After header
++    return call();
++  }
+ }
+`,
+        expectedOutput: [
+          {
+            severity: 'WARNING',
+            category: 'bug',
+            title: 'Retry ignores the Retry-After header',
+            file: 'src/client.ts',
+            start_line: 22,
+            end_line: 25,
+          },
+        ],
+      },
+      {
+        name: 'clean-refactor-no-flags',
+        inputDiff: `diff --git a/src/util.ts b/src/util.ts
+--- a/src/util.ts
++++ b/src/util.ts
+@@ -3,3 +3,3 @@
+ export function sum(values: number[]) {
+-  return values.reduce((a, b) => a + b, 0);
++  return values.reduce((total, n) => total + n, 0);
+ }
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'service-role-in-client',
+        inputDiff: `diff --git a/src/supabase.ts b/src/supabase.ts
+--- a/src/supabase.ts
++++ b/src/supabase.ts
+@@ -1,2 +1,4 @@
+ import { createClient } from "@supabase/supabase-js";
++// service_role key shipped to the browser bundle
++export const db = createClient(url, process.env.NEXT_PUBLIC_SERVICE_ROLE!);
+ export const PUBLIC = true;
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'Supabase service_role key exposed to the client',
+            file: 'src/supabase.ts',
+            start_line: 3,
+            end_line: 3,
+          },
+        ],
+      },
+    ];
+    for (const ec of evalCases) {
+      const [existing] = await db
+        .select()
+        .from(t.evalCases)
+        .where(
+          and(
+            eq(t.evalCases.workspaceId, workspaceId),
+            eq(t.evalCases.ownerKind, 'skill'),
+            eq(t.evalCases.ownerId, rubricId),
+            eq(t.evalCases.name, ec.name),
+          ),
+        );
+      if (!existing) {
+        await db.insert(t.evalCases).values({
+          workspaceId,
+          ownerKind: 'skill',
+          ownerId: rubricId,
+          name: ec.name,
+          inputDiff: ec.inputDiff,
+          expectedOutput: ec.expectedOutput,
+        });
+      }
     }
   }
 

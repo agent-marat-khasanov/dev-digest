@@ -196,9 +196,22 @@
       "countLabel": "{count, plural, one {# version} other {# versions}}"
     },
     "evals": {
-      "title": "Evals",
-      "subtitle": "Run this skill against eval cases to track precision + recall over time.",
-      "comingSoon": "The eval runner ships in the next lesson."
+      "casesHeading": "Eval cases",
+      "passing": "{passed} / {total} passing",
+      "runAll": "Run all evals",
+      "running": "Running…",
+      "newCase": "New eval case",
+      "expectedGot": "expected {n, plural, one {# finding} other {# findings}}, got {m}",
+      "neverRun": "expected {n, plural, one {# finding} other {# findings}} · never run",
+      "emptyBadge": "empty []",
+      "run": "Run this case",
+      "edit": "Edit case",
+      "delete": "Delete case",
+      "deleteConfirm": "Delete eval case \"{name}\"?",
+      "emptyTitle": "No eval cases yet",
+      "emptyBody": "Eval cases assert the findings this skill should produce on a sample diff. They ship with the demo seed.",
+      "loadError": "Could not load eval cases.",
+      "comingSoon": "Creating and editing eval cases ships in a future lesson."
     },
     "communityDrawer": {
       "title": "Search community skills",

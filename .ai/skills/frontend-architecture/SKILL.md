@@ -1,6 +1,6 @@
 ---
 name: frontend-architecture
-description: "DevDigest frontend architecture & code-placement conventions (client/, Next.js 15 App Router + React 19). Use when creating, splitting, moving, or refactoring frontend code and deciding WHERE it belongs — components, business-logic hooks, constants, helpers, types, and the RSC (server/client) boundary. Covers co-location rules, folder-per-component, lib/ infrastructure, path aliases, and human-friendly organization for agentic development. Does NOT cover performance (memoization, bundling, caching) — use react-best-practices / next-best-practices for that."
+description: "DevDigest frontend architecture & code-placement expert (client/, Next.js 15 App Router + React 19). ALWAYS invoke this skill when creating, splitting, moving, or refactoring any file under client/, or deciding WHERE frontend code belongs — components, business-logic hooks, constants, helpers, types, the RSC (server/client) boundary, co-location, folder-per-component, lib/ infrastructure, path aliases. Do not place, split, or move frontend code directly — consult this skill first. Does NOT cover performance (memoization, bundling, caching) — use react-best-practices / next-best-practices for that."
 ---
 
 # DevDigest Frontend Architecture

@@ -30,7 +30,7 @@ export function SkillDetail({ skill, tab, onTab }: { skill: Skill; tab: string; 
         {tab === "preview" ? (
           <PreviewTab skill={skill} />
         ) : tab === "evals" ? (
-          <EvalsTab />
+          <EvalsTab skill={skill} />
         ) : tab === "stats" ? (
           <StatsTab skill={skill} />
         ) : tab === "versions" ? (

@@ -8,14 +8,12 @@ import { Badge, Button, Dropdown, ErrorState, Icon, Skeleton } from "@devdigest/
 import { AppShell } from "@/components/app-shell";
 import { ApiError } from "@/lib/api";
 import { useSkill, useSkills, useUpdateSkill } from "@/lib/hooks/skills";
-import { useToast } from "@/lib/toast";
 import { SkillCard } from "../_components/SkillCard";
 import { SkillDetail } from "./_components/SkillDetail";
 import { VALID_TAB_KEYS } from "./_components/SkillDetail/constants";
 
 export default function SkillEditorPage() {
   const t = useTranslations("skills.lab");
-  const toast = useToast();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const search = useSearchParams();
@@ -117,12 +115,7 @@ export default function SkillEditorPage() {
               </Badge>
               {!skill.enabled && <Badge color="var(--text-muted)">disabled</Badge>}
               <div style={{ marginLeft: "auto" }}>
-                <Button
-                  kind="secondary"
-                  size="sm"
-                  icon="Play"
-                  onClick={() => toast.info(t("editor.evalsToast"))}
-                >
+                <Button kind="secondary" size="sm" icon="Play" onClick={() => setTab("evals")}>
                   {t("editor.runOnEvals")}
                 </Button>
               </div>

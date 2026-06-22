@@ -221,15 +221,77 @@ export const CommunitySkill = z.object({
 export type CommunitySkill = z.infer<typeof CommunitySkill>;
 
 // ---- Conventions ----
-export const ConventionCandidate = z.object({
-  id: z.string(),
-  rule: z.string(),
-  evidence_path: z.string(),
-  evidence_snippet: z.string(),
-  confidence: z.number().min(0).max(1),
-  accepted: z.boolean(),
+// Lifecycle of an extracted convention: every candidate starts 'pending'; the
+// user accepts/rejects it in the UI, and only 'accepted' ones are baked into a
+// skill by POST /conventions/create-skill.
+export const ConventionStatus = z.enum(['pending', 'accepted', 'rejected']);
+export type ConventionStatus = z.infer<typeof ConventionStatus>;
+
+// Proof a rule is actually followed: a repo-relative file, the 1-based line, and
+// the matching code. Validated against the cloned repo (not the model) before a
+// candidate is ever persisted, so `evidence` is present on every saved row.
+export const ConventionEvidence = z.object({
+  file: z.string(),
+  line: z.string(),
+  code: z.string(),
 });
-export type ConventionCandidate = z.infer<typeof ConventionCandidate>;
+export type ConventionEvidence = z.infer<typeof ConventionEvidence>;
+
+export const Convention = z.object({
+  id: z.string(),
+  repo_id: z.string(),
+  category: z.string().nullish(),
+  rule: z.string(),
+  evidence: ConventionEvidence.nullish(),
+  confidence: z.number().min(0).max(1).nullish(),
+  status: ConventionStatus,
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type Convention = z.infer<typeof Convention>;
+
+// Raw shape the analyst model must return, validated by `completeStructured`'s
+// forced tool-use. Wrapped in an object (not a bare array) because tool inputs
+// are objects. Confidence is 0..1 — the analyst prompt asks for that scale.
+export const ExtractedCandidate = z.object({
+  category: z.string(),
+  rule: z.string(),
+  evidence: ConventionEvidence,
+  confidence: z.number().min(0).max(1),
+});
+export type ExtractedCandidate = z.infer<typeof ExtractedCandidate>;
+
+export const ConventionExtraction = z.object({
+  conventions: z.array(ExtractedCandidate),
+});
+export type ConventionExtraction = z.infer<typeof ConventionExtraction>;
+
+export const ExtractConventionsResult = z.object({
+  count: z.number().int().nonnegative(),
+  conventions: z.array(Convention),
+});
+export type ExtractConventionsResult = z.infer<typeof ExtractConventionsResult>;
+
+export const ConventionListQuery = z.object({
+  status: ConventionStatus.optional(),
+});
+export type ConventionListQuery = z.infer<typeof ConventionListQuery>;
+
+export const UpdateConventionInput = z.object({
+  status: ConventionStatus.optional(),
+  category: z.string().nullish(),
+  rule: z.string().min(1).optional(),
+  evidence: ConventionEvidence.optional(),
+});
+export type UpdateConventionInput = z.infer<typeof UpdateConventionInput>;
+
+export const CreateSkillFromConventionsInput = z.object({
+  repo_id: z.string(),
+  skill_name: z.string().min(1),
+  description: z.string(),
+  enabled: z.boolean().default(true),
+});
+export type CreateSkillFromConventionsInput = z.infer<typeof CreateSkillFromConventionsInput>;
 
 // ---- Agents ----
 export const Provider = z.enum(['openai', 'anthropic', 'openrouter']);

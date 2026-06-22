@@ -22,6 +22,8 @@
 - Path-alias convention enforced by `src/test/architecture.test.ts` (a vitest guard, not ESLint — the repo deliberately ships zero ESLint and uses vitest guard tests like `server/test/contracts.test.ts`). It fails on any `"(../)+(lib|components|messages)/` import under `src/` (excluding `vendor/`). Reach shared infra via `@/lib`, `@/components`, `@messages` — never `../`.
 - `@messages/*` alias (messages live in `client/messages/`, OUTSIDE `src/`, so `@/` can't reach them) must be declared in BOTH `tsconfig.json` paths AND `vitest.config.ts` resolve.alias, or tests fail to resolve message JSON.
 - `vi.mock("...")` paths must use the SAME alias as the component's real import — rewrite mock paths alongside imports so the mocked module ID matches.
+- The `client` copy of `vendor/shared/contracts/*` can DIVERGE from the `server` copy (the client `knowledge.ts` was missing the `AgentVersion`/`AgentVersionConfig` contracts and some comments). When porting a contract change, apply ONLY the targeted edit to the client copy (same `Edit` old/new string) — do NOT overwrite the file from the server copy, or you drag unrelated drift into the diff.
+- Add a new repo-scoped Skills Lab page by reading the active repo from `useActiveRepo()` (`@/lib/repo-context` → `{ repoId, activeRepo }` with `activeRepo.full_name`/`default_branch`); the nav entry goes in `vendor/ui/nav.ts` (between Skills and Agents), and `components/app-shell/helpers.ts` `activeKeyFor()` already maps `/conventions`. Build GitHub evidence links with `githubBlobUrl(repoFullName, branch, file, line)` from `@/lib/github-urls`.
 
 ## Tool & Library Notes
 
@@ -29,12 +31,28 @@
 
 - next-intl is wired but not actively used in starter — messages/en.json is the source
 - NEXT_PUBLIC_API_BASE controls API URL (default http://localhost:3001)
+- `@testing-library/user-event` is NOT installed — component tests use `fireEvent` from `@testing-library/react` (see `SkillCard.test.tsx`). For inline-edit-on-Enter: `fireEvent.click(span)` → `fireEvent.change(input, { target: { value } })` → `fireEvent.keyDown(input, { key: "Enter" })`
+- next-intl in component tests: wrap with `<NextIntlClientProvider locale="en" messages={{ <namespace>: messages }}>` where `messages` is `import x from "@messages/en/<namespace>.json"`. The namespace key must match the `useTranslations("<namespace>")` call
+- `vendor/ui` primitives: `ProgressBar` `value` is 0–100 (auto-clamped), takes a `color`; `Toggle` props are `on`/`onChange` and it renders `role="switch"`; `Textarea` has NO `readOnly` prop — for a read-only preview use a controlled `value` + no-op `onChange={() => {}}`; `CategoryTag` only accepts a fixed `Category` enum (no free-form children) — use `Badge` with children for arbitrary labels
+- JSX text with interpolation (`{label} {n}%`) splits into separate text nodes, so `getByText(/90%/)` fails. Match with a function matcher scoped to the element: `getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "Confidence 90%")`
+- The vendored `<Markdown>` primitive (`vendor/ui/primitives/Markdown.tsx`) only inlines styles for `p`/`strong`/`code`/`a`; it renders `h1-3`/`ul`/`ol`/`li`/`blockquote`/`hr` with NO styling. Tailwind preflight + the design-system reset (`vendor/ui/styles.css:205-211` zeroes heading margins; preflight strips list bullets) then make them render flat — headings look like body text, lists lose bullets. Fix WITHOUT editing vendor: the primitive sets `className="dd-md"`, so style `.dd-md h1/ul/li/...` in `app/globals.css` (done). Affects all 5 consumers: PreviewTab, FindingCard, CommentCard, BodyEditor, Showcase
 
 ## Recurring Errors & Fixes
 
 <!-- Recurring errors + fix -->
 
 ## Session Notes
+
+### 2026-06-22 — Conventions Extractor page
+- New `/conventions` page (`app/conventions/page.tsx` → `_components/ConventionsView/`) with `ConventionCard` + `CreateSkillModal` sub-components; hooks in `lib/hooks/conventions.ts` (added to the barrel). Accept/reject is an optimistic `useUpdateConvention` (onMutate snapshots, onError rolls back). Mirrors `SkillsListView` structure
+- The page is repo-scoped but the route is `/conventions` (no `:repoId`) — it reads `useActiveRepo()` like other repo-aware Skills Lab pages. Confidence bar colors: `--ok` ≥80%, `--warn` 50–79%, `--crit` <50%
+- The create-skill body is regenerated server-side from accepted conventions; the modal shows a live preview via a client `buildSkillBodyPreview` that mirrors the server's `buildSkillBody` (description is interpolated into the intro, so editing it updates the preview)
+
+### 2026-06-22 — Skill Evals tab
+- The skill detail tabs (`SkillDetail.tsx`) were already wired for `evals` (tab key + `FlaskConical` icon + a placeholder `EvalsTab`); implementing the tab = replace the placeholder body AND pass the missing `skill` prop in `SkillDetail.tsx` (`<EvalsTab skill={skill} />`)
+- To know which row a single shared mutation is acting on, use TanStack's `mutation.variables` (the arg passed to `.mutate(id)`) alongside `mutation.isPending` — e.g. `runOne.isPending && runOne.variables === c.id`. Avoids per-row mutation instances or extra state
+- `@devdigest/ui` `Button` has a `loading` prop that swaps the icon to a spinning `RefreshCw`; `Badge` takes `color`/`bg` (CSS vars) + `mono`. Severity CSS vars: `--crit`/`--crit-bg`, `--warn`/`--warn-bg`, `--sugg`/`--sugg-bg`, plus `--ok` (green). No `Circle` icon in the registry — render a hollow status dot with a bordered `<span>`
+- This repo styles via co-located `styles.ts` inline-style objects with CSS vars (see `StatsTab`, `SkillCard`), NOT Tailwind — follow the existing convention even though generic React guidance prefers utility classes
 
 ### 2026-06-18 — Run Cost Badge
 - Added `cost_usd` to RunTrace/RunSummary/PrMeta Zod contracts in `vendor/shared/`

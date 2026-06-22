@@ -1,6 +1,6 @@
 ---
 name: onion-architecture
-description: "DevDigest backend (server/) layering & dependency rules — Onion / ports-and-adapters mapped onto our Fastify + Drizzle + Zod + manual-DI stack. Use when creating, splitting, moving, or wiring backend code and deciding WHICH LAYER it belongs to — routes, services, repositories, adapters, domain contracts, container wiring. Enforces the dependency rule (dependencies point inward), keeps domain/services free of Fastify/Drizzle, reaches all external I/O through container-provided ports, and keeps reviewer-core pure. Does NOT cover Fastify route mechanics (use fastify-best-practices), Drizzle query syntax (use drizzle-orm-patterns), or Zod schema authoring (use zod)."
+description: "DevDigest backend layering & dependency-rule expert (server/) — Onion / ports-and-adapters mapped onto our Fastify + Drizzle + Zod + manual-DI stack. ALWAYS invoke this skill when creating, splitting, moving, or wiring backend code and deciding WHICH LAYER it belongs to — routes, services, repositories, adapters, domain contracts, container wiring. Do not add or move backend code across layers, or wire the container, directly — consult this skill first. Enforces the dependency rule (dependencies point inward), keeps domain/services free of Fastify/Drizzle, reaches all external I/O through container-provided ports, and keeps reviewer-core pure. Does NOT cover Fastify route mechanics (use fastify-best-practices), Drizzle query syntax (use drizzle-orm-patterns), or Zod schema authoring (use zod)."
 ---
 
 # DevDigest Onion Architecture

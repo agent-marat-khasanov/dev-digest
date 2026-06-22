@@ -1,6 +1,6 @@
 ---
 name: security
-description: "Web application security best practices based on OWASP Top 10:2025. Use when reviewing code for vulnerabilities, implementing auth/authorization, handling user input, working with file uploads, managing secrets, or building API endpoints. Covers React, Express, MongoDB, and JWT security."
+description: "Web-app security expert (OWASP Top 10:2025). ALWAYS invoke this skill when reviewing code for vulnerabilities, implementing auth/authorization, handling user input, working with file uploads, managing secrets, or building API endpoints. Do not implement auth, handle user input, or review code for vulnerabilities directly — consult this skill first. Covers React, Express, MongoDB, and JWT security."
 ---
 
 # Security Best Practices — OWASP Top 10:2025
