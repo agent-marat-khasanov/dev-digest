@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Verdict, Finding } from './findings.js';
+import { Verdict, Finding, Severity, FindingCategory } from './findings.js';
 import { EvalRun, EvalOwnerKind, Conformance, Provider, CiFailOn } from './knowledge.js';
 
 /**
@@ -28,6 +28,48 @@ export const EvalCaseInput = z.object({
   notes: z.string().nullish(),
 });
 export type EvalCaseInput = z.infer<typeof EvalCaseInput>;
+
+/**
+ * One expected finding in an eval case's `expected_output` — a deliberate
+ * subset of `Finding`: just the fields the scorer matches on (file + line span
+ * + severity/category) plus a human-readable title. An empty `expected_output`
+ * array means "this diff is clean — the skill should produce no findings".
+ */
+export const ExpectedFinding = z.object({
+  severity: Severity,
+  category: FindingCategory,
+  title: z.string(),
+  file: z.string(),
+  start_line: z.number().int(),
+  end_line: z.number().int(),
+});
+export type ExpectedFinding = z.infer<typeof ExpectedFinding>;
+
+/**
+ * A single row in the Skill "Evals" tab — an eval case joined with the summary
+ * of its most recent run. Built by the evals service; the list, single-run and
+ * run-all endpoints all return this shape so the client renders rows uniformly.
+ */
+export const EvalCaseSummary = z.object({
+  id: z.string(),
+  name: z.string(),
+  /** Number of entries in `expected_output` (0 ⇒ the "clean" case → badge "empty []"). */
+  expected_count: z.number().int(),
+  /**
+   * Highest-severity expected finding, used for the row badge
+   * ("SEVERITY · category"). `null` when `expected_count` is 0.
+   */
+  primary: z.object({ severity: Severity, category: FindingCategory }).nullable(),
+  /** Latest run summary, or `null` when the case has never been run. */
+  last_run: z
+    .object({
+      pass: z.boolean().nullable(),
+      actual_count: z.number().int(),
+      ran_at: z.string(),
+    })
+    .nullable(),
+});
+export type EvalCaseSummary = z.infer<typeof EvalCaseSummary>;
 
 /** A persisted eval run row (one execution of a case), returned by the API. */
 export const EvalRunRecord = z.object({

@@ -97,5 +97,172 @@
     "bodyLabel": "Skill body (Markdown)",
     "bodyHint": "Saving a changed body creates a new immutable version.",
     "version": "v{version}"
+  },
+  "lab": {
+    "list": {
+      "breadcrumbLab": "Skills Lab",
+      "breadcrumb": "Skills",
+      "title": "Skills",
+      "subtitle": "Reusable text + config blocks. Bind one to an agent and it's appended to that agent's prompt.",
+      "searchPlaceholder": "Search skills…",
+      "addSkill": "Add Skill",
+      "createFromScratch": "Create from scratch",
+      "importFromFile": "Import from file",
+      "loadError": "Could not load skills.",
+      "emptyTitle": "No skills yet",
+      "emptyBody": "A skill is a reusable instruction set you can attach to one or more agents. Create one or import a .md / .zip.",
+      "emptyCta": "Create your first skill"
+    },
+    "card": {
+      "noDescription": "No description",
+      "typeBadge": "{type}"
+    },
+    "create": {
+      "title": "Create skill",
+      "subtitle": "A skill is appended to every agent it is bound to — write the description as the directive interface agents will read.",
+      "cancel": "Cancel",
+      "create": "Create skill",
+      "creating": "Creating…",
+      "fields": {
+        "name": "Name",
+        "namePlaceholder": "secret-leakage-gate",
+        "description": "Description",
+        "descriptionHint": "This is the skill's interface — formulate it directively (\"Refuse any diff that…\"), not as prose.",
+        "descriptionPlaceholder": "Refuse to approve a diff that introduces a hardcoded secret.",
+        "type": "Type",
+        "body": "Body (Markdown)",
+        "bodyPlaceholder": "# Rule\nDescribe the rule the agent should follow."
+      },
+      "types": {
+        "rubric": "rubric",
+        "convention": "convention",
+        "security": "security",
+        "custom": "custom"
+      }
+    },
+    "editor": {
+      "back": "← All skills",
+      "loadErrorTitle": "Couldn't load this skill",
+      "loadErrorBody": "The skill could not be loaded.",
+      "title": "Skill",
+      "save": "Save skill",
+      "saving": "Saving…",
+      "saved": "Saved (v{version})",
+      "savedToast": "Skill saved (v{version})",
+      "deleteConfirm": "Delete skill \"{name}\"? This cannot be undone.",
+      "previewToggle": "Preview Markdown",
+      "editToggle": "Edit Markdown",
+      "enabledLabel": "Enabled",
+      "bodyHint": "Saving a changed body creates a new immutable version.",
+      "unsaved": "unsaved",
+      "tokensSuffix": "tokens",
+      "runOnEvals": "Run on evals",
+      "evalsToast": "The eval runner ships in the next lesson — this button is wired but inert for now.",
+      "versionPill": "v{version}"
+    },
+    "tabs": {
+      "config": "Config",
+      "preview": "Preview",
+      "evals": "Evals",
+      "stats": "Stats",
+      "versions": "Versions"
+    },
+    "preview2": {
+      "title": "Preview",
+      "subtitle": "Rendered as the reviewing agent receives it."
+    },
+    "stats": {
+      "usedBy": "Used by",
+      "usedByValue": "{count, plural, one {# agent} other {# agents}}",
+      "pullFrequency": "Pull frequency",
+      "acceptRate": "Accept rate",
+      "findings30d": "Findings (30d)",
+      "agentsUsingTitle": "Agents using this skill",
+      "agentsUsingEmpty": "No agents have bound this skill yet.",
+      "openAgent": "Open",
+      "findingsByCategoryTitle": "Findings by category",
+      "findingsByCategoryEmpty": "No findings in the last 30 days."
+    },
+    "versions": {
+      "title": "Version history",
+      "subtitle": "Every save snapshots the body so eval runs stay reproducible against the exact text they scored.",
+      "currentBadge": "Current",
+      "diff": "Diff",
+      "restore": "Restore",
+      "restoreConfirm": "Restore version v{version}? A new version will be created with this body.",
+      "restoreToast": "Restored v{version} — current is now v{current}",
+      "diffModalTitle": "Diff · v{version} → current",
+      "diffEmpty": "(no changes between this version and current)",
+      "countLabel": "{count, plural, one {# version} other {# versions}}"
+    },
+    "evals": {
+      "casesHeading": "Eval cases",
+      "passing": "{passed} / {total} passing",
+      "runAll": "Run all evals",
+      "running": "Running…",
+      "newCase": "New eval case",
+      "expectedGot": "expected {n, plural, one {# finding} other {# findings}}, got {m}",
+      "neverRun": "expected {n, plural, one {# finding} other {# findings}} · never run",
+      "emptyBadge": "empty []",
+      "run": "Run this case",
+      "edit": "Edit case",
+      "delete": "Delete case",
+      "deleteConfirm": "Delete eval case \"{name}\"?",
+      "emptyTitle": "No eval cases yet",
+      "emptyBody": "Eval cases assert the findings this skill should produce on a sample diff. They ship with the demo seed.",
+      "loadError": "Could not load eval cases.",
+      "comingSoon": "Creating and editing eval cases ships in a future lesson."
+    },
+    "communityDrawer": {
+      "title": "Search community skills",
+      "subtitle": "Import vetted skills from public repos.",
+      "searchPlaceholder": "search…",
+      "allLanguages": "All languages",
+      "import": "Import",
+      "importing": "Importing…",
+      "loadError": "Could not load community skills.",
+      "empty": "No matching community skills.",
+      "fromMenu": "Search community skills"
+    },
+    "cardExtra": {
+      "agents": "{count, plural, one {# agent} other {# agents}}",
+      "pullSuffix": "% pull",
+      "acceptSuffix": "% accept",
+      "source": {
+        "manual": "Manual",
+        "extracted": "Extracted",
+        "community": "Community",
+        "imported_url": "Imported"
+      }
+    },
+    "import": {
+      "title": "Import skill",
+      "subtitle": "Upload a .md file or a .zip archive containing SKILL.md and reference docs.",
+      "trustBanner": "Imported skills become part of the agent's prompt — they are someone else's instructions running inside your reviewer. Vet the body before you save.",
+      "pickFile": "Choose file (.md or .zip)",
+      "noFile": "No file selected yet.",
+      "parsing": "Parsing…",
+      "previewTitle": "Preview",
+      "evidenceFiles": "Reference files",
+      "warnings": "Warnings",
+      "cancel": "Cancel",
+      "savePrefix": "Save \"{name}\"",
+      "saveAnonymous": "Save skill",
+      "saving": "Saving…",
+      "importError": "Import failed"
+    },
+    "agentTab": {
+      "title": "Skills",
+      "enabledCount": "{linked} of {total} enabled",
+      "filterPlaceholder": "Filter skills…",
+      "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Drag to reorder.",
+      "empty": "No skills bound yet. Add one from the workspace catalog.",
+      "addSkill": "+ Add skill",
+      "noUnbound": "All workspace skills are already bound.",
+      "save": "Save skills",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "savedToast": "Skills saved"
+    }
   }
 }

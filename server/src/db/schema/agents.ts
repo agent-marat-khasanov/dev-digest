@@ -58,6 +58,11 @@ export const agentSkills = pgTable(
       .notNull()
       .references(() => skills.id, { onDelete: 'cascade' }),
     order: integer('order').notNull().default(0),
+    // Per-agent toggle: the same skill may be bound to several agents with
+    // different active state. A skill is injected into an agent's prompt only
+    // when BOTH `skills.enabled` (global draft/published) AND `agent_skills.enabled`
+    // (per-agent active) are true.
+    enabled: boolean('enabled').notNull().default(true),
   },
   (t) => ({ pk: primaryKey({ columns: [t.agentId, t.skillId] }) }),
 );

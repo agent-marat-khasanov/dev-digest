@@ -1,5 +1,5 @@
 import type { Container } from '../../platform/container.js';
-import type { Provider, Review, RunTrace, UnifiedDiff } from '@devdigest/shared';
+import type { Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import * as schema from '../../db/schema.js';
@@ -7,6 +7,7 @@ import type { AgentRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
 import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
+import { selectActiveSkillBlocks } from './skill-blocks.js';
 import { loadDiff } from './diff-loader.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
@@ -183,6 +184,12 @@ export class ReviewRunExecutor {
 
       const task = taskLine(pull) + rankNote;
 
+      // Resolve the agent's bound skills (ordered, enabled only) and tokenise
+      // each body so the trace can render one collapsible PromptBlock per
+      // skill, attributed by token cost. reviewer-core stays pure: we hand it
+      // only strings; the per-skill metadata is rebuilt into the trace here.
+      const skillBlocks = await this.buildSkillBlocks(agent, runLog);
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -200,6 +207,9 @@ export class ReviewRunExecutor {
         ...(callersDigest ? { callers: callersDigest } : {}),
         // T3 — repo skeleton, same omit-when-empty contract.
         ...(repoMap ? { repoMap } : {}),
+        // Bound + enabled skills, in the order configured on the Agent editor.
+        // assemblePrompt joins these into the "Skills / rules" section.
+        ...(skillBlocks.length > 0 ? { skills: skillBlocks.map((s) => s.body) } : {}),
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
@@ -270,7 +280,10 @@ export class ReviewRunExecutor {
           findings: findingRows.length,
           grounding,
         },
-        prompt_assembly: outcome.assembly,
+        prompt_assembly: {
+          ...outcome.assembly,
+          skill_blocks: skillBlocks.length > 0 ? skillBlocks : null,
+        },
         tool_calls: outcome.chunks.map((c) => ({
           tool: 'review_file',
           args: c.label,
@@ -313,6 +326,28 @@ export class ReviewRunExecutor {
       this.container.runBus.complete(runId);
       throw err;
     }
+  }
+
+  /**
+   * Resolve the agent's enabled linked skills in order and tokenise each body.
+   * Returns [] when the agent has no enabled skills, in which case the prompt
+   * is identical to the pre-lesson shape (`assemblePrompt` omits the section)
+   * and the trace records `skill_blocks: null`.
+   */
+  private async buildSkillBlocks(agent: AgentRow, runLog: RunLogger): Promise<SkillBlock[]> {
+    let linked;
+    try {
+      linked = await this.agents.linkedSkills(agent.id);
+    } catch (err) {
+      runLog.info(`skills: failed to load linked skills — ${(err as Error).message}`);
+      return [];
+    }
+    // Filter + tokenise via the pure helper so the rule is testable in isolation.
+    const blocks = selectActiveSkillBlocks(linked, (text) => this.container.tokenizer.count(text));
+    if (blocks.length === 0) return [];
+    const total = blocks.reduce((sum, b) => sum + b.tokens, 0);
+    runLog.info(`skills: attached ${blocks.length} skill(s), ${total} token(s) total`);
+    return blocks;
   }
 
   /**
@@ -424,7 +459,7 @@ export class ReviewRunExecutor {
         source: 'local',
       },
       stats: { duration_ms: durationMs, tokens_in: 0, tokens_out: 0, cost_usd: null, findings: 0, grounding },
-      prompt_assembly: { system: agent.systemPrompt, skills: null, memory: null, specs: null, user: '' },
+      prompt_assembly: { system: agent.systemPrompt, skills: null, skill_blocks: null, memory: null, specs: null, user: '' },
       tool_calls: [],
       raw_output: '',
       memory_pulled: [],

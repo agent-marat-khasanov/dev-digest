@@ -128,8 +128,90 @@ export const Skill = z.object({
   enabled: z.boolean(),
   version: z.number().int(),
   evidence_files: z.array(z.string()).nullish(),
+  // Optional usage stats embedded by GET /skills + GET /skills/:id so the
+  // SkillCard and the body editor header don't need separate round trips.
+  // All four are populated when the request goes through the skills module;
+  // callers that don't care (e.g. the agent SkillsTab) can ignore them.
+  agents_count: z.number().int().nonnegative().optional(),
+  pull_frequency_pct: z.number().min(0).max(100).optional(),
+  accept_rate_pct: z.number().min(0).max(100).optional(),
+  body_tokens: z.number().int().nonnegative().optional(),
 });
 export type Skill = z.infer<typeof Skill>;
+
+// 30-day rollup behind /skills/:id/stats — same numbers the cards embed, plus
+// the agents list and per-category findings buckets for the Stats tab donut.
+export const SkillStats = z.object({
+  used_by: z.number().int().nonnegative(),
+  pull_frequency_pct: z.number().min(0).max(100),
+  accept_rate_pct: z.number().min(0).max(100),
+  findings_count_30d: z.number().int().nonnegative(),
+  agents_using: z.array(z.object({ id: z.string(), name: z.string() })),
+  findings_by_category: z.array(
+    z.object({ category: z.string(), value: z.number().int().nonnegative() }),
+  ),
+});
+export type SkillStats = z.infer<typeof SkillStats>;
+
+// Returned by GET /skills/:id/versions/:version/diff — a unified-diff string
+// produced server-side via the `diff` package against `skills.body`.
+export const SkillVersionDiff = z.object({
+  unified: z.string(),
+});
+export type SkillVersionDiff = z.infer<typeof SkillVersionDiff>;
+
+// Input shapes for the skills CRUD module. `name/description/type/body` are
+// always required on create; `enabled` defaults to true. `source` is set
+// server-side from the request origin (manual create vs. imported).
+export const CreateSkillInput = z.object({
+  name: z.string().min(1),
+  description: z.string(),
+  type: SkillType,
+  body: z.string(),
+  enabled: z.boolean().default(true),
+  source: SkillSource.default('manual'),
+  evidence_files: z.array(z.string()).nullish(),
+});
+export type CreateSkillInput = z.infer<typeof CreateSkillInput>;
+
+export const UpdateSkillInput = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  type: SkillType.optional(),
+  body: z.string().optional(),
+  enabled: z.boolean().optional(),
+  evidence_files: z.array(z.string()).nullish(),
+});
+export type UpdateSkillInput = z.infer<typeof UpdateSkillInput>;
+
+export const SkillListQuery = z.object({
+  type: SkillType.optional(),
+  enabled: z.coerce.boolean().optional(),
+});
+export type SkillListQuery = z.infer<typeof SkillListQuery>;
+
+// Returned by /skills/import/preview — parsed but NOT persisted. The client
+// inspects this and decides whether to POST /skills with the parsed payload.
+export const SkillImportPreview = z.object({
+  parsed: z.object({
+    name: z.string(),
+    description: z.string(),
+    type: SkillType,
+    body: z.string(),
+    evidence_files: z.array(z.string()).nullish(),
+  }),
+  format: z.enum(['markdown', 'archive']),
+  warnings: z.array(z.string()),
+});
+export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
+
+export const SkillVersion = z.object({
+  skill_id: z.string(),
+  version: z.number().int(),
+  body: z.string(),
+  created_at: z.string(),
+});
+export type SkillVersion = z.infer<typeof SkillVersion>;
 
 export const CommunitySkill = z.object({
   name: z.string(),
@@ -137,19 +219,85 @@ export const CommunitySkill = z.object({
   stars: z.number().int(),
   lang: z.string(),
   desc: z.string(),
+  // Pre-baked into the fixture so import is one-shot — the user reviews the
+  // body in the drawer and clicks Import to create a Skill with source='community'.
+  type: SkillType,
+  body: z.string(),
 });
 export type CommunitySkill = z.infer<typeof CommunitySkill>;
 
 // ---- Conventions ----
-export const ConventionCandidate = z.object({
-  id: z.string(),
-  rule: z.string(),
-  evidence_path: z.string(),
-  evidence_snippet: z.string(),
-  confidence: z.number().min(0).max(1),
-  accepted: z.boolean(),
+// Lifecycle of an extracted convention: every candidate starts 'pending'; the
+// user accepts/rejects it in the UI, and only 'accepted' ones are baked into a
+// skill by POST /conventions/create-skill.
+export const ConventionStatus = z.enum(['pending', 'accepted', 'rejected']);
+export type ConventionStatus = z.infer<typeof ConventionStatus>;
+
+// Proof a rule is actually followed: a repo-relative file, the 1-based line, and
+// the matching code. Validated against the cloned repo (not the model) before a
+// candidate is ever persisted, so `evidence` is present on every saved row.
+export const ConventionEvidence = z.object({
+  file: z.string(),
+  line: z.string(),
+  code: z.string(),
 });
-export type ConventionCandidate = z.infer<typeof ConventionCandidate>;
+export type ConventionEvidence = z.infer<typeof ConventionEvidence>;
+
+export const Convention = z.object({
+  id: z.string(),
+  repo_id: z.string(),
+  category: z.string().nullish(),
+  rule: z.string(),
+  evidence: ConventionEvidence.nullish(),
+  confidence: z.number().min(0).max(1).nullish(),
+  status: ConventionStatus,
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type Convention = z.infer<typeof Convention>;
+
+// Raw shape the analyst model must return, validated by `completeStructured`'s
+// forced tool-use. Wrapped in an object (not a bare array) because tool inputs
+// are objects. Confidence is 0..1 — the analyst prompt asks for that scale.
+export const ExtractedCandidate = z.object({
+  category: z.string(),
+  rule: z.string(),
+  evidence: ConventionEvidence,
+  confidence: z.number().min(0).max(1),
+});
+export type ExtractedCandidate = z.infer<typeof ExtractedCandidate>;
+
+export const ConventionExtraction = z.object({
+  conventions: z.array(ExtractedCandidate),
+});
+export type ConventionExtraction = z.infer<typeof ConventionExtraction>;
+
+export const ExtractConventionsResult = z.object({
+  count: z.number().int().nonnegative(),
+  conventions: z.array(Convention),
+});
+export type ExtractConventionsResult = z.infer<typeof ExtractConventionsResult>;
+
+export const ConventionListQuery = z.object({
+  status: ConventionStatus.optional(),
+});
+export type ConventionListQuery = z.infer<typeof ConventionListQuery>;
+
+export const UpdateConventionInput = z.object({
+  status: ConventionStatus.optional(),
+  category: z.string().nullish(),
+  rule: z.string().min(1).optional(),
+  evidence: ConventionEvidence.optional(),
+});
+export type UpdateConventionInput = z.infer<typeof UpdateConventionInput>;
+
+export const CreateSkillFromConventionsInput = z.object({
+  repo_id: z.string(),
+  skill_name: z.string().min(1),
+  description: z.string(),
+  enabled: z.boolean().default(true),
+});
+export type CreateSkillFromConventionsInput = z.infer<typeof CreateSkillFromConventionsInput>;
 
 // ---- Agents ----
 // 'openrouter' routes through the OpenAI-compatible API (OpenAIProvider with a
@@ -195,6 +343,9 @@ export const AgentSkillLink = z.object({
   agent_id: z.string(),
   skill_id: z.string(),
   order: z.number().int(),
+  // Per-agent active state. A skill is injected into THIS agent's prompt only
+  // when both `skills.enabled` and this `enabled` are true.
+  enabled: z.boolean().default(true),
 });
 export type AgentSkillLink = z.infer<typeof AgentSkillLink>;
 
