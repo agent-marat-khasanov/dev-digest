@@ -11,6 +11,14 @@
 
 <!-- Dead ends and anti-patterns — the most valuable section, don't skip -->
 
+- Adding a `.notNull()` column WITHOUT a DB-level default to an existing table breaks `pnpm typecheck`
+  for EVERY pre-existing Drizzle `insert()` of that table — including dead/unused code — because the
+  insert object no longer satisfies the row type. Hit this on `pr_intent.head_sha` (NOT NULL, no
+  default): the soon-to-be-deleted `upsertIntent` insert stopped compiling. If the schema-add wave
+  runs before the dead-code-removal wave, either add a placeholder value to the stale insert or give
+  the column a default. The `risks` jsonb column did NOT break anything because it has
+  `.default(sql\`'[]'::jsonb\`)`. Prefer a DB default when the column allows one.
+
 ## Codebase Patterns
 
 <!-- Conventions and architectural decisions -->

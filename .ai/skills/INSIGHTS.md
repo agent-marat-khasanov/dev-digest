@@ -13,9 +13,29 @@ root `AGENTS.md`/`CLAUDE.md`.
   (frontend-architecture vs react-best-practices; onion vs fastify/drizzle).
 - A `## Skill Routing` table in `AGENTS.md` (domain/file-path → skill, "MUST invoke first") is the
   only activation lever for vendored skills whose `SKILL.md` we don't edit on disk.
+- Multi-wave `implementer` orchestration that integrates cleanly: partition each wave so parallel
+  agents touch DISJOINT files, then integrate a wave into the feature branch BEFORE dispatching the
+  next (so the next wave's deps exist). `implementer` worktrees branch from the repo BASE commit (e.g.
+  `main`), NOT the orchestrator's in-flight feature-branch HEAD, and they do NOT auto-commit — so a
+  later wave's worktree lacks earlier waves' work. Integrate by **copying only the files that agent
+  owns** from its `worktreePath` into the main tree (skip any shared-contract edits it re-applied to
+  satisfy its stale base — those already exist on the branch), then commit with EXPLICIT paths. A
+  good `implementer` will itself run `git merge <feature-branch> --no-commit` to pull deps into scope.
+- After an `implementer` returns, VERIFY its deliverable files exist (`ls`/`grep`) before integrating
+  — its final report can be trusted only after this check (see What Doesn't Work).
 
 ## What Doesn't Work
 
+- Do NOT assume an `implementer` agent wrote code just because its final report reads like success.
+  In this session a Group-C implementer returned a polished onion-architecture LAYERING PLAN but had
+  written ZERO files (`ls server/src/modules/intent/` → "No such file or directory"); the report was
+  truncated at the analysis stage. Always `ls`/`grep` for the concrete deliverables before integrating
+  or committing. The re-dispatch with an explicit "ACTUALLY WRITE AND SAVE every file, then run `ls`
+  to verify" + a "report the verification command outputs" clause produced the real implementation.
+- Do NOT `cp -r <src_dir> <dest_dir>` to integrate a worktree's new module when `<dest_dir>` may
+  already exist — `cp` then nests it (`modules/intent/intent/...`), and the extra path level silently
+  breaks every relative import (`../../db/...` resolves one level too shallow → TS2307 storm). After
+  any directory copy, `find <dest> -type f` to confirm the structure before typechecking.
 - Do NOT "mirror" a section into both `AGENTS.md` and `CLAUDE.md` — **`CLAUDE.md` is a symlink to
   `AGENTS.md`** (`ls -la CLAUDE.md` → `CLAUDE.md -> AGENTS.md`). They are the same file; editing one
   edits both. A second mirror edit duplicates the section. `git diff` shows only `AGENTS.md`.
@@ -147,6 +167,22 @@ root `AGENTS.md`/`CLAUDE.md`.
 - Requirements baked into the prompt body (not enforceable via frontmatter): read-only Bash only,
   never invoke the `deep-research` skill, interview-mode for ambiguous/empty prompts, two structured
   output templates (project vs internet), explicit "Not found / gaps" honesty section.
+
+### 2026-06-26 — Intent Layer feature via 4-wave implementer orchestration
+- Built the "Intent Layer" (`.ai/plans/intent-layer.md`) end-to-end with `implementer` agents in
+  waves: A (shared contracts + `pr_intent` schema + cheap `review_intent` model default) ‖ B
+  (reviewer-core pure `generateIntent`) → C (server `modules/intent/`) ‖ D (client hook + IntentPanel).
+  Integrated each wave file-by-file from the agents' `worktreePath` (see What Works), then reviewed
+  with `architecture-reviewer` (verdict: sound; 2 SUGGESTION nits) + `plan-verifier` (17/17 covered).
+- The two review agents are complementary and BOTH worth running after an implement pipeline:
+  architecture-reviewer found horizontal-coupling smells (intent service importing `loadDiff` from the
+  reviews slice's internals; repo built inline instead of wired in the container) that plan-verifier —
+  which only checks requirement COVERAGE with file:line evidence — is designed NOT to flag. Neither
+  was blocking.
+- Much of a "new" feature was pre-scaffolded (contracts `Intent`/`Risk`/`PrIntentRecord`, the
+  `pr_intent` table, the `review_intent` feature-model entry, the Settings model-picker UI) — the
+  research pass up front turned a presumed greenfield build into mostly wiring. Always research for
+  existing stubs before planning (mirrors the server `conventions`-lesson pattern).
 
 ## Open Questions
 
