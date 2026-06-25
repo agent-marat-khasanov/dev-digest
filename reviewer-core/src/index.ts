@@ -13,6 +13,7 @@
 
 // Prompt assembly + prompt-injection hardening.
 export {
+  INJECTION_GUARD,
   assemblePrompt,
   wrapUntrusted,
   type PromptParts,
@@ -57,3 +58,10 @@ export {
 // The single OpenAI-compatible structured provider (OpenRouter), shared by the
 // CI runner and the server's openrouter path. Owns session grouping + guards.
 export { OpenRouterProvider, type OpenRouterProviderOptions } from './llm/openrouter.js';
+
+// Intent generation — pure LLM call that derives PR motivation from title, body, spec, and diff.
+export {
+  generateIntent,
+  IntentDraftSchema,
+  type IntentDraft,
+} from './intent/generate.js';
