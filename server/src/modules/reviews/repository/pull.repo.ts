@@ -54,6 +54,7 @@ export async function upsertIntent(db: Db, prId: string, intent: Intent): Promis
       intent: intent.intent,
       inScope: intent.in_scope,
       outOfScope: intent.out_of_scope,
+      headSha: '',
     })
     .onConflictDoUpdate({
       target: t.prIntent.prId,
