@@ -36,6 +36,15 @@ root `AGENTS.md`/`CLAUDE.md`.
   often contains a colon (e.g. `OWASP Top 10:2025`), so it MUST be quote-wrapped to stay valid YAML.
 - `engineering-insights` skill only targets the 4 code modules. Repo-meta work (skills, root docs)
   has no module home — record it here instead of forcing it into an unrelated module file.
+- Custom **Claude Code subagents** (markdown with `name`/`description`/`tools`/`model` frontmatter,
+  discovered from `.claude/agents/`) follow the same `.ai/`-canonical + symlink pattern as
+  skills/rules: real file at `.ai/agents/<name>.md`, with `.claude/agents -> ../.ai/agents`. These
+  are NOT the DevDigest DB-backed reviewer agents (`server/src/db/schema/agents.ts` +
+  `docs/agent-prompts/`, which use `provider`/`model`/`systemPrompt`/`outputSchema` and emit findings
+  JSON). Different concept — don't conflate.
+- Subagent frontmatter restricts capability two ways: `model: sonnet` (alias) pins the tier, and
+  `tools:` is an allowlist — omitting Edit/Write/NotebookEdit yields a read-only agent. Bash is
+  dual-use (can still write), so enforce read-only via the prompt body, not the tools list.
 
 ## Tool & Library Notes
 
@@ -60,6 +69,84 @@ root `AGENTS.md`/`CLAUDE.md`.
 - Chosen path is description + AGENTS.md routing, no hook. It is model-mediated, NOT
   code-deterministic. Hard determinism would require a `UserPromptSubmit`/`PreToolUse` hook mapping
   file-path → skill (consciously deferred).
+
+### 2026-06-25 — Added 3 auxiliary read-only agents: brainstorm, investigator, insight-curator
+- All read-only (no Edit/Write). `brainstorm` = opus (Best-of-N: ground in code → 3–5 diverse options
+  via distinct lenses → rubric with pass/fail gates + position-bias guard → one recommendation +
+  uncertainty; tools incl. `Skill`). `investigator` = sonnet, tools **exactly `Read, Grep, Glob,
+  Bash`** — deliberately project-only (no web, no Skill) so it stays distinct from `researcher`;
+  narrow codebase search + bidirectional dependency tracing, cites file:line, conclusions-not-dumps
+  (mirrors the built-in Explore agent). `insight-curator` = sonnet, read-only complement to the
+  `engineering-insights` skill — reads module INSIGHTS.md, dedupes (states what's lost before any
+  merge), recommends promotions (procedure→skill / decision→docs|ADR / cross-module→spec); it
+  RECOMMENDS, never writes.
+- `plan-verifier` already existed (from the prior batch) and matched the slide; extended its
+  description + body to verify against "a plan OR a spec/requirements document". The slide's
+  "допоміжні" set was 4 but only 3 were new.
+- Colors are just UI hints and may repeat, but gave insight-curator `pink` to avoid sharing `orange`
+  with plan-verifier.
+
+### 2026-06-25 — Added 4 agents: test-writer, architecture-reviewer, plan-verifier, doc-writer
+- Planned via the `planner` agent (`.ai/plans/new-agents.md`) with web best-practices gathered by
+  parallel `researcher` agents; built the four files in `.ai/agents/`. Models: architecture-reviewer
+  & plan-verifier = `opus` (reasoning); test-writer & doc-writer = `sonnet`. Reviewers are read-only
+  (no Edit/Write); test-writer & doc-writer have write tools; test-writer uses `isolation: worktree`.
+- `test-writer` skill routing is **asymmetric**: UI routes to `react-testing-library`, but there is
+  **NO backend-testing skill**, so server Vitest/testcontainers conventions are embedded in its prompt
+  (grounded in `TESTING.md`, `server/test/helpers/pg.ts`). If a backend-testing skill is ever added,
+  route to it and trim the embedded section.
+- `architecture-reviewer` and `plan-verifier` reuse the `docs/agent-prompts` review vocabulary
+  (CRITICAL/WARNING/SUGGESTION + verdict + findings discipline + `file:line`) but output a **markdown**
+  report (not the DB reviewer-agents' JSON). Architecture-reviewer = structure only (explicit
+  out-of-scope list); plan-verifier = requirement coverage only, evidence-gated (no MET without a
+  citation), anti-rubber-stamp.
+- `doc-writer` owns a new **doc-placement convention** (Diataxis + docs-as-code): module `README.md`,
+  `docs/architecture.md`, `docs/adr/` (Nygard), `docs/guides/`, `docs/reference/`, `docs/features/`;
+  Mermaid diagrams as fenced blocks; it creates these dirs on first use (only `docs/agent-prompts/`
+  exists today). It does NOT write `INSIGHTS.md` (that's `engineering-insights`).
+
+### 2026-06-25 — Planner mirrors implementer skill sets + gains Skill tool
+- Planner's skill section now mirrors the implementer's two sets verbatim (Backend incl.
+  `reviewer-core`: `onion-architecture` first → fastify/drizzle/postgres/zod/security/typescript;
+  UI: `frontend-architecture` first → react/next/RTL/zod/security/typescript), replacing the old
+  divergent "When the task will…" table — so the plan's *Required skills* column maps 1:1 to what the
+  implementer invokes. Added `Skill` to planner `tools` so it can consult those skills while planning
+  (still no `Edit`). Keep the two agents' skill sets in lockstep when either changes.
+
+### 2026-06-25 — Refined implementer self-review + INSIGHTS usage loop
+- Implementer self-review is now **code-only** (review just the diff it wrote — correct/in-scope/
+  secure); no broad QA/architecture pass. Its DoD: write code + keep the module's **existing tests
+  green**; author **new** tests only when the plan task's Tests column explicitly requires.
+- INSIGHTS loop split by direction to avoid worktree/parallel conflicts: agents **consume** INSIGHTS
+  (read "What Doesn't Work" / "Recurring Errors & Fixes" / "Tool & Library Notes" first); the
+  implementer **reports a "Candidate insights" list** in its final message instead of editing any
+  `INSIGHTS.md`, and the **main session records them** via engineering-insights once.
+- Planner now mines module INSIGHTS into a `## Known gotchas (from INSIGHTS)` plan section (each
+  bullet citing its source file) so warnings propagate to implementers through the plan.
+
+### 2026-06-25 — Added `planner` + `implementer` subagents (plan→implement pipeline)
+- `.ai/agents/planner.md` (model `opus`, tools `Read,Grep,Glob,Bash,Write`, no Edit) writes a
+  structured Development Plan to `.ai/plans/<feature>.md`; `.ai/agents/implementer.md` (model
+  `sonnet`, tools `Read,Edit,Write,Grep,Glob,Bash,Skill`, `isolation: worktree`) builds one scoped
+  task from that plan. Handoff is the plan file under `.ai/plans/` (created `.ai/plans/.gitkeep`).
+- The plan's **Tasks** table carries two bridge columns: `Required skills (in order)` (drives the
+  implementer's mandatory skill routing) and `Parallel group` (which tasks can run as concurrent
+  implementers without file overlap).
+- Implementer enforces the CLAUDE.md Skill Routing as TWO explicit sets — backend: `onion-architecture`
+  first then fastify/drizzle/postgres/zod/security/typescript; UI: `frontend-architecture` first then
+  react/next/RTL/zod/security/typescript. It needs the `Skill` tool to invoke them at runtime
+  (chose runtime invocation over `skills:` frontmatter preload, so a UI task doesn't load the backend
+  architecture skill and vice-versa).
+- `isolation: worktree` in frontmatter = each parallel implementer gets its own git worktree
+  (branched from the default branch, auto-cleaned if unchanged) — the official safe-parallel pattern.
+
+### 2026-06-25 — Added `researcher` custom subagent
+- Created `.ai/agents/researcher.md` + `.claude/agents -> ../.ai/agents` symlink (first subagent in
+  the repo; established the `.ai/agents/` convention). Read-only research agent: `model: sonnet`,
+  `tools: Read, Grep, Glob, Bash, WebSearch, WebFetch` (no write tools).
+- Requirements baked into the prompt body (not enforceable via frontmatter): read-only Bash only,
+  never invoke the `deep-research` skill, interview-mode for ambiguous/empty prompts, two structured
+  output templates (project vs internet), explicit "Not found / gaps" honesty section.
 
 ## Open Questions
 
