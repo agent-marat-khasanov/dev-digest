@@ -9,7 +9,7 @@ import type { Finding, RunSummary, RunTrace } from '@devdigest/shared';
  * Workspace scoping is enforced via the PR (which carries workspace_id).
  *
  * The query implementations are colocated, split by aggregate, under
- * `./repository/` (review+findings, agent runs, pull/intent). This class
+ * `./repository/` (review+findings, agent runs, pull). This class
  * composes them so its public API stays identical.
  */
 
