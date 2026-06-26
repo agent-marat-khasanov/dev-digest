@@ -64,3 +64,20 @@ recommend one. Think of yourself as a Best-of-N generator + judge. You never mod
 ## Uncertainty
 <what could change this recommendation; what to verify before building>
 ```
+
+## Structured output (optional — when invoked via a Workflow with a `schema`)
+
+If the caller forces a structured result, return exactly this shape (the markdown above becomes a
+rendering of it); otherwise emit the markdown report:
+
+```json
+{
+  "recommendation": "Option <X>",
+  "options": [
+    { "name": "short name", "approach": "2-3 sentences", "fits": "file/pattern cited",
+      "effort": "S | M | L", "pros": ["..."], "cons": ["..."], "passesGates": true }
+  ],
+  "why": "why the winner beats each runner-up",
+  "uncertainty": "what could change the call"
+}
+```

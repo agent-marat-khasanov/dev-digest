@@ -75,3 +75,19 @@ violation in a real import/usage, and if unsure say so rather than inventing one
 ## Notes
 <anything you could not determine, or "none">
 ```
+
+## Structured output (optional — when invoked via a Workflow with a `schema`)
+
+If the caller forces a structured result, return exactly this shape (the markdown above becomes a
+rendering of it); otherwise emit the markdown report:
+
+```json
+{
+  "verdict": "approve | comment | request_changes",
+  "findings": [
+    { "severity": "CRITICAL | WARNING | SUGGESTION", "file": "path/to/file.ts", "line": 0,
+      "rule": "which layer/dependency rule", "why": "concrete mechanism" }
+  ],
+  "notes": "anything undetermined, or empty"
+}
+```

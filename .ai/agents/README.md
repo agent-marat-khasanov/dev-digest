@@ -26,8 +26,13 @@ These are **not** the DevDigest DB-backed reviewer agents (`server/src/db/schema
 | `plan-verifier` | opus | Read, Grep, Glob, Bash, Skill | — | Read-only: verifies every plan requirement is actually implemented, with file:line evidence. |
 | `doc-writer` | sonnet | Read, Edit, Write, Grep, Glob, Bash, Skill | — | Documents code / converts plans into docs / produces markdown with Mermaid diagrams; knows where each doc goes. |
 | `brainstorm` | opus | Read, Grep, Glob, Bash, Skill | — | Read-only: generates & weighs 3–5 solution options before code (Best-of-N), recommends one. |
-| `investigator` | sonnet | Read, Grep, Glob, Bash | — | Read-only, project-only: codebase search + dependency tracing; returns a concise cited report. |
-| `insight-curator` | sonnet | Read, Grep, Glob, Bash | — | Read-only: dedupes module `INSIGHTS.md` and recommends promotions (to skills / docs / specs). |
+| `investigator` | haiku | Read, Grep, Glob, Bash | — | Read-only, project-only: codebase search + dependency tracing; returns a concise cited report. |
+| `insight-curator` | haiku | Read, Grep, Glob, Bash | — | Read-only: dedupes module `INSIGHTS.md` and recommends promotions (to skills / docs / specs). |
+
+Each agent also sets an **`effort`** (`low`..`high`): judges (`planner`, `architecture-reviewer`,
+`plan-verifier`, `brainstorm`) run `high`; mechanical agents (`investigator`) run `low`; executors
+run `medium`. Mechanical search/dedup agents are on `haiku` to cut cost/latency. Override per call via
+the Agent tool's `model`/`effort` options when a task needs more (or less).
 
 ## How they fit together
 
@@ -89,9 +94,9 @@ and definition-of-done best practices. See [Sources](#sources).
 ## `test-writer`
 
 Writes Vitest tests for **UI** (invokes `react-testing-library`; RTL query priority, `userEvent`,
-co-located `*.test.tsx`, intl/query providers) and **backend** (no backend-testing skill exists, so
-conventions are embedded: unit `*.test.ts`, integration `*.it.test.ts` via testcontainers
-`startPg()`/`dockerAvailable()`, Fastify `.inject()`; grounded in `TESTING.md`). Behavior-focused;
+co-located `*.test.tsx`, intl/query providers) and **backend** (invokes the `backend-testing` skill:
+unit `*.test.ts`, integration `*.it.test.ts` via testcontainers `startPg()`/`dockerAvailable()`,
+Fastify `.inject()`; grounded in `TESTING.md`). Behavior-focused;
 forbids over-mocking, asserting on mocks, snapshot spam, framework tests, brittle selectors. Maps each
 requirement to a happy + edge test; runs the suite green; reports candidate insights. Parallel-safe
 via `isolation: worktree`.
@@ -233,12 +238,25 @@ external sources. The full per-agent Development Plan lives at `.ai/plans/new-ag
 
 ---
 
+## Shared rules, hook & metrics
+
+- **`.ai/rules/`** — single source of truth the agents READ instead of embedding (no `@`-import in
+  subagent files): `skill-routing.md` (the canonical backend/UI skill lists — keep in lockstep with the
+  `AGENTS.md` Skill Routing table), `citation-contract.md` (the read-only agents' evidence discipline),
+  `read-insights-first.md`, and `architecture-map.md` (package map, path aliases, backend layer map).
+  Change structure/routing in these files, not in each agent.
+- **Skill-routing hook** — `.claude/settings.json` registers a `PreToolUse` hook
+  (`.claude/hooks/skill-routing.py`) that injects a non-blocking reminder to invoke the placement +
+  framework skills when a code file is edited (main session AND subagents). The strict deny-variant is
+  documented in the script.
+- **`METRICS.md`** — the orchestrator logs each non-trivial agent run (outcome accepted/redone/abandoned)
+  so we can tune prompts/models with data; review periodically with `insight-curator`.
+
 ## Maintenance
 
-- `planner` and `implementer` mirror the **same two skill sets** (backend / UI); `architecture-reviewer`
-  and `test-writer` route to those same skills. If the project's Skill Routing changes, update them in
-  lockstep (also noted in `.ai/skills/INSIGHTS.md`).
-- `test-writer` embeds backend test conventions because **no backend-testing skill exists** — if one is
-  added later, route to it and trim the embedded section.
+- `planner` / `implementer` / `test-writer` / `architecture-reviewer` all route through
+  **`.ai/rules/skill-routing.md`** — update that one file (and the `AGENTS.md` table) when skills change.
+- Backend test conventions live in the **`backend-testing`** skill (`.ai/skills/backend-testing/`);
+  `test-writer` routes to it (no longer embedded).
 - `doc-writer` will create `docs/architecture.md`, `docs/adr/`, `docs/guides/`, `docs/reference/`, and
   `docs/features/` on first use; only `docs/agent-prompts/` exists today.

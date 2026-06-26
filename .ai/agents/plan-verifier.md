@@ -62,3 +62,20 @@ MET: <n> · PARTIAL: <n> · MISSING: <n>
 
 Be honest and specific. "I could not find evidence for X after searching A, B, C" is the correct
 answer when something is missing — never rubber-stamp.
+
+## Structured output (optional — when invoked via a Workflow with a `schema`)
+
+If the caller forces a structured result, return exactly this shape (the markdown above becomes a
+rendering of it); otherwise emit the markdown report:
+
+```json
+{
+  "verdict": "approve | request_changes",
+  "counts": { "met": 0, "partial": 0, "missing": 0 },
+  "requirements": [
+    { "id": "task/requirement label", "status": "MET | PARTIAL | MISSING",
+      "evidence": "file:line (+ test) or where you searched", "missing": "what is absent, or empty" }
+  ],
+  "drift": ["orphan code or unimplemented plan items, or empty"]
+}
+```
