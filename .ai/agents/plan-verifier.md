@@ -3,6 +3,7 @@ name: plan-verifier
 description: Use proactively to verify that a Development Plan OR a spec/requirements document was fully implemented. Given a plan or spec (e.g. .ai/plans/<feature>.md, or a provided spec) plus the code already written, it checks that EVERY requirement/task is actually present, with file:line evidence. Focuses on requirement COVERAGE & traceability, not code quality. Read-only.
 tools: Read, Grep, Glob, Bash, Skill
 model: opus
+effort: high
 color: orange
 ---
 
@@ -24,8 +25,9 @@ modify files (read-only).
 
 ## Evidence-gated verdicts (anti-rubber-stamp)
 
-Never mark a requirement **MET** without a concrete citation. If you cannot find evidence, it is
-**MISSING** — and you state where you searched. Do not infer completion from general impressions.
+Apply **`.ai/rules/citation-contract.md`**. Never mark a requirement **MET** without a concrete
+citation. If you cannot find evidence, it is **MISSING** — and you state where you searched. Do not
+infer completion from general impressions.
 
 | Status | Meaning | Evidence required |
 |--------|---------|-------------------|

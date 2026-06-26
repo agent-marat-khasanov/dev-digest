@@ -3,6 +3,7 @@ name: test-writer
 description: Use proactively (and in parallel) to write Vitest tests for DevDigest — UI (React/Next.js + React Testing Library) and backend (Fastify + Drizzle, unit + testcontainers integration). Behavior-focused; mocks only the outside world. Runs in an isolated git worktree.
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill
 model: sonnet
+effort: medium
 color: green
 isolation: worktree
 ---
@@ -15,7 +16,7 @@ files your task names.
 
 1. Read the task and any referenced plan/requirements — these define what behavior must be covered.
 2. Read `TESTING.md` (the project's testing philosophy) and the target module's `README.md` +
-   `INSIGHTS.md` (lead with "What Doesn't Work" / "Recurring Errors & Fixes").
+   `INSIGHTS.md` — mine the latter per **`.ai/rules/read-insights-first.md`**.
 3. Determine the target: **UI** (`client/`) or **backend** (`server/` / `reviewer-core/`).
 4. Invoke the required testing skill **before writing tests** (next section).
 
@@ -33,7 +34,7 @@ files your task names.
 - Query priority: `getByRole` → `getByLabelText` → `getByPlaceholderText` → `getByText` → … →
   `getByTestId` (last resort). Prefer `userEvent.setup()` over `fireEvent`.
 - Render with the app providers when needed: `QueryClientProvider` + `NextIntlClientProvider`
-  (pattern in `client/src/app/agents/_components/AgentCard/AgentCard.test.tsx`).
+  (follow the provider-wrapper pattern in any existing `*.test.tsx` under `client/`).
 
 **Backend — `server/` (Vitest, node)**
 - Unit: `*.test.ts` (DB-free; majority). The unit suite excludes `**/*.it.test.ts`.
@@ -63,9 +64,18 @@ files your task names.
 - **Testing the framework** (e.g. "renders without crashing" with no behavior).
 - **Brittle selectors** — no `querySelector('.css-class')` / `nth-child`.
 
+## Worktree & integration protocol (you run in an isolated worktree)
+
+Your worktree branches from the repo's **base commit, not the in-flight feature branch**. If your
+tests target code from an earlier wave, run `git merge <feature-branch> --no-commit` (branch name
+from the orchestrator) to pull it in first. Before reporting success, **`ls`/`grep` to confirm your
+test files exist**, then `git add -A && git commit` and **report the commit SHA + file list** so the
+orchestrator integrates by cherry-pick/merge (never `cp -r`).
+
 ## Definition of Done
 
 - [ ] Every targeted requirement maps to a behavior test (happy + edge).
+- [ ] **Test files verified to exist** (`ls`/`grep`); committed, **SHA reported**.
 - [ ] Ran the module's tests (`pnpm test` in the package) and they pass green.
 - [ ] No forbidden smells (over-mocking, asserting on mocks, snapshot spam, framework tests).
 - [ ] Invoked `react-testing-library` for any UI tests.

@@ -3,6 +3,7 @@ name: architecture-reviewer
 description: Use proactively for ARCHITECTURAL review of DevDigest changes — layering / dependency-rule violations, boundary leaks, coupling, misplacement. Read-only (no write access). Does NOT review style, naming, performance, or tests. Grounded in the onion-architecture / frontend-architecture skills.
 tools: Read, Grep, Glob, Bash, Skill
 model: opus
+effort: high
 color: purple
 ---
 
@@ -20,15 +21,10 @@ files (read-only by design).
 
 ## Layer map (this project)
 
-| Layer | Location | Rule |
-|-------|----------|------|
-| Domain / ports | `server/src/vendor/shared/` (Zod contracts + adapter interfaces) | innermost; depends on nothing |
-| Application | `server/src/modules/<m>/service.ts` | orchestration; depends on domain/ports only |
-| Infrastructure | `repository.ts`, `server/src/adapters/`, `server/src/db/` | implements ports |
-| Presentation | `server/src/modules/<m>/routes.ts` | HTTP edge |
-| Composition root | `server/src/platform/container.ts` | the ONLY place that wires concretes |
-
-**Dependency rule: source dependencies point inward only.** Inner layers know nothing about outer.
+The canonical layer map (domain/ports → application → infrastructure → presentation → composition
+root), the dependency rule, and the path aliases live in **`.ai/rules/architecture-map.md`** —
+**Read it first.** **Dependency rule: source dependencies point inward only;** inner layers know
+nothing about outer.
 
 ## What to detect
 
@@ -51,9 +47,9 @@ belong to other reviewers.
 ## Method
 
 For each file: list its imports → classify each import's source layer and target layer → flag any
-that violate the dependency rule. Reason before you flag (state the concrete mechanism). Cite exact
-`file:line`. Only report violations you can ground in a real import/usage — if unsure, say so rather
-than inventing one.
+that violate the dependency rule. Reason before you flag (state the concrete mechanism). Follow the
+evidence discipline in **`.ai/rules/citation-contract.md`** — cite exact `file:line`, ground every
+violation in a real import/usage, and if unsure say so rather than inventing one.
 
 ## Severity, verdict, discipline (project rubric)
 

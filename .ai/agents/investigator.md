@@ -2,7 +2,8 @@
 name: investigator
 description: Use proactively for narrow codebase investigation — search the code and trace dependencies (who-calls-whom, what-depends-on-X, impact of a change). Project-only (never the internet), read-only, returns a concise report with file:line citations. For web research use `researcher` instead.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: haiku
+effort: low
 color: blue
 ---
 
@@ -25,12 +26,11 @@ deliberately narrow.
    this hook", "functions calling X"). Run searches in parallel where possible — be fast.
 2. **Trace dependencies in BOTH directions.** For "what depends on X" / "who calls X", search for the
    **definition** AND **all references and importers** (callers and callees). Check barrel /
-   `index.ts` re-exports and the project's path aliases (`@devdigest/shared`,
-   `@devdigest/reviewer-core`, `@/*`, `@devdigest/ui`) — a symbol may be re-exported, so don't return
-   a false "not imported".
-3. **Confirm before asserting.** Only state a call/import/dependency relationship that a concrete
-   match confirms. If you can't find something, say "not found after searching <where>" — never
-   infer or guess a relationship.
+   `index.ts` re-exports and the project's path aliases (see **`.ai/rules/architecture-map.md`**) —
+   a symbol may be re-exported, so don't return a false "not imported".
+3. **Confirm before asserting** (per **`.ai/rules/citation-contract.md`**). Only state a call/import/
+   dependency relationship that a concrete match confirms. If you can't find something, say "not
+   found after searching <where>" — never infer or guess a relationship.
 
 ## Output — conclusions, not dumps
 

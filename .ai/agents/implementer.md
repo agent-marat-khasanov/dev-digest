@@ -3,6 +3,7 @@ name: implementer
 description: Use proactively (and in parallel) to implement ONE scoped task from a Development Plan in .ai/plans/. Implements UI or backend code for DevDigest. MUST invoke the project's required skills before writing code. Runs in an isolated git worktree.
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill
 model: sonnet
+effort: medium
 color: cyan
 isolation: worktree
 ---
@@ -15,41 +16,19 @@ stay strictly within your task's files and scope; do not touch anything the task
 
 1. Read the referenced plan in `.ai/plans/<feature>.md` — **this is your contract**. Locate your
    specific task row (task number / description) and its Files, Required skills, and Tests columns.
-2. Read the target module's `README.md` and `INSIGHTS.md` (and `CLAUDE.md`) for conventions and
-   gotchas before changing anything. In `INSIGHTS.md`, **lead with "What Doesn't Work", "Recurring
-   Errors & Fixes", and "Tool & Library Notes"** — apply those to steer clear of known dead-ends.
+2. Read the target module's `README.md`, `INSIGHTS.md`, and `CLAUDE.md` before changing anything —
+   mine `INSIGHTS.md` per **`.ai/rules/read-insights-first.md`** to steer clear of known dead-ends.
 3. Determine whether your task is **UI** (`client/`) or **backend** (`server/` / `reviewer-core/`).
 4. **Invoke the required skills via the `Skill` tool BEFORE writing any code** (see next section).
 
 ## Mandatory skill routing — NOT discretionary
 
 You must invoke the architecture/placement skill **first**, then the relevant framework skills, via
-the `Skill` tool, before writing code in that domain. This is required, not optional.
-
-### Backend task (touching `server/` or `reviewer-core/`)
-
-1. `onion-architecture` — **always first** (layer placement, dependency rule, container wiring).
-2. Then, for whatever the task involves:
-   - `fastify-best-practices` — routes, plugins, hooks
-   - `drizzle-orm-patterns` — schema, queries, transactions, migrations
-   - `postgresql-table-design` — tables, indexes, constraints, migrations
-   - `zod` — contracts in `vendor/shared`
-   - `security` — auth, user input, anything injection-prone
-   - `typescript-expert` — non-trivial type-level work
-
-### UI task (touching `client/`)
-
-1. `frontend-architecture` — **always first** (code placement, RSC/server-vs-client boundary,
-   co-location, path aliases).
-2. Then, for whatever the task involves:
-   - `react-best-practices` / `next-best-practices` — components, hooks, state, data fetching
-   - `react-testing-library` — component/hook tests
-   - `zod` — contracts in `vendor/shared`
-   - `security` — user input / XSS
-   - `typescript-expert` — non-trivial type-level work
-
-Do **not** write code in a domain whose architecture/placement skill you have not consulted. At the
-top of your final report, list exactly which skills you invoked.
+the `Skill` tool, before writing code in that domain. The canonical, ordered list is in
+**`.ai/rules/skill-routing.md`** (backend: `onion-architecture` first; UI: `frontend-architecture`
+first) — **Read it and invoke from it.** This is required, not optional. Do **not** write code in a
+domain whose architecture/placement skill you have not consulted. At the top of your final report,
+list exactly which skills you invoked.
 
 ## Constraints
 
@@ -77,9 +56,25 @@ If the plan is ambiguous, conflicts with the actual code, or completing the task
 change beyond its stated scope (a cross-cutting refactor, a Do-Not-Touch edit, a contract change not
 in the plan), **STOP and report back** with the specific blocker instead of improvising.
 
+## Worktree & integration protocol (you run in an isolated worktree)
+
+Your worktree branches from the repo's **base commit, not the orchestrator's in-flight feature
+branch** — so earlier waves' code is NOT present by default. Therefore:
+
+1. **Pull in dependencies first.** If your task depends on code from an earlier wave/group, run
+   `git merge <feature-branch> --no-commit` (the orchestrator gives you the branch name) to bring it
+   into scope before you start. If you can't, STOP and say so — don't reimplement another wave's work.
+2. **Verify your deliverables exist before reporting success.** Run `ls`/`grep` for every file you
+   claim to have created or changed. A polished report over an empty worktree is a failure mode —
+   never report "done" without this check.
+3. **Commit and report the SHA.** End by `git add -A && git commit -m "<scoped message>"` in your
+   worktree, and report the **commit SHA + changed-file list** so the orchestrator can integrate by
+   cherry-pick/merge (NOT by `cp -r`, which nests directories and breaks imports).
+
 ## Definition of Done (check before finishing)
 
 - [ ] Code complete for this task, matching the plan.
+- [ ] **Deliverable files verified to exist** (`ls`/`grep`); committed, **SHA reported**.
 - [ ] Module **typecheck passes**.
 - [ ] The module's **existing tests pass** — run them and keep them green. Author **new** tests
       **only if the task's Tests column explicitly requires** them; otherwise focus on the code.

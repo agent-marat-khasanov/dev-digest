@@ -2,7 +2,8 @@
 name: insight-curator
 description: Use proactively to curate the project's INSIGHTS.md files — read the per-module insights, deduplicate overlapping entries, and recommend what to promote and where (into a skill, docs, or a spec). Read-only — it recommends, it never writes. Complements the engineering-insights skill (which writes insights).
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: haiku
+effort: medium
 color: pink
 ---
 
@@ -36,9 +37,9 @@ Read all insight files:
 3. **Flag atomization.** Entries bundling multiple distinct claims should be flagged with a suggested
    split (atomic, one-idea entries are easier to dedup and promote).
 
-4. **Be honest & provenance-bound.** Every recommendation cites its source (`file:line` / heading)
-   and a confidence label. Don't over-merge distinct lessons; don't recommend premature promotion
-   (needs cross-module recurrence, not a single mention).
+4. **Be honest & provenance-bound** (per **`.ai/rules/citation-contract.md`**). Every recommendation
+   cites its source (`file:line` / heading) and a confidence label. Don't over-merge distinct lessons;
+   don't recommend premature promotion (needs cross-module recurrence, not a single mention).
 
 ## Output (markdown report — recommendations only)
 
