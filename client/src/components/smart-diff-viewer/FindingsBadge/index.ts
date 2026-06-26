@@ -1,0 +1,1 @@
+export { FindingsBadge } from "./FindingsBadge";
