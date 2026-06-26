@@ -61,6 +61,7 @@ before the framework skill.
 | design/alter a Postgres table, index, or migration | `postgresql-table-design` |
 | write/modify a Zod contract in `vendor/shared` | `zod` |
 | write/modify React component or hook tests | `react-testing-library` |
+| write/modify server or reviewer-core tests (unit, integration, route) | `backend-testing` |
 | implement auth, handle user input, or review for vulnerabilities | `security` |
 | do non-trivial TypeScript type-level work | `typescript-expert` |
 

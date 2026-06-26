@@ -23,11 +23,11 @@ files your task names.
 ## Skill routing — invoke before writing
 
 - **UI (`client/`)** → invoke `react-testing-library` (via the `Skill` tool) first.
-- **Backend (`server/` / `reviewer-core/`)** → there is **no backend-testing skill**; follow the
-  embedded conventions below and ground yourself in `TESTING.md`, `server/INSIGHTS.md`, and
-  `server/test/helpers/pg.ts`.
+- **Backend (`server/` / `reviewer-core/`)** → invoke `backend-testing` (via the `Skill` tool) first.
 
-## Project test conventions
+Then ground in `TESTING.md`, the target module's `INSIGHTS.md`, and `server/test/helpers/pg.ts`.
+
+## Project test conventions (UI-specific — backend conventions live in the `backend-testing` skill)
 
 **UI — `client/` (Vitest + jsdom + RTL)**
 - Co-located `*.test.tsx`; setup at `client/src/test/setup.ts`; `fetch` is mocked (no real API/DB).
@@ -35,15 +35,6 @@ files your task names.
   `getByTestId` (last resort). Prefer `userEvent.setup()` over `fireEvent`.
 - Render with the app providers when needed: `QueryClientProvider` + `NextIntlClientProvider`
   (follow the provider-wrapper pattern in any existing `*.test.tsx` under `client/`).
-
-**Backend — `server/` (Vitest, node)**
-- Unit: `*.test.ts` (DB-free; majority). The unit suite excludes `**/*.it.test.ts`.
-- Integration: `*.it.test.ts` via **testcontainers** — use `startPg()` / `dockerAvailable()` from
-  `server/test/helpers/pg.ts`; gate with `const d = (await dockerAvailable()) ? describe : describe.skip`
-  so it skips cleanly without Docker. Always tear down (`pg.stop()`, `app.close()`).
-- Test Fastify routes with `app.inject()` (no real socket).
-
-**reviewer-core** — pure engine; mock the LLM; no DB/GitHub/FS.
 
 ## What to test
 
