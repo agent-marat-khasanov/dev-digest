@@ -4,6 +4,7 @@
 
 - Pure module boundary (no I/O) makes unit testing trivial — just inject MockLLMProvider
 - Grounding gate catches hallucinated citations before they reach the user
+- To test prompt assembly (`generateIntent`, etc.), reuse `MockLLMProvider` from `../../server/src/adapters/mocks.js` and read its `.calls` to inspect the assembled `messages` — assert untrusted blocks like `<untrusted source="pr_body">` are present/absent per input, and that an author body containing `</untrusted>` is escaped to `<\/untrusted>` (proves `wrapUntrusted` runs and the injection breakout is neutralized)
 
 ## What Doesn't Work
 
