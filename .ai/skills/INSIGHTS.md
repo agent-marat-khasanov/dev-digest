@@ -72,6 +72,27 @@ root `AGENTS.md`/`CLAUDE.md`.
   computedHash } } }`. `source` is a `owner/repo` GitHub slug; `skillPath` is the path to `SKILL.md`
   within that repo. Local-only skills (project-specific) are absent from this lock.
 
+## Tool & Library Notes
+
+- **Claude Code subagent frontmatter** (`.ai/agents/*.md`) supports more than name/description/tools/
+  model/color: also **`effort`** (`low`|`medium`|`high`|`xhigh`|`max` — the thinking-budget lever; no
+  separate extended-thinking field), `maxTurns`, **`skills`** (preload skills into context at startup),
+  `disallowedTools`, `permissionMode`, per-subagent `hooks` (incl. a `SubagentStop` event), `isolation`,
+  `memory`, `background`. `model` accepts an alias, a full id, or `inherit` (the default).
+- **`@path` imports do NOT work in subagent files** — only in `CLAUDE.md`/`AGENTS.md`. To share content
+  across agents, have the agent **Read** a shared file at runtime (we use `.ai/rules/*.md` pointers) or
+  use the `skills:` preload field. Don't try to `@`-import a rules file into an agent — it won't expand.
+- **PreToolUse hooks fire for subagent tool calls too** (the stdin JSON carries `agent_id`/`agent_type`
+  when inside a subagent; absent in the main session). So a `.claude/settings.json` PreToolUse hook on
+  `"Edit|Write"` nudges implementers, not just the main loop. A hook injects non-blocking context via
+  stdout `{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"…"}}` (exit 0), or
+  blocks via `"permissionDecision":"deny"` / exit code 2. There is no way to scope a top-level hook to
+  skip subagents — the script must inspect `agent_id` itself. `jq` is NOT installed here; write hook
+  scripts in `python3` (read `json.load(sys.stdin)`), reference via `$CLAUDE_PROJECT_DIR`.
+- **8 subagent colors, but we have 10 agents** (valid: red/blue/green/yellow/purple/orange/pink/cyan) —
+  full uniqueness is impossible. Place the unavoidable reuses on agents that don't run in parallel
+  (we paired planner+brainstorm=yellow, doc-writer+investigator=blue). Color is cosmetic only.
+
 ## Recurring Errors & Fixes
 
 ## Session Notes
@@ -183,6 +204,23 @@ root `AGENTS.md`/`CLAUDE.md`.
   `pr_intent` table, the `review_intent` feature-model entry, the Settings model-picker UI) — the
   research pass up front turned a presumed greenfield build into mostly wiring. Always research for
   existing stubs before planning (mirrors the server `conventions`-lesson pattern).
+
+### 2026-06-26 — Agent optimization pass (6 themes)
+- Extracted duplicated agent content into **`.ai/rules/`** (`skill-routing`, `citation-contract`,
+  `read-insights-first`, `architecture-map`); all 10 agents now Read-reference them instead of
+  embedding (kills the lockstep-drift burden the README warned about). The skill-routing list still
+  must stay in sync with the `AGENTS.md` table — but now it's ONE rules file, not 3 agent copies.
+- **Answered the long-standing Open Question** (does description+routing kill the ~50% activation
+  coin-flip?): added a deterministic `PreToolUse` hook (`.claude/hooks/skill-routing.py` +
+  `.claude/settings.json`) that maps edited file path → required skills and injects an
+  `additionalContext` reminder. Shipped the non-blocking reminder variant (deny-variant documented but
+  risks false-positives). This is the determinism lever the model-mediated routing lacked.
+- Re-tiered `investigator`+`insight-curator` → `haiku`; set `effort` per agent (judges high, mechanical
+  low). Baked the worktree-integration protocol (commit+report-SHA, `git merge <feature-branch>` for
+  deps, verify-deliverables-exist gate) into implementer/test-writer — codifying this session's
+  worktree pain. Added the `backend-testing` skill (test-writer no longer embeds backend conventions),
+  optional structured-output JSON schemas to the 3 reviewer agents, and `.ai/agents/METRICS.md` (a
+  manual agent-eval ledger — a `SubagentStop` hook can't know the accept/redo/abandon outcome).
 
 ## Open Questions
 
