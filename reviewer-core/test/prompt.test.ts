@@ -64,3 +64,21 @@ describe('assemblePrompt — ## PR description', () => {
     expect((assembly.pr_description as string).length).toBe(4000);
   });
 });
+
+describe('assemblePrompt — ## PR intent', () => {
+  const intent = 'Intent: Add rate limiting\nRisk areas:\n- [CRITICAL] leaked secret';
+
+  it('renders the section (untrusted-wrapped) after the PR description, before the diff', () => {
+    const user = userOf({ system: 'sys', diff: 'DIFF', prDescription: 'desc', intent });
+    expect(user).toContain('## PR intent');
+    expect(user).toContain('<untrusted source="intent">');
+    expect(user).toContain('[CRITICAL] leaked secret');
+    expect(user.indexOf('## PR description')).toBeLessThan(user.indexOf('## PR intent'));
+    expect(user.indexOf('## PR intent')).toBeLessThan(user.indexOf('## Diff to review'));
+  });
+
+  it('omits the section when intent is undefined or blank (no behaviour change)', () => {
+    expect(userOf({ system: 'sys', diff: 'DIFF' })).not.toContain('## PR intent');
+    expect(userOf({ system: 'sys', diff: 'DIFF', intent: '   ' })).not.toContain('## PR intent');
+  });
+});
