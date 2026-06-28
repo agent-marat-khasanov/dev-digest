@@ -7,7 +7,8 @@ import { IntentService } from './service.js';
 
 /**
  * Intent module.
- *   GET /pulls/:id/intent  → generate-if-stale, return PrIntentRecord
+ *   GET  /pulls/:id/intent              → generate-if-stale, return PrIntentRecord
+ *   POST /pulls/:id/intent/recalculate  → force regenerate (cache bypass), return PrIntentRecord
  *
  * Thin route: validate params → getContext → service → serialise.
  * LLM/provider errors propagate as 5xx; the client panel degrades to EmptyState.
@@ -27,6 +28,22 @@ export default async function intentRoutes(appBase: FastifyInstance) {
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       return service.getIntent(workspaceId, req.params.id);
+    },
+  );
+
+  // Tight per-route limit: each call forces an LLM generation (cache bypass).
+  app.post(
+    '/pulls/:id/intent/recalculate',
+    {
+      schema: {
+        params: IdParams,
+        response: { 200: PrIntentRecord },
+      },
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.recalculate(workspaceId, req.params.id);
     },
   );
 }

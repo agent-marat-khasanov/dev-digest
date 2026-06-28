@@ -31,6 +31,7 @@ export function ReviewRunAccordion({
   headSha,
   targetRunId = null,
   targetNonce = 0,
+  focusFindingId = null,
 }: {
   review: ReviewRecord;
   prId: string;
@@ -41,6 +42,9 @@ export function ReviewRunAccordion({
    *  (driven from the Timeline: clicking an agent name navigates here). */
   targetRunId?: string | null;
   targetNonce?: number;
+  /** Finding to open + highlight (Smart Diff badge deep-link); opens this
+   *  accordion when one of its findings matches. */
+  focusFindingId?: string | null;
 }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -51,6 +55,14 @@ export function ReviewRunAccordion({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetRunId, targetNonce, review.run_id]);
+
+  // Open this accordion when the deep-linked finding lives in this run, so its
+  // FindingCard (which scrolls + expands itself) is mounted.
+  React.useEffect(() => {
+    if (focusFindingId && review.findings.some((f) => f.id === focusFindingId)) {
+      setOpen(true);
+    }
+  }, [focusFindingId, review.findings]);
   const del = useDeleteReview(prId);
   const findings = review.findings;
   const blockers = findings.filter((f) => f.severity === "CRITICAL" && !f.dismissed_at).length;
@@ -152,6 +164,7 @@ export function ReviewRunAccordion({
             prId={prId}
             repoFullName={repoFullName}
             headSha={headSha}
+            focusFindingId={focusFindingId}
           />
         </div>
       )}

@@ -1,18 +1,26 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import type { PrIntentRecord } from "@devdigest/shared";
 
-vi.mock("@/lib/hooks/intent", () => ({ useIntent: vi.fn() }));
+vi.mock("@/lib/hooks/intent", () => ({
+  useIntent: vi.fn(),
+  useRecalculateIntent: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+}));
 
-import { useIntent } from "@/lib/hooks/intent";
+import { useIntent, useRecalculateIntent } from "@/lib/hooks/intent";
 import { IntentPanel } from "./IntentPanel";
 
 afterEach(cleanup);
 
 type IntentResult = ReturnType<typeof useIntent>;
+type RecalculateResult = ReturnType<typeof useRecalculateIntent>;
 
 function mockIntent(value: Partial<IntentResult>) {
   vi.mocked(useIntent).mockReturnValue(value as unknown as IntentResult);
+}
+
+function mockRecalculate(value: Partial<RecalculateResult>) {
+  vi.mocked(useRecalculateIntent).mockReturnValue(value as unknown as RecalculateResult);
 }
 
 const INTENT: PrIntentRecord = {
@@ -67,6 +75,16 @@ describe("IntentPanel", () => {
 
     expect(screen.getByText("Risk areas")).toBeInTheDocument();
     expect(screen.getByText("Burst rejection")).toBeInTheDocument();
+  });
+
+  it("lets the user trigger a recalculation from the populated panel", () => {
+    const mutate = vi.fn();
+    mockIntent({ data: INTENT, isLoading: false, isError: false });
+    mockRecalculate({ mutate, isPending: false });
+    render(<IntentPanel prId="pr1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /recalculate/i }));
+    expect(mutate).toHaveBeenCalledTimes(1);
   });
 
   it("omits the scope and risk sections when those lists are empty", () => {

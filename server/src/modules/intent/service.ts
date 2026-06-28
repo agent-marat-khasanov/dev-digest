@@ -44,14 +44,9 @@ export class IntentService {
   }
 
   async getIntent(workspaceId: string, prId: string): Promise<PrIntentRecord> {
-    // 1. Load PR row (workspace-scoped) and its repo row.
-    const pull = await this.container.reviewRepo.getPull(workspaceId, prId);
-    if (!pull) throw new NotFoundError('Pull request not found');
+    const { pull, repoRow } = await this.loadPrAndRepo(workspaceId, prId);
 
-    const repoRow = await this.container.reviewRepo.getRepo(pull.repoId);
-    if (!repoRow) throw new NotFoundError('Repository not found');
-
-    // 2. SHA cache: return the stored intent if it was generated for the current head.
+    // SHA cache: return the stored intent if it was generated for the current head.
     const stored = await this.repo.getByPr(prId);
     if (stored && stored.headSha === pull.headSha) {
       return {
@@ -63,6 +58,36 @@ export class IntentService {
       };
     }
 
+    return this.generateAndStore(workspaceId, prId, pull, repoRow);
+  }
+
+  /**
+   * Force a fresh intent generation, BYPASSING the SHA cache. Backs the explicit
+   * `POST /pulls/:id/intent/recalculate` (user-driven). Always makes an LLM call.
+   */
+  async recalculate(workspaceId: string, prId: string): Promise<PrIntentRecord> {
+    const { pull, repoRow } = await this.loadPrAndRepo(workspaceId, prId);
+    return this.generateAndStore(workspaceId, prId, pull, repoRow);
+  }
+
+  private async loadPrAndRepo(workspaceId: string, prId: string) {
+    const pull = await this.container.reviewRepo.getPull(workspaceId, prId);
+    if (!pull) throw new NotFoundError('Pull request not found');
+
+    const repoRow = await this.container.reviewRepo.getRepo(pull.repoId);
+    if (!repoRow) throw new NotFoundError('Repository not found');
+
+    return { pull, repoRow };
+  }
+
+  /** Generate intent via the LLM and upsert it — the shared path for getIntent
+   *  (cache miss) and recalculate (cache bypass). */
+  private async generateAndStore(
+    workspaceId: string,
+    prId: string,
+    pull: NonNullable<Awaited<ReturnType<Container['reviewRepo']['getPull']>>>,
+    repoRow: NonNullable<Awaited<ReturnType<Container['reviewRepo']['getRepo']>>>,
+  ): Promise<PrIntentRecord> {
     // 3. Diff + changed file list.
     const diff = await loadDiff(this.container, this.container.reviewRepo, workspaceId, pull, repoRow);
     const changedFiles = diff.files.map((f) => f.path);

@@ -1,9 +1,5 @@
 import type { ReviewRecord, Severity } from "@devdigest/shared";
 
-export function lineDomId(path: string, newNo: number): string {
-  return `diffline-${path}-${newNo}`;
-}
-
 const SEV_ORDER: Severity[] = ["CRITICAL", "WARNING", "SUGGESTION"];
 
 export function highestSeverity(severities: Severity[]): Severity | null {

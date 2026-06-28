@@ -9,6 +9,7 @@ import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
 import { selectActiveSkillBlocks } from './skill-blocks.js';
 import { loadDiff } from './diff-loader.js';
+import { IntentRepository } from '../intent/repository.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
 export class RunCancelledError extends Error {
@@ -184,6 +185,11 @@ export class ReviewRunExecutor {
 
       const task = taskLine(pull) + rankNote;
 
+      // Derived PR intent (cached pr_intent row → compact digest). DB-only, no
+      // model call — omitted when intent was never generated for this PR, so the
+      // prompt is identical to the pre-intent shape in that case.
+      const intentDigest = await this.buildIntentDigest(pull.id, runLog);
+
       // Resolve the agent's bound skills (ordered, enabled only) and tokenise
       // each body so the trace can render one collapsible PromptBlock per
       // skill, attributed by token cost. reviewer-core stays pure: we hand it
@@ -213,6 +219,8 @@ export class ReviewRunExecutor {
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
+        // Derived intent digest (cached) — omit-when-empty, like callers/repoMap.
+        ...(intentDigest ? { intent: intentDigest } : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),
@@ -391,6 +399,37 @@ export class ReviewRunExecutor {
     }
     runLog.info(`callers digest: ${rows.length} caller signature(s) attached`);
     return out.join('\n');
+  }
+
+  /**
+   * Build a compact PR-intent digest from the CACHED `pr_intent` row for the
+   * prompt's `## PR intent` slot. DB-only (no model call): reads the row the
+   * Intent feature already generated. Returns `undefined` when no intent exists
+   * (or on any error) so the section is omitted and the prompt is identical to
+   * the pre-intent shape. Errors never break the run — surfaced as a Live Log info.
+   */
+  private async buildIntentDigest(prId: string, runLog: RunLogger): Promise<string | undefined> {
+    let row;
+    try {
+      row = await new IntentRepository(this.container.db).getByPr(prId);
+    } catch (err) {
+      runLog.info(`intent digest: failed to load cached intent — ${(err as Error).message}`);
+      return undefined;
+    }
+    if (!row) return undefined;
+
+    const lines = [`Intent: ${row.intent}`];
+    if (row.inScope.length > 0) {
+      lines.push('In scope:', ...row.inScope.map((s) => `- ${s}`));
+    }
+    if (row.outOfScope.length > 0) {
+      lines.push('Out of scope:', ...row.outOfScope.map((s) => `- ${s}`));
+    }
+    if (row.risks.length > 0) {
+      lines.push('Risk areas:', ...row.risks.map((r) => `- [${r.severity}] ${r.title}`));
+    }
+    runLog.info('intent digest: cached PR intent attached');
+    return lines.join('\n');
   }
 
   /**

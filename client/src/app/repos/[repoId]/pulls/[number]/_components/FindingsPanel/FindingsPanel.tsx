@@ -17,11 +17,13 @@ export function FindingsPanel({
   prId,
   repoFullName,
   headSha,
+  focusFindingId,
 }: {
   findings: FindingRecord[];
   prId: string;
   repoFullName?: string | null;
   headSha?: string | null;
+  focusFindingId?: string | null;
 }) {
   const t = useTranslations("prReview");
   const action = useFindingAction();
@@ -29,6 +31,14 @@ export function FindingsPanel({
   const [focusIdx, setFocusIdx] = React.useState(0);
 
   const shown = React.useMemo(() => visibleFindings(findings, hideLow), [findings, hideLow]);
+
+  // Smart Diff deep-link: scroll the matching FindingCard into view once it's
+  // rendered (its accordion was opened by the parent; the card self-expands).
+  React.useEffect(() => {
+    if (!focusFindingId) return;
+    const el = document.querySelector(`[data-finding-id="${focusFindingId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusFindingId, shown]);
 
   // j/k navigation + a/d shortcuts on the focused finding (keyboard).
   React.useEffect(() => {
@@ -62,8 +72,8 @@ export function FindingsPanel({
             <FindingCard
               key={f.id}
               f={f}
-              focused={i === focusIdx}
-              defaultExpanded={i === 0}
+              focused={i === focusIdx || f.id === focusFindingId}
+              defaultExpanded={i === 0 || f.id === focusFindingId}
               pending={action.isPending}
               repoFullName={repoFullName}
               headSha={headSha}

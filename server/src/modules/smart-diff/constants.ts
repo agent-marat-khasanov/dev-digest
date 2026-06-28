@@ -26,8 +26,9 @@ export const LOCK_FILE_NAMES: readonly string[] = [
  * before wiring rules).
  */
 export const BOILERPLATE_PATTERNS = {
-  /** Path segments that mark a file as boilerplate regardless of name. */
-  dirSegments: ['dist', 'build', 'out', '.next', '__snapshots__', 'generated', 'vendor'],
+  /** Path segments that mark a file as boilerplate regardless of name.
+   *  `migrations` covers generated DB migration SQL (Drizzle's `out` dir). */
+  dirSegments: ['dist', 'build', 'out', '.next', '__snapshots__', 'generated', 'vendor', 'migrations'],
   /** Basename suffixes that mark a file as boilerplate. */
   suffixes: ['.min.js', '.min.css', '.snap', '.map'],
   /** Basename substrings that mark a file as boilerplate. */

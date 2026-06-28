@@ -15,11 +15,13 @@ interface DiffTabProps {
   files: PrFile[];
   /** Inline commenting is offered only on open PRs (GitHub rejects otherwise). */
   canComment?: boolean;
+  /** Deep-link a Smart Diff finding badge to the Findings tab. */
+  onOpenFinding: (findingId: string) => void;
 }
 
 type DiffMode = "smart" | "original";
 
-export function DiffTab({ prId, filesCount, files, canComment }: DiffTabProps) {
+export function DiffTab({ prId, filesCount, files, canComment, onOpenFinding }: DiffTabProps) {
   const [mode, setMode] = React.useState<DiffMode>("smart");
 
   const { data: comments } = usePrComments(prId);
@@ -122,6 +124,7 @@ export function DiffTab({ prId, filesCount, files, canComment }: DiffTabProps) {
               smartDiff={smartDiff}
               files={files}
               reviews={reviews ?? []}
+              onOpenFinding={onOpenFinding}
             />
           )}
         </>

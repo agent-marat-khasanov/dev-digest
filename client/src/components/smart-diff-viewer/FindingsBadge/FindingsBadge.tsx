@@ -9,10 +9,10 @@ import { SEV_COLOR, SEV_COLOR_FALLBACK } from "../constants";
 interface FindingsBadgeProps {
   file: SmartDiffFile;
   reviews?: ReviewRecord[];
-  onJump: (path: string, line: number) => void;
+  onOpenFinding: (findingId: string) => void;
 }
 
-export function FindingsBadge({ file, reviews, onJump }: FindingsBadgeProps) {
+export function FindingsBadge({ file, reviews, onOpenFinding }: FindingsBadgeProps) {
   const count = file.finding_lines.length;
   if (count === 0) return null;
 
@@ -20,19 +20,24 @@ export function FindingsBadge({ file, reviews, onJump }: FindingsBadgeProps) {
   const top = highestSeverity([...byLine.values()]);
   const color = top ? SEV_COLOR[top] ?? SEV_COLOR_FALLBACK : SEV_COLOR_FALLBACK;
 
+  // The first finding for this file in the latest review — the badge deep-links
+  // to it (finding_lines is built from exactly these findings, server-side).
+  const findingId = reviews?.[0]?.findings.find((f) => f.file === file.path)?.id;
+  if (!findingId) return null;
+
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        onJump(file.path, file.finding_lines[0]!);
+        onOpenFinding(findingId);
       }}
       style={{
         all: "unset",
         cursor: "pointer",
         display: "inline-flex",
       }}
-      aria-label={`${count} finding${count !== 1 ? "s" : ""} — jump to first`}
+      aria-label={`${count} finding${count !== 1 ? "s" : ""} — open in Findings`}
     >
       <Badge color={color}>
         {count} finding{count !== 1 ? "s" : ""}

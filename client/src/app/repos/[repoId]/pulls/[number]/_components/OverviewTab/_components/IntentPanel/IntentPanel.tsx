@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Card, SectionLabel, Badge, Skeleton, EmptyState } from "@devdigest/ui";
-import { useIntent } from "@/lib/hooks/intent";
+import { Card, SectionLabel, Badge, Button, Skeleton, EmptyState } from "@devdigest/ui";
+import { useIntent, useRecalculateIntent } from "@/lib/hooks/intent";
+import { notify } from "@/lib/toast";
 import { severityChipColors } from "./helpers";
 import { s } from "./styles";
 
@@ -12,6 +13,13 @@ interface IntentPanelProps {
 
 export function IntentPanel({ prId }: IntentPanelProps) {
   const { data, isLoading, isError } = useIntent(prId);
+  const recalculate = useRecalculateIntent(prId);
+
+  const handleRecalculate = () =>
+    recalculate.mutate(undefined, {
+      onError: (err) =>
+        notify.error(err instanceof Error ? err.message : "Couldn't recalculate intent."),
+    });
 
   if (isLoading) {
     return (
@@ -36,7 +44,22 @@ export function IntentPanel({ prId }: IntentPanelProps) {
 
   return (
     <Card style={s.card}>
-      <SectionLabel icon="Lightbulb">Intent</SectionLabel>
+      <SectionLabel
+        icon="Lightbulb"
+        right={
+          <Button
+            kind="ghost"
+            size="sm"
+            icon="RefreshCw"
+            loading={recalculate.isPending}
+            onClick={handleRecalculate}
+          >
+            Recalculate
+          </Button>
+        }
+      >
+        Intent
+      </SectionLabel>
 
       <p style={s.intentQuote}>{data.intent}</p>
 

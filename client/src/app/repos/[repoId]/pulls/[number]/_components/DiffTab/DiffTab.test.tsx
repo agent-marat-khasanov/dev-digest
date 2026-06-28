@@ -45,7 +45,9 @@ const SMART_DIFF: SmartDiffResponse = {
 };
 
 function renderDiffTab() {
-  return render(<DiffTab prId="pr1" filesCount={1} files={FILES} canComment />);
+  return render(
+    <DiffTab prId="pr1" filesCount={1} files={FILES} canComment onOpenFinding={() => {}} />,
+  );
 }
 
 describe("DiffTab", () => {

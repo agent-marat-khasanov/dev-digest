@@ -4,32 +4,22 @@ import React from "react";
 import { Badge, Icon } from "@devdigest/ui";
 import type { SmartDiffGroup as SmartDiffGroupType, ReviewRecord, PrFile } from "@devdigest/shared";
 import { SmartFileCard } from "../SmartFileCard";
-import type { ScrollTarget } from "../SmartFileCard";
 import { ROLE_LABEL, ROLE_CAPTION } from "../constants";
 
 interface SmartDiffGroupProps {
   group: SmartDiffGroupType;
   prFiles: PrFile[];
   reviews?: ReviewRecord[];
-  scrollTarget: ScrollTarget | null;
-  onJump: (path: string, line: number) => void;
+  onOpenFinding: (findingId: string) => void;
 }
 
 export function SmartDiffGroup({
   group,
   prFiles,
   reviews,
-  scrollTarget,
-  onJump,
+  onOpenFinding,
 }: SmartDiffGroupProps) {
   const [open, setOpen] = React.useState(group.role !== "boilerplate");
-
-  // Force open when any file in this group is the scroll target.
-  const forceOpen =
-    scrollTarget != null &&
-    group.files.some((f) => f.path === scrollTarget.path);
-
-  const isOpen = open || forceOpen;
 
   return (
     <div style={{ marginBottom: 12 }}>
@@ -51,7 +41,7 @@ export function SmartDiffGroup({
           size={14}
           style={{
             color: "var(--text-muted)",
-            transform: isOpen ? "rotate(90deg)" : "none",
+            transform: open ? "rotate(90deg)" : "none",
             transition: "transform .12s",
             flexShrink: 0,
           }}
@@ -73,7 +63,7 @@ export function SmartDiffGroup({
         </span>
       </div>
 
-      {isOpen && (
+      {open && (
         <div>
           {group.files.map((file) => {
             const prFile = prFiles.find((f) => f.path === file.path);
@@ -83,8 +73,7 @@ export function SmartDiffGroup({
                 file={file}
                 prFile={prFile}
                 reviews={reviews}
-                scrollTarget={scrollTarget}
-                onJump={onJump}
+                onOpenFinding={onOpenFinding}
               />
             );
           })}

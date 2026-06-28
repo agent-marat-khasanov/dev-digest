@@ -66,6 +66,15 @@ export interface PromptParts {
    * undefined → section omitted.
    */
   prDescription?: string;
+  /**
+   * Derived PR intent digest (intent + in/out-of-scope + risk areas), composed
+   * by the caller from the cached `pr_intent` row — no model call here. Untrusted
+   * (derived from PR title/body/diff) — delimiter-wrapped. Rendered after the PR
+   * description so the model knows what the change is *meant* to do. Empty /
+   * undefined → section omitted. The INJECTION_GUARD already flags "derived
+   * intent/scope" as data, never instructions.
+   */
+  intent?: string;
   /** The unified diff / user task (untrusted content). */
   diff: string;
   /** Optional task framing line, e.g. "Review PR #482 '…'". */
@@ -105,6 +114,9 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
   if (parts.task) userSections.push(parts.task);
   if (prDescription) {
     userSections.push(`## PR description\n${wrapUntrusted('pr-description', prDescription)}`);
+  }
+  if (parts.intent && parts.intent.trim().length > 0) {
+    userSections.push(`## PR intent\n${wrapUntrusted('intent', parts.intent)}`);
   }
   if (skillsBlock) userSections.push(`## Skills / rules\n${skillsBlock}`);
   if (memoryBlock) userSections.push(`## Relevant memory\n${memoryBlock}`);

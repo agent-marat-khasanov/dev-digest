@@ -22,6 +22,12 @@ describe('classifyFile', () => {
     expect(classifyFile('src/api.generated.ts')).toBe('boilerplate');
   });
 
+  it('classifies generated DB migrations as boilerplate', () => {
+    // Drizzle writes migration SQL into the `migrations/` dir segment.
+    expect(classifyFile('server/src/db/migrations/0001_init.sql')).toBe('boilerplate');
+    expect(classifyFile('migrations/0002_add_table.sql')).toBe('boilerplate');
+  });
+
   it('classifies entry points, configs and CI workflows as wiring', () => {
     expect(classifyFile('src/index.ts')).toBe('wiring');
     expect(classifyFile('server/src/server.ts')).toBe('wiring');
@@ -35,7 +41,9 @@ describe('classifyFile', () => {
 
   it('classifies ordinary source files as core (the default)', () => {
     expect(classifyFile('src/modules/intent/service.ts')).toBe('core');
+    expect(classifyFile('src/modules/reviews/service.ts')).toBe('core');
     expect(classifyFile('reviewer-core/src/review/run.ts')).toBe('core');
+    expect(classifyFile('client/src/components/Foo/Foo.tsx')).toBe('core');
     expect(classifyFile('README.md')).toBe('core');
   });
 });

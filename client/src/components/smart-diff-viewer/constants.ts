@@ -20,6 +20,3 @@ export const SEV_COLOR: Record<string, string> = {
 };
 
 export const SEV_COLOR_FALLBACK = "var(--text-muted)";
-
-/** Duration (ms) for the scroll-target highlight flash. */
-export const HIGHLIGHT_MS = 1200;
