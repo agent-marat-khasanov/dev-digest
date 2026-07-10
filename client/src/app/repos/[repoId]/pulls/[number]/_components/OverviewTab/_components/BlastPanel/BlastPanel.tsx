@@ -7,7 +7,7 @@ import { useRepoIntelStatus } from "@/lib/hooks/repo-intel";
 import { SymbolNode } from "./_components/SymbolNode";
 import { CodeViewer } from "./_components/CodeViewer";
 
-interface BlastTabProps {
+interface BlastPanelProps {
   prId: string | null;
   repoId: string;
 }
@@ -19,12 +19,13 @@ export interface ViewerTarget {
 }
 
 /**
- * Blast tab — PR impact map. Renders levels: changed symbols → downstream
- * callers (file:line) → reachable HTTP endpoints / crons. Clicking a caller
- * opens the file at that line in the in-app CodeViewer. Reads the repo-intel
- * index only (no LLM); an incomplete index surfaces as a badge, not a blank.
+ * Blast radius panel — PR impact map. Renders levels: changed symbols →
+ * downstream callers (file:line) → reachable HTTP endpoints / crons. Clicking a
+ * caller opens the file at that line in the in-app CodeViewer. Reads the
+ * repo-intel index only (no LLM); an incomplete index surfaces as a badge, not
+ * a blank.
  */
-export function BlastTab({ prId, repoId }: BlastTabProps) {
+export function BlastPanel({ prId, repoId }: BlastPanelProps) {
   const { data, isLoading, isError } = useBlast(prId);
   const { data: indexState } = useRepoIntelStatus(repoId);
   const [viewer, setViewer] = React.useState<ViewerTarget | null>(null);

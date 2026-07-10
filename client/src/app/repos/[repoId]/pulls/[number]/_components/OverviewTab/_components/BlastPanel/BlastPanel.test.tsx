@@ -3,7 +3,7 @@ import { render, screen, cleanup, within, fireEvent } from "@testing-library/rea
 import type { BlastRadius } from "@devdigest/shared";
 
 /**
- * BlastTab behaviour: it renders the impact tree (symbol → callers → endpoints)
+ * BlastPanel behaviour: it renders the impact tree (symbol → callers → endpoints)
  * and, when a caller is clicked, opens the in-app viewer scrolled to that file.
  * The empty case shows a "no impact" state instead of a blank panel. Data hooks
  * are mocked at the boundary.
@@ -20,7 +20,7 @@ vi.mock("@/lib/hooks/repo-intel", () => ({
   useRepoIntelStatus: () => ({ data: { status: "full" } }),
 }));
 
-import { BlastTab } from "./BlastTab";
+import { BlastPanel } from "./BlastPanel";
 
 beforeAll(() => {
   // jsdom has no scrollIntoView; the viewer calls it on open.
@@ -42,7 +42,7 @@ const BLAST: BlastRadius = {
   summary: "1 changed symbol(s), 1 caller(s).",
 };
 
-describe("BlastTab", () => {
+describe("BlastPanel", () => {
   it("renders the impact tree and opens a caller in the in-app viewer", async () => {
     state.blast = { data: BLAST, isLoading: false, isError: false };
     state.file = {
@@ -51,7 +51,7 @@ describe("BlastTab", () => {
       isError: false,
     };
 
-    render(<BlastTab prId="pr1" repoId="repo1" />);
+    render(<BlastPanel prId="pr1" repoId="repo1" />);
 
     // The tree shows the changed symbol, its endpoint, and the caller link.
     expect(screen.getByText(/rateLimit/)).toBeInTheDocument();
@@ -71,7 +71,7 @@ describe("BlastTab", () => {
       isError: false,
     };
 
-    render(<BlastTab prId="pr1" repoId="repo1" />);
+    render(<BlastPanel prId="pr1" repoId="repo1" />);
     expect(screen.getByText(/no impact found/i)).toBeInTheDocument();
   });
 });
