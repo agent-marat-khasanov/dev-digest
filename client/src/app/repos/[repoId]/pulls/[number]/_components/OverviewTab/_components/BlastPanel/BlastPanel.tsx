@@ -19,6 +19,22 @@ export interface ViewerTarget {
 }
 
 /**
+ * OverviewTab places this panel in a cell sized to the Intent panel's height.
+ * Filling that cell (top/left/right:0) keeps the cell's intrinsic height at 0 so
+ * the grid row is driven solely by Intent; `maxHeight: 100%` caps the panel at
+ * that height and scrolls vertically when the impact map is taller.
+ */
+const cardStyle: React.CSSProperties = {
+  padding: 20,
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  maxHeight: "100%",
+  overflowY: "auto",
+};
+
+/**
  * Blast radius panel — PR impact map. Renders levels: changed symbols →
  * downstream callers (file:line) → reachable HTTP endpoints / crons. Clicking a
  * caller opens the file at that line in the in-app CodeViewer. Reads the
@@ -37,7 +53,7 @@ export function BlastPanel({ prId, repoId }: BlastPanelProps) {
 
   if (isLoading) {
     return (
-      <Card style={{ padding: 20 }}>
+      <Card style={cardStyle}>
         <SectionLabel icon="Target">Blast radius</SectionLabel>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
           <Skeleton height={14} width="70%" />
@@ -50,7 +66,7 @@ export function BlastPanel({ prId, repoId }: BlastPanelProps) {
 
   if (isError || !data) {
     return (
-      <Card style={{ padding: 20 }}>
+      <Card style={cardStyle}>
         <EmptyState
           icon="AlertTriangle"
           title="Blast radius unavailable"
@@ -68,7 +84,7 @@ export function BlastPanel({ prId, repoId }: BlastPanelProps) {
 
   return (
     <>
-      <Card style={{ padding: 20 }}>
+      <Card style={cardStyle}>
         <SectionLabel
           icon="Target"
           right={

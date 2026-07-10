@@ -18,7 +18,9 @@ export function OverviewTab({ prId, prBody, repoId }: OverviewTabProps) {
       {prId && (
         <div style={s.grid}>
           <IntentPanel prId={prId} />
-          <BlastPanel prId={prId} repoId={repoId} />
+          <div style={s.blastCell}>
+            <BlastPanel prId={prId} repoId={repoId} />
+          </div>
         </div>
       )}
 
