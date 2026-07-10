@@ -37,6 +37,25 @@
 - `verify:l<NN>` scripts in `server/package.json` run a lesson's key test (course checklist item). L03 = `vitest run src/modules/smart-diff/classify.test.ts` (the `classifyFile` classifier). The classifier lives in the **smart-diff** module, not a `pulls/` module — point any new lesson-verify script at the real test path.
 - File classifier (`smart-diff/classify.ts` + `constants.ts`): boilerplate is matched by `dirSegments` (path contains the segment). Generated DB migrations are boilerplate via the `migrations` segment (Drizzle's `out` dir is `src/db/migrations`). Add new boilerplate categories as a dir segment / suffix in `constants.ts`, never inline in `classify.ts`.
 
+- **Blast radius (L04) was largely pre-built on the repo-intel facade** — before writing anything,
+  grep `repo-intel`: `container.repoIntel.getBlastRadius(repoId, changedFiles)` (`repo-intel/service.ts`)
+  already returns `changedSymbols` + resolved `callers` (sorted by file-rank) + `factsByFile`
+  (endpoints/crons per caller file) + degraded state, and the `BlastRadius` **contract already existed**
+  in `vendor/shared/contracts/brief.ts` (`changed_symbols`/`downstream[]`/`summary`). The `blast/`
+  module is a thin `intent/`-shaped consumer (loadPrAndRepo → loadDiff → changedFiles → facade → map).
+  Do NOT invent a new contract or re-derive callers.
+- `getBlastRadius`'s persistent path caps callers with `MAX_CALLERS_PER_SYMBOL` applied to the
+  **flattened total**, NOT per-symbol (`service.ts` `callers.slice(0, …)`). A per-symbol view must
+  re-group by `viaSymbol` and re-sort+slice per group itself (`blast/service.ts`).
+- ТЗ "depth-2 reachable routes" is a **reverse** import-graph walk (who imports the changed files),
+  not the forward walk `getCriticalPaths` does. Added `repoIntel.getReachableFacts(repoId, seedFiles,
+  maxDepth=2)`: reverse adjacency from `getEdges` (`toFile → fromFile`), BFS per seed, union
+  `getFileFacts`. Graph access stays inside repo-intel (a new facade method), not leaked into `blast/`.
+- Reading an arbitrary repo file for an in-app viewer: the clone is local
+  (`repo.clonePath`); read it in a **workspace-scoped** service (`RepoRepository.getById(ws,id)`,
+  IDOR-safe) with a path-traversal guard — `resolve(root, relPath)` must stay under `resolve(root)`
+  (mirrors `conventions/service.ts`), plus a size cap. Absolute/`..` paths are then rejected.
+
 ## Tool & Library Notes
 
 <!-- Quirks and gotchas of dependencies -->

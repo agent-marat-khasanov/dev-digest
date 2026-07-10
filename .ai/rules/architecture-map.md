@@ -11,6 +11,7 @@ the map never drifts. If the project structure changes, update THIS file only.
 | `client/` | Next.js 15 App Router UI (React 19) | 3000 |
 | `reviewer-core/` | Pure review engine: diff → prompt → LLM → findings | — |
 | `e2e/` | Deterministic browser e2e flows | — |
+| `mcp/` | Local MCP server (stdio) — thin HTTP client of the REST API; 5 tools; launched on demand | — |
 | `server/src/vendor/shared/` | Zod contracts shared by all packages | — |
 
 No monorepo workspace — each package has its own `package.json` + lockfile.

@@ -10,12 +10,15 @@
 
 - Do NOT alias intra-feature co-location imports. A sub-component importing its route's `../../constants` | `../../styles` | `../../helpers` (e.g. `PRRow.tsx` → `../../constants` = `pulls/constants.ts`) is the INTENDED pattern per frontend-architecture; rewriting these to `@/app/...` aliases is verbose, brittle to route renames, and wrong. Only alias imports that ESCAPE the feature into shared infra (`lib/`, `components/`, `messages/`).
 - `position: absolute` popovers inside `tableCard` (`styles.ts`) get clipped — the card has `overflow: hidden` for clean border-radius. Use `position: fixed` + `getBoundingClientRect()` instead (see `FindingsPopover.tsx`). The Dropdown in `vendor/ui` works with absolute because it's never nested inside an overflow-hidden container
+- `@testing-library/user-event` is **NOT installed** — client tests use `fireEvent` from `@testing-library/react` (17+ call sites). Don't `import userEvent`; use `fireEvent.click(...)` (sync) + `await screen.findBy*` for the post-click render.
+- A component that calls `scrollIntoView` (e.g. the Blast tab's `CodeViewer`, or any `[data-*]`-anchored jump) throws under jsdom (`not a function`). Stub it in the test: `beforeAll(() => { Element.prototype.scrollIntoView = vi.fn(); })`.
 
 ## Codebase Patterns
 
 <!-- Conventions and architectural decisions -->
 
 - All data fetching via hooks in src/lib/hooks/ — never raw fetch() in components
+- The PR-detail tab bar is **data-driven**: a new tab = one entry `{ key, label, icon }` in the `tabs` array in `PrDetailHeader.tsx` + a `{tab === "<key>" && <XTab .../>}` branch in `page.tsx`. No routing changes (tab lives in `?tab=`). Blast tab followed this exactly. Compose drill-down trees from `SmartDiffGroup` (collapsible) + `Badge` + `MonoLink`; empty/degraded from `EmptyState` + `useRepoIntelStatus` (`status !== "full"`).
 - vendor/ui/ is read-only vendored design system
 - vendor/shared/ must stay in sync with server/src/vendor/shared/
 - When shared contracts gain a new field, ALL test mocks must include it — even as `null` for backward compat (e.g. `RunSummary`, `RunTrace` mocks in RunHistory.test.tsx, RunTraceDrawer.test.tsx, contracts.test.ts)

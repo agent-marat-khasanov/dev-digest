@@ -23,6 +23,7 @@ Per-module commands: see each module AGENTS.md.
 | `client/` | Next.js App Router UI | 3000 |
 | `reviewer-core/` | Pure review engine: diff -> prompt -> LLM -> findings | — |
 | `e2e/` | Deterministic browser e2e flows | — |
+| `mcp/` | Local MCP server (stdio): 5 tools over the REST API; launched on demand, not by dev.sh | — |
 | `server/src/vendor/shared/` | Zod contracts (shared by all packages) | — |
 
 No monorepo workspace — each package has own `package.json` + lockfile.
