@@ -35,23 +35,32 @@ GitHub identifiers to DevDigest ids, and returns compact results.
 | `DEVDIGEST_API_URL` | `http://localhost:3001` | Base URL of the DevDigest REST API |
 | `DEVDIGEST_RUN_TIMEOUT_MS` | `180000` | Max time `run_agent_on_pull_request` waits for a run to finish |
 
+Both are validated with Zod at startup (`src/config.ts`) — a malformed URL or non-numeric
+timeout fails fast with a clear message on stderr instead of a confusing mid-request error.
+
 ## Install
 
 ```sh
 cd mcp && pnpm install
 ```
 
-## Launch (on demand — nothing auto-spawns)
+## Launch
 
-There is intentionally **no `.mcp.json`** committed, so no client auto-starts this server. Launch it
-yourself when needed:
+A project-scoped **`.mcp.json`** at the repo root registers this server (`devdigest`) so a standard
+MCP client (Claude Code) can connect it the standard way. It still only runs on demand — the client
+spawns it when a session starts, and it does nothing until the DevDigest API is up.
+
+The `.mcp.json` command runs from the **repo root**, so it passes `--tsconfig mcp/tsconfig.json`
+(the `@devdigest/shared` path alias resolves relative to that tsconfig, not the root) and points at
+the package-local `tsx` binary (no global install needed — just `pnpm install` in `mcp/` first).
 
 ```sh
 # MCP Inspector (spawns the server over stdio + gives a UI):
-pnpm inspector          # = npx @modelcontextprotocol/inspector tsx src/index.ts
+pnpm inspector          # = npx @modelcontextprotocol/inspector tsx src/index.ts  (run from mcp/)
 
-# …or register with Claude Code just for the session, then remove when done:
-claude mcp add devdigest -e DEVDIGEST_API_URL=http://localhost:3001 -- tsx mcp/src/index.ts
+# …or register with Claude Code ad hoc for one session:
+claude mcp add devdigest -e DEVDIGEST_API_URL=http://localhost:3001 \
+  -- tsx --tsconfig mcp/tsconfig.json mcp/src/index.ts
 ```
 
 ## CLI — pre-push review (`devdigest review --mode working`)

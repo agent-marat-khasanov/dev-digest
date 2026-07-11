@@ -12,8 +12,10 @@ describe('list_agents handler', () => {
     registerListAgents(server, client);
     const result = await handlers.get('list_agents')!({});
     expect(result.isError).toBeUndefined();
+    // `provider` is intentionally omitted — the spec doesn't need it, and it's
+    // wasted tokens for the model.
     expect(parse(result)).toEqual([
-      { id: 'a1', name: 'Security', provider: 'anthropic', model: 'claude', enabled: true },
+      { id: 'a1', name: 'Security', model: 'claude', enabled: true },
     ]);
   });
 

@@ -23,26 +23,18 @@ import {
   RunSummary,
 } from '@devdigest/shared';
 import { ApiError } from './errors.js';
+import type { Config } from './config.js';
 
-const DEFAULT_BASE_URL = 'http://localhost:3001';
-const DEFAULT_RUN_TIMEOUT_MS = 180_000;
 /** Per-request network timeout — distinct from the overall run-wait timeout. */
 const REQUEST_TIMEOUT_MS = 15_000;
-
-export interface DevDigestClientOptions {
-  baseUrl?: string;
-  runTimeoutMs?: number;
-}
 
 export class DevDigestClient {
   readonly baseUrl: string;
   readonly runTimeoutMs: number;
 
-  constructor(opts: DevDigestClientOptions = {}) {
-    const base = opts.baseUrl ?? process.env.DEVDIGEST_API_URL ?? DEFAULT_BASE_URL;
-    this.baseUrl = base.replace(/\/+$/, '');
-    this.runTimeoutMs =
-      opts.runTimeoutMs ?? Number(process.env.DEVDIGEST_RUN_TIMEOUT_MS ?? DEFAULT_RUN_TIMEOUT_MS);
+  constructor(config: Config) {
+    this.baseUrl = config.apiUrl;
+    this.runTimeoutMs = config.runTimeoutMs;
   }
 
   private async request<S extends z.ZodTypeAny>(

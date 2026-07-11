@@ -7,7 +7,7 @@ export function registerListAgents(server: McpServer, client: DevDigestClient): 
   server.registerTool(
     'list_agents',
     {
-      description: 'List available review agents (id, name, provider, model, enabled).',
+      description: 'List available review agents (id, name, model, enabled).',
       inputSchema: {},
       annotations: {
         readOnlyHint: true,

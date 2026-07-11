@@ -56,7 +56,7 @@ export function buildVerdict(reviews: ReviewRecord[]): { verdict: Verdict; findi
 }
 
 export function compactAgent(a: Agent) {
-  return { id: a.id, name: a.name, provider: a.provider, model: a.model, enabled: a.enabled };
+  return { id: a.id, name: a.name, model: a.model, enabled: a.enabled };
 }
 
 export function compactConvention(c: Convention) {

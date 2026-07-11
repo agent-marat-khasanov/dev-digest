@@ -1,27 +1,30 @@
 /**
  * DevDigest MCP server — a local stdio server exposing 5 tools over the DevDigest
- * REST API. Launched on demand (inspector or `claude mcp add`), never by the app
- * scripts. Requires the DevDigest API to be running (./scripts/dev.sh).
+ * REST API. Launched on demand (inspector, `.mcp.json`, or `claude mcp add`),
+ * never by the app scripts. Requires the DevDigest API to be running
+ * (./scripts/dev.sh).
+ *
+ * This is the process entry point — it owns the side effects (validate config,
+ * build the client, connect stdio). The server itself is built by the pure
+ * `createServer` factory in server.ts.
  *
  * NOTE: stdio transport uses stdout for the JSON-RPC protocol — do NOT write to
- * stdout (no console.log). Diagnostics, if ever needed, go to stderr.
+ * stdout (no console.log). Diagnostics and startup errors go to stderr.
  */
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { DevDigestClient } from './client.js';
-import { registerListAgents } from './tools/list-agents.js';
-import { registerRunAgentOnPullRequest } from './tools/run-agent-on-pull-request.js';
-import { registerGetFindings } from './tools/get-findings.js';
-import { registerGetConventions } from './tools/get-conventions.js';
-import { registerGetBlastRadius } from './tools/get-blast-radius.js';
+import { loadConfig } from './config.js';
+import { createServer } from './server.js';
 
-const client = new DevDigestClient();
-const server = new McpServer({ name: 'devdigest', version: '0.1.0' });
+async function main(): Promise<void> {
+  const client = new DevDigestClient(loadConfig());
+  const server = createServer(client);
+  await server.connect(new StdioServerTransport());
+}
 
-registerListAgents(server, client);
-registerRunAgentOnPullRequest(server, client);
-registerGetFindings(server, client);
-registerGetConventions(server, client);
-registerGetBlastRadius(server, client);
-
-await server.connect(new StdioServerTransport());
+main().catch((err: unknown) => {
+  process.stderr.write(
+    `devdigest-mcp failed to start: ${err instanceof Error ? err.message : String(err)}\n`,
+  );
+  process.exit(1);
+});

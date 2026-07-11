@@ -34,6 +34,15 @@ Module-specific, hard-won knowledge for the local MCP server. Read **What Doesn'
   it's always launched with cwd=`mcp/` (`pnpm dev`/inspector).
 - The stdout rule is **per-entry-point**: `src/index.ts` must keep stdout clean (JSON-RPC), but
   `src/cli.ts` is a normal command — stdout is its user-facing output. Diagnostics still go to stderr.
+- **`.mcp.json` launches `src/index.ts` from the repo ROOT**, which re-triggers the same
+  `@devdigest/shared` alias trap as the CLI note above (this **supersedes** its "index.ts is always
+  cwd=`mcp/`" caveat — no longer true). `index.ts` value-imports `client.ts` → the Zod contracts, and
+  tsx resolves tsconfig `paths` from cwd (root), not the entry file — so `tsx mcp/src/index.ts` from
+  root throws `ERR_MODULE_NOT_FOUND: @devdigest/shared`. Fix in `.mcp.json`: pass
+  `--tsconfig mcp/tsconfig.json` (paths then resolve relative to that tsconfig's dir) **and** point
+  `command` at the package-local `mcp/node_modules/.bin/tsx` (no global tsx needed after `pnpm install`
+  in `mcp/`). The README's old `claude mcp add … tsx mcp/src/index.ts` was silently broken for the same
+  reason — fixed to include `--tsconfig`. Verified with a real `initialize` + `tools/list` handshake.
 
 ## Codebase Patterns
 
@@ -46,8 +55,23 @@ Module-specific, hard-won knowledge for the local MCP server. Read **What Doesn'
   target run's `status ∈ {done, failed, cancelled}` (the terminal set MUST include failed/cancelled or
   the wait hangs), then `GET /pulls/:id/reviews`. Verdict counts only `kind === 'review'` rows.
 
+- **Startup wiring is split for testability + no side effects**: `config.ts` (`loadConfig(env)` —
+  Zod-validated: `DEVDIGEST_API_URL` as `.url()`, `DEVDIGEST_RUN_TIMEOUT_MS` as coerced positive int,
+  defaults baked into the schema; `safeParse` → one aggregated actionable error) → `server.ts`
+  (`createServer(client)` — **pure** factory: build `McpServer` + register the 5 tools, NO
+  transport/connect) → `index.ts` (thin entry: `loadConfig` → `new DevDigestClient(config)` →
+  `createServer` → `connect(stdio)`; startup errors to **stderr** + `exit(1)`). `DevDigestClient` now
+  takes the validated `Config` — no scattered `process.env` reads in the client.
+- `compactAgent` returns `{ id, name, model, enabled }` — **no `provider`**: the tool spec doesn't need
+  it and it's wasted tokens for the model. When trimming a compact-shape field, update the tool
+  `description` and its unit test's expected object together.
+
 ## Tool & Library Notes
 
+- **pnpm pre-run deps check can block `pnpm typecheck`/`pnpm test`** in some environments: a
+  `runDepsStatusCheck` → `pnpm install` fails with `ERR_PNPM_IGNORED_BUILDS` (esbuild build scripts).
+  Bypass by running the binaries directly: `./node_modules/.bin/tsc --noEmit -p tsconfig.json` and
+  `./node_modules/.bin/vitest run`.
 - MCP TS SDK high-level API: `new McpServer({name,version})` +
   `server.registerTool(name, {description, inputSchema, annotations}, handler)`, where `inputSchema` is
   a **raw `ZodRawShape`** (`{ key: z.string() }`), NOT a wrapped `z.object`. Handler returns
