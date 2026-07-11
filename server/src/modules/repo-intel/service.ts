@@ -36,6 +36,7 @@ import type {
   FileRankRow,
   IndexResult,
   IndexState,
+  ReachableFacts,
   RefRow,
   RepoIntel,
   RepoMapResult,
@@ -699,6 +700,69 @@ export class RepoIntelService implements RepoIntel {
       paths.push(chain);
     }
     return paths;
+  }
+
+  /**
+   * Endpoints + crons reachable from each seed file by walking the REVERSE
+   * import graph (who imports the seed, transitively) up to `maxDepth` hops.
+   * Answers ТЗ step 3: "which HTTP routes are reachable from the changed files".
+   * Pure read over `file_edges` + `file_facts`; degraded-safe.
+   */
+  async getReachableFacts(
+    repoId: string,
+    seedFiles: string[],
+    maxDepth: number = BFS_DEPTH,
+  ): Promise<Record<string, ReachableFacts>> {
+    const out: Record<string, ReachableFacts> = {};
+    if (!this.container.config.repoIntelEnabled || seedFiles.length === 0) return out;
+
+    const edges = await this.repo.getEdges(repoId);
+
+    // Reverse adjacency: imported file → files that import it (its dependents).
+    const rev = new Map<string, string[]>();
+    for (const e of edges) {
+      const arr = rev.get(e.toFile);
+      if (arr) arr.push(e.fromFile);
+      else rev.set(e.toFile, [e.fromFile]);
+    }
+
+    // BFS each seed over dependents to `maxDepth`; the seed's own facts count.
+    const reachableBySeed = new Map<string, Set<string>>();
+    const allFiles = new Set<string>();
+    for (const seed of seedFiles) {
+      const visited = new Set<string>([seed]);
+      let frontier = [seed];
+      for (let depth = 0; depth < maxDepth; depth += 1) {
+        const next: string[] = [];
+        for (const file of frontier) {
+          for (const importer of rev.get(file) ?? []) {
+            if (visited.has(importer)) continue;
+            visited.add(importer);
+            next.push(importer);
+          }
+        }
+        if (next.length === 0) break;
+        frontier = next;
+      }
+      reachableBySeed.set(seed, visited);
+      for (const f of visited) allFiles.add(f);
+    }
+
+    const facts = await this.repo.getFileFacts(repoId, [...allFiles]);
+    const factsByFile = new Map(facts.map((f) => [f.filePath, f]));
+
+    for (const seed of seedFiles) {
+      const endpoints = new Set<string>();
+      const crons = new Set<string>();
+      for (const file of reachableBySeed.get(seed) ?? []) {
+        const ff = factsByFile.get(file);
+        if (!ff) continue;
+        for (const e of ff.endpoints) endpoints.add(e);
+        for (const c of ff.crons) crons.add(c);
+      }
+      out[seed] = { endpoints: [...endpoints], crons: [...crons] };
+    }
+    return out;
   }
 }
 

@@ -1,9 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { RepoInput } from '@devdigest/shared';
+import { z } from 'zod';
+import { RepoInput, RepoFileContent } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { RepoService } from './service.js';
+
+/** Query for the in-app file viewer: the repo-relative path to read. */
+const FileQuery = z.object({ path: z.string().min(1) });
 
 /**
  * F1 — repos module. Transport layer only: parses requests, maps status
@@ -34,6 +38,15 @@ export default async function reposRoutes(appBase: FastifyInstance) {
     const { workspaceId } = await getContext(app.container, req);
     return service.list(workspaceId);
   });
+
+  app.get(
+    '/repos/:id/file',
+    { schema: { params: IdParams, querystring: FileQuery, response: { 200: RepoFileContent } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.readFileContent(workspaceId, req.params.id, req.query.path);
+    },
+  );
 
   app.post('/repos/:id/refresh', { schema: { params: IdParams } }, async (req) => {
     const { workspaceId } = await getContext(app.container, req);

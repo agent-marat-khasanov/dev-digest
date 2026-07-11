@@ -1,6 +1,8 @@
+import { readFile, stat } from 'node:fs/promises';
+import { resolve, sep } from 'node:path';
 import type { Container } from '../../platform/container.js';
-import { type Repo } from '@devdigest/shared';
-import { NotFoundError } from '../../platform/errors.js';
+import { type Repo, type RepoFileContent } from '@devdigest/shared';
+import { NotFoundError, ValidationError } from '../../platform/errors.js';
 import { RepoRepository } from './repository.js';
 import { parseRepoUrl, withGitHubToken, toRepoDto } from './helpers.js';
 import {
@@ -141,4 +143,44 @@ export class RepoService {
     const ok = await this.repo.remove(workspaceId, id);
     if (!ok) throw new NotFoundError('Repo not found');
   }
+
+  /**
+   * Read a single file from the repo's local clone, for the in-app Blast-tab
+   * code viewer. Workspace-scoped (IDOR-safe via `getById`) and hardened against
+   * path traversal: the resolved target MUST stay inside the clone root, so an
+   * `owner`-controlled `relPath` like `../../etc/passwd` or an absolute path is
+   * rejected. Size-capped to avoid serving huge blobs into the browser.
+   */
+  async readFileContent(
+    workspaceId: string,
+    repoId: string,
+    relPath: string,
+  ): Promise<RepoFileContent> {
+    const repo = await this.repo.getById(workspaceId, repoId);
+    if (!repo) throw new NotFoundError('Repo not found');
+    if (!repo.clonePath) throw new NotFoundError('Repository is not cloned yet');
+
+    const root = resolve(repo.clonePath);
+    const target = resolve(root, relPath);
+    if (target !== root && !target.startsWith(root + sep)) {
+      throw new ValidationError('Path escapes the repository root');
+    }
+
+    let info;
+    try {
+      info = await stat(target);
+    } catch {
+      throw new NotFoundError('File not found');
+    }
+    if (!info.isFile()) throw new NotFoundError('File not found');
+    if (info.size > MAX_VIEW_FILE_BYTES) {
+      throw new ValidationError('File is too large to display');
+    }
+
+    const content = await readFile(target, 'utf8');
+    return { path: relPath, content };
+  }
 }
+
+/** Cap on a single file served to the in-app viewer (matches the indexer's per-file ceiling). */
+const MAX_VIEW_FILE_BYTES = 400 * 1024;

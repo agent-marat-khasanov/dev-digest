@@ -169,4 +169,20 @@ export interface RepoIntel {
     opts?: { exclude?: string[] },
   ): Promise<string[]>;
   getCriticalPaths(repoId: string): Promise<string[][]>;
+  /**
+   * HTTP endpoints + crons reachable from each seed file by walking the REVERSE
+   * import graph (dependents) up to `maxDepth` hops. Keyed by seed file; a seed's
+   * own facts are included. Degraded-safe: returns `{}` when the flag is off / no
+   * seeds, and empty per-seed facts when the graph or facts are absent.
+   */
+  getReachableFacts(
+    repoId: string,
+    seedFiles: string[],
+    maxDepth?: number,
+  ): Promise<Record<string, ReachableFacts>>;
+}
+
+export interface ReachableFacts {
+  endpoints: string[];
+  crons: string[];
 }

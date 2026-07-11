@@ -46,6 +46,14 @@ root `AGENTS.md`/`CLAUDE.md`.
 - Do NOT apply the aggressive `ALWAYS invoke` template to manual/utility skills. `pr-self-review` is
   deliberately `"Do NOT auto-load... manual only"`; `engineering-insights` is a wrap-up trigger;
   `mermaid-diagram` is user-intent. Making these directive causes over-firing / breaks intended UX.
+- Do NOT expect to run `pnpm install` / `pnpm typecheck` / `vitest` from inside the agent sandbox:
+  this Linux/WSL shell has **no Node toolchain** — `node`/`npm`/`pnpm` are absent even in a login
+  shell, and there is no `/mnt/c` interop to a Windows node. Write the code + tests, but hand
+  build/typecheck/test verification to the user (they run pnpm from the Windows side). State this
+  plainly instead of claiming a change is verified.
+- The `CLAUDE.md → AGENTS.md` symlink also blocks the Write/Edit tools directly: editing `CLAUDE.md`
+  fails with "Refusing to write through symlink". `readlink -f CLAUDE.md` and edit the real target
+  (`AGENTS.md`). (`.ai/rules/architecture-map.md` is a real file, not a symlink.)
 
 ## Codebase Patterns
 
