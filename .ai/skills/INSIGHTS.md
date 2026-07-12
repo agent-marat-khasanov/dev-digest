@@ -54,6 +54,24 @@ root `AGENTS.md`/`CLAUDE.md`.
 - The `CLAUDE.md → AGENTS.md` symlink also blocks the Write/Edit tools directly: editing `CLAUDE.md`
   fails with "Refusing to write through symlink". `readlink -f CLAUDE.md` and edit the real target
   (`AGENTS.md`). (`.ai/rules/architecture-map.md` is a real file, not a symlink.)
+- Do NOT let a downstream agent answer a spec's `[NEEDS CLARIFICATION: …]` entries. They are
+  `spec-creator`'s to fold back into the spec (it Edits the file in place, same Spec ID).
+  `implementation-planner` relays them and stops — an answer invented at plan time never makes it back
+  into the spec, so the spec and the code silently diverge and `plan-verifier` validates against a
+  stale document.
+- Do NOT dispatch or resume a **write-capable** subagent while the session is in plan mode — the
+  harness holds the subagent read-only too. A resumed `spec-creator` looped three times (~90–110k
+  tokens each) re-planning its edits and asking "confirm to exit plan mode" instead of writing.
+  Worse, plan mode can engage MID-RUN: some edits land, the rest don't, leaving the file in a mixed
+  state that drifts from the agent's report. Recovery: Read the target file to establish actual
+  on-disk state before re-dispatching, and only resume the writer after plan mode is off.
+- Renaming a subagent is a **repo-wide rename, not a file rename**: agents reference each other by
+  name inside their *prompt bodies*, and so do `.ai/rules/*.md`. Renaming `planner` →
+  `implementation-planner` left dangling refs in `spec-creator.md`, `implementer.md` (which also spoke
+  of a "Development Plan" that no longer exists), `.ai/rules/skill-routing.md`, and
+  `.ai/rules/read-insights-first.md`. Always `grep -rn "\b<old-name>\b" .ai/` after the `git mv`.
+  Historical artifacts (`.ai/plans/*.md`, this file's Session Notes) are records of the past — leave
+  the old name there.
 
 ## Codebase Patterns
 
@@ -73,6 +91,26 @@ root `AGENTS.md`/`CLAUDE.md`.
 - Subagent frontmatter restricts capability two ways: `model: sonnet` (alias) pins the tier, and
   `tools:` is an allowlist — omitting Edit/Write/NotebookEdit yields a read-only agent. Bash is
   dual-use (can still write), so enforce read-only via the prompt body, not the tools list.
+- **WHAT/HOW split across the planning agents**: `spec-creator` owns the WHAT (specs at
+  `<module>/specs/SPEC-NN-<slug>.md`, root `specs/` if cross-module; EARS criteria with `AC-n` IDs);
+  `implementation-planner` owns the HOW (`.ai/plans/<feature>.md`). The **`AC-n` ID is the traceability
+  spine of the whole pipeline**: spec-creator mints it → the plan's `Covers` column cites it →
+  `plan-verifier` traces code back to it. An agent in this chain must NEVER invent a parallel
+  requirement notation (e.g. its own `R1..Rn`) — that silently severs the chain and plan-verifier has
+  nothing to check coverage against.
+- **Clarification gate (user-mandated, codified in `spec-creator.md` → Report format):** when a
+  spec ships with a non-empty `[NEEDS CLARIFICATION]`, the orchestrator must IMMEDIATELY walk the
+  user through the items **one question at a time** (AskUserQuestion with options + a
+  recommendation each), then re-dispatch spec-creator to fold the answers in; `implementation-planner`
+  must not be dispatched while any item is open. Do not bundle several decisions into one
+  AskUserQuestion call and do not relay the questions as passive report text — the user explicitly
+  rejected both.
+- `implementation-planner` runs **two gates before it is allowed to Write a plan**: Gate A (review the
+  spec's `AC-n` for gaps/contradictions/ambiguity/untestability/buildability + form recommendations)
+  and Gate B (return questions + recommendations + the multi-agent-vs-single-agent question, then
+  STOP). The chosen execution mode **changes the plan's shape**, it is not a label: multi-agent emits
+  a `Parallel group` column with non-overlapping files per group; single-agent emits a strictly
+  ordered step list with no groups, each step ending green. Ask it every run.
 
 ## Tool & Library Notes
 
@@ -100,10 +138,119 @@ root `AGENTS.md`/`CLAUDE.md`.
 - **8 subagent colors, but we have 10 agents** (valid: red/blue/green/yellow/purple/orange/pink/cyan) —
   full uniqueness is impossible. Place the unavoidable reuses on agents that don't run in parallel
   (we paired planner+brainstorm=yellow, doc-writer+investigator=blue). Color is cosmetic only.
+- **Claude Code hot-reloads the agent registry mid-session.** A `git mv .ai/agents/planner.md
+  .ai/agents/implementation-planner.md` (+ the `name:` field) made the harness drop the `planner`
+  agent type and expose `implementation-planner` in the *same* session — no restart, no re-symlink
+  (`.claude/agents -> ../.ai/agents` covers it). Caveat: after a `git mv`, the Write tool still
+  refuses the new path with "File has not been read yet" — its file-state tracking is keyed by path,
+  not inode, so Read the renamed path once before Writing it.
+- …but the hot-reload is **delayed, not instant**: dispatching a freshly Written agent file right
+  away fails with "Agent type '<name>' not found" (observed with `spec-creator`); the registry
+  caught up a few turns later (harness announced the new agent types). Workarounds: wait/retry the
+  dispatch later in the session, or smoke-test via a nested headless run (`claude -p "dispatch
+  <agent> …" --permission-mode acceptEdits`) — a fresh session sees the new agent immediately, but
+  it is slow (minutes) and burns tokens.
 
 ## Recurring Errors & Fixes
 
 ## Session Notes
+
+### 2026-07-12 — SPEC-01 Project Context: full spec→clarify→approve→plan chain
+- First real run of the SDD front half: `spec-creator` authored `specs/SPEC-01-project-context-2026-07-12.md`
+  (30 EARS ACs) from 4 design mockups + Ukrainian requirements; 6 `[NEEDS CLARIFICATION]` items were
+  closed with the user stepwise (no cap on injected tokens — consciously discarded; exact
+  case-sensitive folder-segment match at any depth; `ContextDoc` replaces pre-scaffolded
+  `SpecFile`/`IndexStatus`; on-demand preview; structured `spec_blocks` in trace; on-demand uncached
+  discovery), folded back by resuming the SAME spec-creator via SendMessage, DoR passed → `approved`.
+- `implementation-planner` then produced `.ai/plans/project-context.md`: 11 tasks covering all 30 ACs
+  (G1 contracts/schema/config/guard in parallel → server track ‖ client track), its 5 open questions
+  also closed stepwise with the user (400 KB read cap reusing `MAX_FILE_SIZE`; AC-25 manual; R1
+  version-snapshot deferred; POST preview endpoint) and folded back via resume. Confirmed
+  reviewer-core needs only the `INJECTION_GUARD` text change — `ReviewInput.specs` is already
+  threaded through both single-pass and map-reduce paths.
+- Mockups showed more than the requirements text (edit mode, coverage badge, index stats):
+  resolving the scope conflict with the user BEFORE dispatching spec-creator (2 questions) kept the
+  out-of-scope items as explicit Non-goals instead of spec churn.
+
+### 2026-07-11 — `/sdd` → `/impl`: pipeline trimmed to the execution half + model downgrades
+- `/sdd` was replaced by **`/impl`** (`.ai/skills/impl/SKILL.md`) the same day: `spec-creator` and
+  `implementation-planner` are run MANUALLY outside the command (user decision); `/impl` takes a
+  ready plan path and executes implement → verify round → user-gated fix loop → final verify →
+  doc-writer. Do not resurrect the spec/plan phases inside the command.
+- **test-writer is disabled in the `/impl` pipeline** (token economy) — the command must not
+  dispatch it; ACs whose `Verify:` tag needs tests are reported as "tests pending (manual)". The
+  agent file stays for manual use.
+- Token-economy model downgrades: `architecture-reviewer` and `plan-verifier` opus → **sonnet**
+  (effort stays high). Opus remains only on judgment-dense authors: `spec-creator`,
+  `implementation-planner`, `brainstorm`. Keep the README table in sync when re-tiering.
+
+### 2026-07-11 — `/sdd` command: pipeline-runner as a manual-only skill
+- The whole SDD pipeline is now one command: `.ai/skills/sdd/SKILL.md` — a MANUAL-ONLY skill (same
+  activation pattern as `pr-self-review`) whose body is an orchestration protocol for the MAIN
+  session (subagents can't spawn subagents, so the orchestrator must be the main loop; a skill is
+  the right vehicle for "orchestrator behavior on demand").
+- Its user gates (by explicit user decision): spec approval, planner Gate B answers, and the
+  post-verification **findings gate** — NOTHING from architecture-reviewer/plan-verifier is fixed
+  automatically; the user multi-selects findings, targeted implementers fix, and only the
+  reviewer(s) whose findings were addressed re-run. doc-writer always runs at the end.
+- Unlike the agent registry (delayed hot-reload), a freshly Written skill was registered
+  IMMEDIATELY in the same session — skills and agents reload on different paths.
+
+### 2026-07-11 — SDD workflow audit → verify ordering, planner token diet, codified phase order
+- **Run `plan-verifier` TWICE**: pass 1 right after implementer integration (parallel with
+  `architecture-reviewer` — both read-only), so MISSING/PARTIAL ACs surface *before* test-writer
+  invests in tests; final pass after fixes + tests for the approve verdict (~41k tokens/pass per
+  METRICS — two passes are worth it).
+- `architecture-reviewer` does NOT hunt functional bugs (structure only, by design). Project
+  decision: bugs are caught by tests — every AC maps to a behavior test (test-writer now reads the
+  spec's `Verify:` tags: unit/integration in scope; e2e/manual reported as not-covered-here). No
+  separate bug-review agent — don't propose one again. E2E flow ownership deliberately unassigned.
+- `implementation-planner` token diet: the big cost was the **Gate B double dispatch** (fresh
+  re-dispatch re-reads everything → resume the SAME agent via SendMessage instead; note added to its
+  prompt) + blanket doc reading (now: affected modules only, and start tracing from the spec's
+  `Inputs (provenance)` citations instead of from scratch) + liberal Skill loads (now: only when a
+  placement decision is genuinely contested). Its prompt never ran tests — the user's impression was
+  wrong, but an explicit "never run tests/typecheck/builds" guard was added anyway.
+- The SDD phase order is now codified in `.ai/agents/README.md` "How they fit together" (spec →
+  gates+SendMessage resume → implementers per wave → verify pass 1 ‖ arch-review → fix → tests →
+  verify final → docs/insights/metrics) — keep it in sync when the pipeline changes.
+
+### 2026-07-11 — spec-creator: skill routing + spec-quality gates
+- Skill analysis for a WHAT-level agent: route `security` (derives concrete `IF…THEN…SHALL` for
+  Untrusted inputs / security NFRs), `mermaid-diagram` (Flows diagrams), and `onion-architecture`/
+  `frontend-architecture` **only as boundary-legality checks** — implementation/test skills
+  (incl. `zod`) explicitly excluded because spec contracts are field tables, not code.
+- Spec-quality gates baked in: unhappy-path pairing (every `WHEN` must consider its `IF…THEN`
+  counterpart), `Verify: unit|integration|e2e|manual` tag per AC, Definition-of-Ready checklist
+  gating `draft→approved`, a review/lint mode (checklist against an existing spec, read-only unless
+  told to fix), spec index table in root `specs/README.md`, `## Changelog` line on in-place edits.
+  An `## Assumptions` section was proposed and REJECTED by the user — don't re-add it.
+- Subagents cannot spawn subagents, so an agent that needs research (spec-creator) must NOT be told
+  to "use researcher" — encode a **Research needs** report block instead (numbered self-contained
+  questions tagged `researcher`/`investigator`); the orchestrator fans them out in parallel and
+  re-dispatches the agent with findings, which it cites in Inputs (provenance). Also added:
+  scoped INSIGHTS reading (affected modules only), Traceability section (AC-n spine, never
+  renumber — dropped ACs keep their ID with a `(dropped: <reason>)` note), NFRs as EARS with
+  measurable thresholds, and a final self-check step (DoR + abstraction scan) before reporting.
+
+### 2026-07-11 — Split `planner` into `spec-creator` (WHAT) + `implementation-planner` (HOW)
+- `git mv .ai/agents/planner.md → implementation-planner.md`; `name:` → `implementation-planner`.
+  The agent no longer produces requirements of any kind: it consumes a `spec-creator` spec and refuses
+  to plan without one ("Not your job" section — never authors/rewords/infers acceptance criteria; a
+  gap is an open question, never an assumption; a `Status: draft` spec is surfaced before planning).
+- Two new gates precede the plan Write: **Gate A** (critical review of the spec's `AC-n` — gaps,
+  contradictions, ambiguity, untestable criteria, buildability, Do-Not-Touch/layer-map conflicts) and
+  **Gate B** (return questions + recommendations + the **multi-agent vs single-agent** question, then
+  STOP). Recommendations are advice, never silently promoted into the Tasks table.
+- Plan format re-anchored on `AC-n` (was a self-invented `R1..Rn`): header carries Spec ID + status,
+  an "Acceptance criteria (from the spec)" table copies the ACs verbatim, and every task's `Covers`
+  column cites the AC IDs it satisfies. Renamed "Development Plan" → "Implementation Plan" throughout
+  (incl. `implementer.md`, which reads the plan as its contract).
+- The mode answer is structural: multi-agent → `Parallel group` column (non-overlapping files per
+  group); single-agent → strictly ordered steps, no groups, each ending green.
+- Ask-before-writing paid off here: the first draft invented an `R1..Rn` notation and a generic
+  "spec document" input, both of which would have broken the spec→plan→verify chain that
+  `spec-creator` had just established. Reading the sibling agent's file first is what caught it.
 
 ### 2026-06-22 — Skill activation tuning (directive descriptions + routing table)
 - Audited 14 skills against the "Why Claude Code Skills Don't Activate" methodology: 11/14 used the
