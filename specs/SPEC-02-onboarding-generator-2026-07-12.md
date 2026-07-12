@@ -1,4 +1,4 @@
-# Spec: Onboarding Generator  |  Spec ID: SPEC-02  |  Status: draft
+# Spec: Onboarding Generator  |  Spec ID: SPEC-02  |  Status: approved
 
 ## Problem & why
 
@@ -344,5 +344,7 @@ Two trust boundaries:
   improvements: persist `cost_usd`+tokens with the cached tour and expose on the response (AC-25); added
   Implementer notes for the intent generate/recalculate split and mermaid-drop rendering. Removed the
   [NEEDS CLARIFICATION] section. Status stays draft.
+- 2026-07-12 — Status: draft → approved (user approval; Definition of Ready verified in the
+  clarification round).
 </content>
 </invoke>
