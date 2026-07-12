@@ -9,6 +9,7 @@ import {
   vector,
   index,
   uniqueIndex,
+  doublePrecision,
 } from 'drizzle-orm/pg-core';
 import { workspaces } from './core';
 import { repos } from './repos';
@@ -117,10 +118,21 @@ export const references = pgTable(
   }),
 );
 
+/**
+ * T2 extension: added `sha` (cache key for the indexed SHA the cached tour was
+ * generated for, AC-23/AC-24), `model`, `cost_usd`, `tokens_in`, `tokens_out`
+ * (persisted generation metadata, AC-25). All nullable — table is empty so far,
+ * but nullable keeps future inserts safe regardless.
+ */
 export const onboarding = pgTable('onboarding', {
   repoId: uuid('repo_id')
     .primaryKey()
     .references(() => repos.id, { onDelete: 'cascade' }),
   json: jsonb('json').notNull(),
   generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
+  sha: text('sha'), // [T2] NEW — cache key (indexed SHA)
+  model: text('model'), // [T2] NEW
+  costUsd: doublePrecision('cost_usd'), // [T2] NEW — USD, nullable when provider reports none
+  tokensIn: integer('tokens_in'), // [T2] NEW
+  tokensOut: integer('tokens_out'), // [T2] NEW
 });
