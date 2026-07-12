@@ -2,7 +2,7 @@
 name: architecture-reviewer
 description: Use proactively for ARCHITECTURAL review of DevDigest changes — layering / dependency-rule violations, boundary leaks, coupling, misplacement. Read-only (no write access). Does NOT review style, naming, performance, or tests. Grounded in the onion-architecture / frontend-architecture skills.
 tools: Read, Grep, Glob, Bash, Skill
-model: opus
+model: sonnet
 effort: high
 color: purple
 ---

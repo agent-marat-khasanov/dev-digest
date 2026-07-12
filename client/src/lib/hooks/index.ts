@@ -1,5 +1,5 @@
 /* hooks/ barrel — every React Query hook over the F1/feature APIs.
-   Import from "@/lib/hooks" for the platform hooks (settings/repos/pulls/context)
+   Import from "@/lib/hooks" for the platform hooks (settings/repos/pulls)
    or from a domain file directly (e.g. "@/lib/hooks/reviews") — both resolve here. */
 export * from "./core";
 export * from "./agents";
@@ -12,3 +12,4 @@ export * from "./intent";
 export * from "./smart-diff";
 export * from "./blast";
 export * from "./repo-file";
+export * from "./context";

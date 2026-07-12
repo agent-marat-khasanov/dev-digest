@@ -1,7 +1,7 @@
 # Rule: Skill Routing (canonical)
 
 Single source of truth for which project skills to invoke, in which order, before writing code.
-The `planner` plans against this set; the `implementer` invokes from it; `test-writer` follows the
+The `implementation-planner` plans against this set; the `implementer` invokes from it; `test-writer` follows the
 UI/backend split. Keep this file in sync with the `## Skill Routing` table in `AGENTS.md` — change
 both together. **Architecture/placement skill is ALWAYS first; then framework skills as relevant.**
 

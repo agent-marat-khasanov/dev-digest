@@ -349,6 +349,24 @@ export const AgentSkillLink = z.object({
 });
 export type AgentSkillLink = z.infer<typeof AgentSkillLink>;
 
+// Ordered project-context doc attached to an agent (paths only — text is read
+// fresh from the clone at run time, never stored). Mirrors AgentSkillLink.
+export const AgentContextLink = z.object({
+  agent_id: z.string(),
+  path: z.string(),
+  order: z.number().int(),
+});
+export type AgentContextLink = z.infer<typeof AgentContextLink>;
+
+// Ordered project-context doc attached to a skill; inherited by any agent
+// using that skill (when enabled). Mirrors AgentSkillLink.
+export const SkillContextLink = z.object({
+  skill_id: z.string(),
+  path: z.string(),
+  order: z.number().int(),
+});
+export type SkillContextLink = z.infer<typeof SkillContextLink>;
+
 // The immutable config snapshot captured in `agent_versions` whenever an agent's
 // config changes (everything but `enabled`). Mirrors the shape written by the
 // agents repository — provider/model/prompt/output_schema/strategy/gate/repo_intel

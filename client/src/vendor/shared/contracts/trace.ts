@@ -44,6 +44,13 @@ export const SkillBlock = z.object({
 });
 export type SkillBlock = z.infer<typeof SkillBlock>;
 
+export const SpecBlock = z.object({
+  path: z.string(),
+  tokens: z.number().int().nonnegative(),
+  body: z.string(),
+});
+export type SpecBlock = z.infer<typeof SpecBlock>;
+
 export const PromptAssembly = z.object({
   system: z.string(),
   /** @deprecated Pre-skills traces stored the concatenated skill bodies here.
@@ -56,6 +63,10 @@ export const PromptAssembly = z.object({
   skill_blocks: z.array(SkillBlock).nullish(),
   memory: z.string().nullish(),
   specs: z.string().nullish(),
+  /** One entry per injected project-context doc (agent-attached + skill-
+   *  inherited, deduped by path). Mirrors `skill_blocks`; null when no docs
+   *  were injected. */
+  spec_blocks: z.array(SpecBlock).nullish(),
   /** Callers-of-changed-symbols digest (repo-intel); null when absent. */
   callers: z.string().nullish(),
   /** Repo skeleton / map (repo-intel); null when absent. */

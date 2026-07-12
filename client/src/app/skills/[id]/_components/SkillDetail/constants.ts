@@ -11,6 +11,7 @@ export interface SkillTab {
 export const TABS: readonly SkillTab[] = [
   { key: "config", labelKey: "tabs.config", icon: "Settings" },
   { key: "preview", labelKey: "tabs.preview", icon: "Eye" },
+  { key: "context", labelKey: "tabs.context", icon: "FileText" },
   { key: "evals", labelKey: "tabs.evals", icon: "FlaskConical" },
   { key: "stats", labelKey: "tabs.stats", icon: "BarChart" },
   { key: "versions", labelKey: "tabs.versions", icon: "History" },

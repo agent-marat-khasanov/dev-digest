@@ -27,6 +27,12 @@ Agent tool result (the `subagent_tokens` line); `outcome` is one of:
 | 2026-06-26 | implementer | Intent Group A/B/D | sonnet/medium | ~58–105k | accepted | Clean; worktree integration done by orchestrator |
 | 2026-06-26 | architecture-reviewer | Intent Layer review | opus/high | ~61k | accepted | Found 2 real coupling SUGGESTIONs |
 | 2026-06-26 | plan-verifier | Intent Layer coverage | opus/high | ~41k | accepted | 17/17 matrix with evidence |
+| 2026-07-12 | spec-creator | SPEC-01 project-context (author + 2 fold-in resumes) | opus/high | ~90–111k/run | accepted | 2 resumes wasted re-planning in plan-mode read-only before edits could land — don't resume writers under plan mode |
+| 2026-07-12 | implementation-planner | project-context plan (author + fold-in resume) | opus/high | ~112k+132k | accepted | 11 tasks / 30 ACs; open questions resolved via same-agent SendMessage resume |
+| 2026-07-12 | implementer | T1–T11 project-context (11 parallel/waved runs) | sonnet/medium | ~59–166k each | accepted | All wrote+committed+verified in worktrees; zero redone; T5 largest (166k) |
+| 2026-07-12 | implementer | Findings fixes A/B/C (AC-5+arch, e2e flow, contract fixtures) | sonnet/medium | ~61–164k | accepted | Fix-B correctly diagnosed seeded repo had clonePath:null and wired fixture |
+| 2026-07-12 | architecture-reviewer | project-context diff (pass 1 + re-review) | sonnet/high | ~99k+46k | accepted | 2 real WARNINGs (container bypass, cross-module import); re-review confirmed resolved |
+| 2026-07-12 | plan-verifier | SPEC-01 coverage (pass 1 + final) | sonnet/high | ~128k+77k | accepted | Caught AC-5 PARTIAL + 2 drift items pass 1; final: 28 MET / 2 MANUAL, approve |
 
 ## Review cadence
 

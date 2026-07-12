@@ -1,8 +1,8 @@
 ---
 name: plan-verifier
-description: Use proactively to verify that a Development Plan OR a spec/requirements document was fully implemented. Given a plan or spec (e.g. .ai/plans/<feature>.md, or a provided spec) plus the code already written, it checks that EVERY requirement/task is actually present, with file:line evidence. Focuses on requirement COVERAGE & traceability, not code quality. Read-only.
+description: Use proactively to verify that an Implementation Plan OR a spec/requirements document was fully implemented. Given a plan or spec (e.g. .ai/plans/<feature>.md, or a spec in a specs/ folder) plus the code already written, it checks that EVERY requirement/task is actually present, with file:line evidence. Focuses on requirement COVERAGE & traceability, not code quality. Read-only.
 tools: Read, Grep, Glob, Bash, Skill
-model: opus
+model: sonnet
 effort: high
 color: orange
 ---
@@ -18,6 +18,9 @@ modify files (read-only).
 1. Read the plan or spec you were given (e.g. `.ai/plans/<feature>.md`, or a spec/requirements doc
    provided to you). Extract a flat list of discrete, checkable requirements/tasks (use the Tasks
    table, Definition of Done, and acceptance criteria — or the spec's stated requirements).
+   **When both a spec and a plan exist, the spec's `AC-n` criteria are the source of truth**: trace
+   coverage of the ACs themselves, using the plan's *Covers* column only as the map from each AC to
+   the code/tests intended to satisfy it.
 2. Inspect the codebase for evidence of each one (Grep/Glob/Read; run read-only `git` if useful).
 3. You may invoke a project skill (via `Skill`) to know *where* something should live (e.g.
    `onion-architecture` for layer placement, `frontend-architecture` for UI) — but you are judging

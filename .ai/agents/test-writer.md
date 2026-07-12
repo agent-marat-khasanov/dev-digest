@@ -40,6 +40,10 @@ Then ground in `TESTING.md`, the target module's `INSIGHTS.md`, and `server/test
 
 - Map **each requirement / acceptance criterion** to at least one behavior test (happy path + one
   meaningful edge/negative case). Use-case coverage beats line coverage.
+- When the task references a spec with `AC-n` criteria carrying **`Verify:` tags**, the tag sets
+  the test level: `Verify: unit` → unit test, `Verify: integration` → `*.it.test.ts`. ACs tagged
+  `Verify: e2e` or `Verify: manual` are out of this agent's scope — do not attempt them; list them
+  in your final report as "not covered here (e2e/manual)".
 - Assert on **observable behavior**: rendered output / user-visible text, HTTP status + response
   body, or resulting DB state — not internal calls.
 - Assertions must reflect the **specified** behavior, not whatever the current code happens to

@@ -56,10 +56,34 @@
   IDOR-safe) with a path-traversal guard — `resolve(root, relPath)` must stay under `resolve(root)`
   (mirrors `conventions/service.ts`), plus a size cap. Absolute/`..` paths are then rejected.
 
+- The path-traversal guard is now centralized: `resolveInClone` lives in `platform/fs-guard.ts` (pure,
+  node:path only) — import it (`context/service.ts`, `reviews/run-executor.ts` do), never copy it and
+  never use the unguarded `readClone`. Pair with the 400 KB `MAX_FILE_SIZE` cap for clone reads.
+- Cross-cutting repositories consumed by ≥2 modules get a lazy `??=` getter on the container
+  (`agentsRepo`/`skillsRepo`/`contextRepo`/`repoRepo`) — do NOT `new` a sibling module's repository
+  inside a service; the container is the only wiring point. (`conventions/service.ts` still constructs
+  `RepoRepository` inline — historical, don't copy it.)
+- Structured per-block trace arrays (`skill_blocks`, `spec_blocks`) CANNOT come from
+  `reviewPullRequest`'s `outcome.assembly` (it only carries the concatenated prompt strings) — build
+  them server-side from the same data you fed the call and splice into `prompt_assembly` afterwards
+  (`run-executor.ts` does this for both).
+- `ContextDoc.folder_type` is a fixed enum (`specs|docs|insights`) while `CONTEXT_ROOTS` is free-form
+  config — an operator adding a custom root name would make the walker return a folder_type outside
+  the enum and the response-schema validation would 500. Latent edge case: extend the enum (or relax
+  to string) together with any CONTEXT_ROOTS change.
+- The seeded demo repo (`acme/payments-api`) now has a real `clonePath` pointing at
+  `server/fixtures/demo-context-docs/` (wired in `db/seed.ts`) — Project Context discovery/e2e depend
+  on it; before this it was `null` and every context list came back empty.
+
 ## Tool & Library Notes
 
 <!-- Quirks and gotchas of dependencies -->
 
+- Server `tsc --noEmit` transitively type-checks `reviewer-core/` via the path alias — in a fresh
+  worktree, `pnpm install` in `reviewer-core/` too, or server typecheck fails with `Cannot find module
+  'zod'/'openai'` errors that look unrelated to your change.
+- `RepoRepository.insert` requires a real `createdBy` user id even in test fixtures — seed a user
+  first and `db.select().from(t.users).limit(1)` for the id (see `context.it.test.ts` `createRepo`).
 - fastify-type-provider-zod: response schema mismatch throws 500 (not 422) — always validate both sides
 - drizzle-kit generate: must run before db:migrate, otherwise migration is empty
 - testcontainers: slow on first run (pulls Docker image); fast on subsequent runs

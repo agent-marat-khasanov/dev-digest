@@ -30,6 +30,14 @@ describe('assemblePrompt — shared injection guard (server + CI)', () => {
     expect(sys).toMatch(/never reduce|never .*descope|REPORT it/i);
     expect(sys).toMatch(/any language/i);
   });
+
+  it('names attached project-context / spec documents as untrusted data (AC-30)', () => {
+    // Attached specs under `## Project context` must be explicitly enumerated
+    // among the untrusted sources so the model can't be steered by a doc that
+    // claims to redefine its job or descope the review.
+    expect(sys).toMatch(/project.context/i);
+    expect(sys).toMatch(/spec/i);
+  });
 });
 
 describe('assemblePrompt — ## PR description', () => {

@@ -10,7 +10,14 @@ let currentTrace: RunTrace;
 const TRACE: RunTrace = {
   config: { agent: "Security", version: "1", provider: "openai", model: "gpt-4.1", pr: 482, source: "local" },
   stats: { duration_ms: 8200, tokens_in: 12000, tokens_out: 1500, cost_usd: 0.0013, findings: 2, grounding: "2/2 passed" },
-  prompt_assembly: { system: "You are a reviewer.", skills: "### skill", memory: null, specs: null, user: "Review PR #482" },
+  prompt_assembly: {
+    system: "You are a reviewer.",
+    skills: "### skill",
+    memory: null,
+    specs: null,
+    spec_blocks: null,
+    user: "Review PR #482",
+  },
   tool_calls: [{ tool: "review_file", args: "src/config.ts", meta: "single-pass", ms: 1200 }],
   raw_output: '{"verdict":"request_changes"}',
   memory_pulled: [{ pr: 471, text: "rate-limit public endpoints" }],
@@ -93,5 +100,27 @@ describe("A5 Run Trace drawer (smoke)", () => {
     renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
     fireEvent.click(screen.getByText("Prompt assembly"));
     expect(screen.getByText("Skills (dynamic)")).toBeInTheDocument();
+  });
+
+  it("renders one prompt block per spec_blocks entry with path + token count", () => {
+    currentTrace = {
+      ...TRACE,
+      prompt_assembly: {
+        ...TRACE.prompt_assembly,
+        spec_blocks: [
+          { path: "specs/security-baseline.md", tokens: 120, body: "spec 1 body" },
+          { path: "docs/public-api.md", tokens: 340, body: "spec 2 body" },
+        ],
+      },
+    };
+    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
+    // Prompt assembly section is collapsed by default — expand it first.
+    fireEvent.click(screen.getByText("Prompt assembly"));
+    expect(
+      screen.getByText(/Project context — attached specs \(untrusted\): specs\/security-baseline\.md · 120 tok/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Project context — attached specs \(untrusted\): docs\/public-api\.md · 340 tok/),
+    ).toBeInTheDocument();
   });
 });

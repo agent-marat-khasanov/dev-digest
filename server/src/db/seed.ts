@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { createDb, type Db } from './client.js';
 import * as t from './schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -13,6 +15,17 @@ import {
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
 const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
+
+/**
+ * "Local clone" of the demo repo used by the Project Context feature —
+ * checked-in specs/docs/insights fixtures under `server/fixtures/`, so the
+ * seeded repo has real markdown for `context.walkContext` to discover
+ * (server never clones a real repo in the seed/e2e path).
+ */
+const DEMO_REPO_CLONE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../fixtures/demo-context-docs',
+);
 
 /**
  * Seed the starter's demo data. Idempotent: re-running upserts the default
@@ -86,7 +99,7 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
         name: 'payments-api',
         fullName: 'acme/payments-api',
         defaultBranch: 'main',
-        clonePath: null,
+        clonePath: DEMO_REPO_CLONE_PATH,
         createdBy: userId,
       })
       .returning();

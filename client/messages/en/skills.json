@@ -163,6 +163,7 @@
     "tabs": {
       "config": "Config",
       "preview": "Preview",
+      "context": "Context",
       "evals": "Evals",
       "stats": "Stats",
       "versions": "Versions"
@@ -263,6 +264,25 @@
       "saving": "Saving…",
       "saved": "Saved",
       "savedToast": "Skills saved"
+    },
+    "contextTab": {
+      "title": "Project context to use",
+      "attachedCount": "{count} attached",
+      "filterPlaceholder": "Filter documents…",
+      "inheritHint": "Any agent using this skill inherits these documents.",
+      "empty": "No specs/docs/insights found in this repo.",
+      "noRepo": "Select a repo to browse its project context.",
+      "missing": "missing",
+      "dragHandle": "Drag to reorder",
+      "preview": "Preview",
+      "previewLoading": "Loading…",
+      "previewError": "Could not load this document.",
+      "tokenCount": "≈ {count} tokens",
+      "totalTokens": "≈ {count} tokens total",
+      "save": "Save context",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "savedToast": "Project context saved"
     }
   }
 }

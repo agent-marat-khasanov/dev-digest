@@ -19,40 +19,67 @@ These are **not** the DevDigest DB-backed reviewer agents (`server/src/db/schema
 | Agent | Model | Tools | Isolation | Purpose |
 |-------|-------|-------|-----------|---------|
 | `researcher` | sonnet | Read, Grep, Glob, Bash, WebSearch, WebFetch | — | Read-only research from the project or the web; returns a structured, cited report. |
-| `planner` | opus | Read, Grep, Glob, Bash, Write, Skill | — | Produces a structured Development Plan and writes it to `.ai/plans/<feature>.md`. No code edits. |
+| `spec-creator` | opus | Read, Grep, Glob, Bash, Write, Edit, Skill | — | Turns a feature request (+ designs) into an SDD spec with EARS acceptance criteria; writes ONLY inside specs/ folders. |
+| `implementation-planner` | opus | Read, Grep, Glob, Bash, Write, Skill | — | Turns an approved **spec** into an Implementation Plan at `.ai/plans/<feature>.md`. Never writes the spec, never writes code. |
 | `implementer` | sonnet | Read, Edit, Write, Grep, Glob, Bash, Skill | `worktree` | Implements ONE scoped task from a plan (UI or backend); runs in parallel in its own git worktree. |
 | `test-writer` | sonnet | Read, Edit, Write, Grep, Glob, Bash, Skill | `worktree` | Writes Vitest tests for UI (RTL) and backend (unit + testcontainers); behavior-focused. Runs in parallel. |
-| `architecture-reviewer` | opus | Read, Grep, Glob, Bash, Skill | — | Read-only architectural review: dependency-rule / layering / boundary violations only. |
-| `plan-verifier` | opus | Read, Grep, Glob, Bash, Skill | — | Read-only: verifies every plan requirement is actually implemented, with file:line evidence. |
+| `architecture-reviewer` | sonnet | Read, Grep, Glob, Bash, Skill | — | Read-only architectural review: dependency-rule / layering / boundary violations only. |
+| `plan-verifier` | sonnet | Read, Grep, Glob, Bash, Skill | — | Read-only: verifies every plan requirement is actually implemented, with file:line evidence. |
 | `doc-writer` | sonnet | Read, Edit, Write, Grep, Glob, Bash, Skill | — | Documents code / converts plans into docs / produces markdown with Mermaid diagrams; knows where each doc goes. |
 | `brainstorm` | opus | Read, Grep, Glob, Bash, Skill | — | Read-only: generates & weighs 3–5 solution options before code (Best-of-N), recommends one. |
 | `investigator` | haiku | Read, Grep, Glob, Bash | — | Read-only, project-only: codebase search + dependency tracing; returns a concise cited report. |
 | `insight-curator` | haiku | Read, Grep, Glob, Bash | — | Read-only: dedupes module `INSIGHTS.md` and recommends promotions (to skills / docs / specs). |
 
-Each agent also sets an **`effort`** (`low`..`high`): judges (`planner`, `architecture-reviewer`,
-`plan-verifier`, `brainstorm`) run `high`; mechanical agents (`investigator`) run `low`; executors
+Each agent also sets an **`effort`** (`low`..`high`): judges (`spec-creator`, `implementation-planner`,
+`architecture-reviewer`, `plan-verifier`, `brainstorm`) run `high`; mechanical agents (`investigator`) run `low`; executors
 run `medium`. Mechanical search/dedup agents are on `haiku` to cut cost/latency. Override per call via
 the Agent tool's `model`/`effort` options when a task needs more (or less).
 
 ## How they fit together
 
-A **research → brainstorm → plan → implement → verify → document** flow, plus read-only helpers that
-slot in anywhere.
+A **research → brainstorm → spec → plan → implement → verify → document** flow, plus read-only
+helpers that slot in anywhere.
 
 1. **`researcher`** (web + project) / **`investigator`** (project-only search & dependency tracing) —
-   gather facts when something needs investigating.
+   gather facts when something needs investigating; also fan out (several in parallel) to answer a
+   `spec-creator` *Research needs* list.
 2. **`brainstorm`** — before committing to an approach, generate and weigh options, recommend one.
-3. **`planner`** — turns the chosen approach into a Development Plan at `.ai/plans/<feature>.md`, each
-   task tagged with **required skills** and a **parallel group**.
-4. **`implementer`** — builds one scoped task (invokes required skills, keeps tests green, self-reviews
-   its own diff), in parallel, each in its own worktree.
-5. **`test-writer`** — writes the behavior tests (UI + backend), in parallel, in its own worktree.
-6. **`architecture-reviewer`** (structure) and **`plan-verifier`** (requirement coverage vs the plan
-   or spec) — read-only checks after the work; they can run in parallel.
-7. **`doc-writer`** — documents the shipped functionality or turns the plan into docs/diagrams.
-8. **`insight-curator`** — periodically dedupes the `INSIGHTS.md` files and recommends what to promote.
+3. **`spec-creator`** — turns the feature request (+ design screenshots/docs) into an SDD spec at
+   `<module>/specs/SPEC-NN-<slug>-<YYYY-MM-DD>.md` (root `specs/` for cross-module) with EARS
+   acceptance criteria
+   (`AC-n` IDs + `Verify:` tags); open questions come back as `[NEEDS CLARIFICATION]` — the user
+   answers, spec-creator is re-dispatched to fold them in, the user approves (status flips only on
+   instruction).
+4. **`implementation-planner`** — given the approved **spec**, reviews its `AC-n` criteria (Gate A),
+   returns questions + recommendations + the **multi-agent vs single-agent** question and STOPS
+   (Gate B). **Resume the SAME agent via `SendMessage`** with the answers — a fresh dispatch re-reads
+   everything and roughly doubles the cost. It then writes the Implementation Plan to
+   `.ai/plans/<feature>.md` — each task tagged with the `AC-n` IDs it **covers**, its **required
+   skills**, and (multi-agent only) a **parallel group**. The spec is its input, never its output.
+5. **`implementer`** — typically in a fresh chat: one agent per task, parallel groups in concurrent
+   worktrees (merge-deps first, commit + report SHA); the orchestrator integrates each wave before
+   dispatching the next.
+6. **After integration, in parallel** (both read-only): **`plan-verifier` pass 1** — AC coverage
+   against the spec, catching MISSING/PARTIAL functionality *before* tests are written — and
+   **`architecture-reviewer`** (structure only). Fix gaps with targeted `implementer`s.
+7. **`test-writer`** — with the spec in hand: each targeted AC becomes a behavior test at its
+   `Verify:` level, in parallel worktrees. Bugs are caught **here**, by design — every AC maps to a
+   test; there is deliberately no separate bug-review agent.
+8. **`plan-verifier` final pass** — the approve verdict (now including test evidence where the plan
+   requires it).
+9. **`doc-writer`** — documents the shipped functionality; the orchestrator records candidate
+   insights (`engineering-insights`) and a `METRICS.md` row.
+10. **`insight-curator`** — periodically dedupes the `INSIGHTS.md` files and recommends what to
+    promote.
 
-The `.ai/plans/` directory is the handoff point between planner, implementer, and plan-verifier.
+Specs in `specs/` folders are the handoff point between spec-creator and implementation-planner;
+the `.ai/plans/` directory between implementation-planner, implementer, and plan-verifier.
+
+The **`/impl` skill** (`.ai/skills/impl/SKILL.md`) runs the execution half of this flow (steps
+5–9) as a single command — input: an existing Implementation Plan; `spec-creator` and
+`implementation-planner` are run manually beforehand. Its only gate is the post-verification
+findings selection (fix iterations are user-selected, never automatic). `test-writer` is currently
+disabled in that pipeline (token economy) — tests are authored/run manually.
 
 ---
 
@@ -66,13 +93,59 @@ uses the `deep-research` skill.
 **Based on:** the user's own requirements/specification for this agent. **No external sources** — it
 was designed from the brief, following the repo's existing agent-file conventions.
 
-## `planner`
+## `spec-creator`
 
-Project-aware senior architect. Reads the project (and relevant `INSIGHTS.md`), chooses one simplest
-approach, decomposes it into tasks with required-skills and parallel-group columns, mines a
-`Known gotchas (from INSIGHTS)` section, and writes the plan to `.ai/plans/<feature>.md`. It mirrors
-the implementer's two skill sets verbatim and carries the `Skill` tool so it plans within what the
-implementer can actually do. It writes only the plan file — never application code.
+Senior requirements engineer for Spec-Driven Development. Turns a feature request (plus design
+screenshots, docs, or existing UI code) into a spec with a fixed template (Problem, Goals/Non-goals,
+User stories, EARS acceptance criteria with `AC-n` IDs, Edge cases, optional Flows & module
+communication and Contracts (boundaries), Non-functional, Inputs provenance, Untrusted inputs,
+`[NEEDS CLARIFICATION]`). Specs stay at the WHAT-level: they may include Mermaid workflow /
+module-communication diagrams (via the `mermaid-diagram` skill) and boundary-level contracts
+(field tables, error codes) — but never implementation details (code, function-level design, layer
+wiring). Write access is restricted to specs folders only: `server/specs/`, `client/specs/`,
+`reviewer-core/specs/`, and root `specs/` for cross-module features (`e2e/specs/` is off-limits —
+different artifact). `SPEC-NN` numbering is global across the repo, with an index table in
+`specs/README.md` the agent maintains. Actively analyzes designs for missing states, uncovered
+corner cases, cross-module interactions (vs the architecture map), and UX improvements; never
+silently assumes — gaps become open questions or explicit improvement proposals. Skill routing:
+`mermaid-diagram` for diagrams, `security` for untrusted-input/auth features, `onion-architecture`/
+`frontend-architecture` only as boundary-legality checks — implementation skills are off-limits.
+Every AC pairs its unhappy path and carries a `Verify: unit|integration|e2e|manual` tag
+(non-functional criteria follow the same EARS + measurable-threshold discipline); `AC-n` is the
+traceability spine — Goal/story → AC → the plan's *Covers* column → plan-verifier — so it never
+mints a parallel notation and never renumbers existing ACs. Grounding is scoped: it reads the
+`INSIGHTS.md`/`README.md` of affected modules only (per `read-insights-first`). Missing information
+it cannot derive itself comes back as a **Research needs** list (tagged `researcher` /
+`investigator`) for the orchestrator to fan out in parallel and re-dispatch with findings. Before
+reporting it self-checks the draft against the **Definition of Ready** checklist, which also gates
+`draft` → `approved`; a **review mode** lints an existing spec against that checklist without
+authoring. New specs start as `draft`; status changes and `Supersedes` links only on explicit
+instruction; in-place edits append a `## Changelog` line.
+
+**Based on:** the user's own requirements (spec template + EARS — Mavin, Rolls-Royce 2009), following
+the repo's existing agent-file conventions (`citation-contract`, `architecture-map` rules).
+
+## `implementation-planner`
+
+Project-aware senior architect that plans **how**, never **what**. It consumes a `spec-creator` spec
+(`SPEC-NN-<slug>-<YYYY-MM-DD>.md`) and refuses to plan without one — authoring, extending, or inferring acceptance
+criteria is explicitly out of scope, so a gap in the spec becomes an open question, never an
+assumption. Unresolved `[NEEDS CLARIFICATION]` entries are relayed back rather than answered (they
+belong to `spec-creator`), and a `draft` status is surfaced before planning proceeds.
+
+Two gates run before any plan is written. **Gate A** reviews the spec's `AC-n` criteria for gaps,
+contradictions, ambiguity, untestable statements, buildability, and conflicts with Do-Not-Touch / the
+layer map — and forms recommendations on how the same intent could be achieved better (advice, never
+silently promoted into tasks). **Gate B** returns those questions and recommendations, asks whether to
+execute **multi-agent** (parallel groups → concurrent implementers in worktrees) or **single-agent**
+(one sequential pass, every step green), and **stops** — the plan is written only after the user answers.
+
+The mode changes the plan's shape: multi-agent emits a Parallel group column with non-overlapping files
+per group; single-agent emits a strictly ordered step list and no groups at all. Every task carries a
+**Covers** column citing the `AC-n` IDs it satisfies, which is the traceability anchor `plan-verifier`
+follows back to the spec. It mirrors the implementer's two skill sets verbatim and carries the `Skill`
+tool so it plans within what the implementer can actually do. It writes only the plan file — never the
+spec, never code.
 
 **Based on:** the project's own conventions (CLAUDE.md Project Map, Skill Routing, Coding/Workflow
 Rules, Do-Not-Touch, per-module INSIGHTS) **and** Claude Code sub-agent + plan-mode best practices.
@@ -189,7 +262,7 @@ external sources. The full per-agent Development Plan lives at `.ai/plans/new-ag
 - Building Effective Agents — https://www.anthropic.com/research/building-effective-agents
 - Steering Claude Code: skills, hooks, rules, subagents — https://claude.com/blog/steering-claude-code-skills-hooks-rules-subagents-and-more
 
-**Planning / parallelism — practitioner** — `planner`, `implementer`, `test-writer`
+**Planning / parallelism — practitioner** — `implementation-planner`, `implementer`, `test-writer`
 - Armin Ronacher, "What Actually Is Claude Code's Plan Mode?" — https://lucumr.pocoo.org/2025/12/17/what-is-plan-mode/
 - PubNub, "Best practices for Claude Code sub-agents" — https://www.pubnub.com/blog/best-practices-for-claude-code-sub-agents/
 - DEV Community, "Conversational Development Part 7: @architect sub-agent" — https://dev.to/cristiansifuentes/conversational-development-with-claude-code-part-7-designing-sub-agents-for-planning-meet-1nlk
@@ -254,7 +327,7 @@ external sources. The full per-agent Development Plan lives at `.ai/plans/new-ag
 
 ## Maintenance
 
-- `planner` / `implementer` / `test-writer` / `architecture-reviewer` all route through
+- `implementation-planner` / `implementer` / `test-writer` / `architecture-reviewer` all route through
   **`.ai/rules/skill-routing.md`** — update that one file (and the `AGENTS.md` table) when skills change.
 - Backend test conventions live in the **`backend-testing`** skill (`.ai/skills/backend-testing/`);
   `test-writer` routes to it (no longer embedded).

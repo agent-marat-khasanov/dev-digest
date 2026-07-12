@@ -91,9 +91,18 @@ export function TraceBody({ trace, findings }: { trace: RunTrace; findings: Find
         {trace.prompt_assembly.repo_map != null && (
           <PromptBlock label={t("trace.prompt.repoMap")} text={trace.prompt_assembly.repo_map} color={PROMPT_COLORS.repoMap} />
         )}
-        {trace.prompt_assembly.specs != null && (
-          <PromptBlock label={t("trace.prompt.specs")} text={trace.prompt_assembly.specs} color={PROMPT_COLORS.specs} />
-        )}
+        {trace.prompt_assembly.spec_blocks && trace.prompt_assembly.spec_blocks.length > 0
+          ? trace.prompt_assembly.spec_blocks.map((sb) => (
+              <PromptBlock
+                key={sb.path}
+                label={t("trace.prompt.specBlock", { path: sb.path, tokens: sb.tokens })}
+                text={sb.body}
+                color={PROMPT_COLORS.specs}
+              />
+            ))
+          : trace.prompt_assembly.specs != null && (
+              <PromptBlock label={t("trace.prompt.specs")} text={trace.prompt_assembly.specs} color={PROMPT_COLORS.specs} />
+            )}
         {trace.prompt_assembly.callers != null && (
           <PromptBlock label={t("trace.prompt.callers")} text={trace.prompt_assembly.callers} color={PROMPT_COLORS.callers} />
         )}
