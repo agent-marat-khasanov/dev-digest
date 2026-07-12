@@ -15,6 +15,13 @@ import {
   Settings,
   Repo,
   PrDetail,
+  ContextDoc,
+  ContextPreview,
+  AgentContextLink,
+  SkillContextLink,
+  SetContextBody,
+  SpecBlock,
+  PromptAssembly,
 } from '@devdigest/shared';
 
 /**
@@ -206,5 +213,111 @@ describe('platform DTOs', () => {
         commits: [],
       }),
     ).not.toThrow();
+  });
+});
+
+describe('project-context contracts', () => {
+  it('ContextDoc parses a valid discovered doc', () => {
+    const doc = ContextDoc.parse({
+      path: 'specs/security-baseline.md',
+      folder_type: 'specs',
+      size_bytes: 4096,
+      tokens: 820,
+      updated_at: '2026-06-18T00:00:00.000Z',
+    });
+    expect(doc.folder_type).toBe('specs');
+    expect(doc.tokens).toBe(820);
+  });
+
+  it('ContextDoc rejects a bad folder_type', () => {
+    expect(() =>
+      ContextDoc.parse({
+        path: 'specs/security-baseline.md',
+        folder_type: 'notes',
+        size_bytes: 4096,
+        tokens: 820,
+      }),
+    ).toThrow();
+  });
+
+  it('ContextDoc rejects a missing tokens field', () => {
+    expect(() =>
+      ContextDoc.parse({
+        path: 'specs/security-baseline.md',
+        folder_type: 'specs',
+        size_bytes: 4096,
+      }),
+    ).toThrow();
+  });
+
+  it('ContextPreview parses a valid on-demand preview', () => {
+    const preview = ContextPreview.parse({
+      path: 'docs/architecture.md',
+      content: '# Architecture\n\n...',
+    });
+    expect(preview.path).toBe('docs/architecture.md');
+  });
+
+  it('SetContextBody parses a valid ordered docs array', () => {
+    const body = SetContextBody.parse({
+      docs: [
+        { path: 'specs/security-baseline.md', order: 0 },
+        { path: 'docs/architecture.md', order: 1 },
+      ],
+    });
+    expect(body.docs).toHaveLength(2);
+  });
+
+  it('SetContextBody rejects a doc missing order', () => {
+    expect(() =>
+      SetContextBody.parse({
+        docs: [{ path: 'specs/security-baseline.md' }],
+      }),
+    ).toThrow();
+  });
+
+  it('SetContextBody rejects a doc missing path', () => {
+    expect(() =>
+      SetContextBody.parse({
+        docs: [{ order: 0 }],
+      }),
+    ).toThrow();
+  });
+
+  it('AgentContextLink / SkillContextLink parse a valid link', () => {
+    expect(() =>
+      AgentContextLink.parse({
+        agent_id: 'a1',
+        path: 'specs/security-baseline.md',
+        order: 0,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      SkillContextLink.parse({
+        skill_id: 's1',
+        path: 'docs/architecture.md',
+        order: 1,
+      }),
+    ).not.toThrow();
+  });
+
+  it('SpecBlock parses and PromptAssembly.spec_blocks handles populated/null/omitted', () => {
+    const block = SpecBlock.parse({
+      path: 'specs/security-baseline.md',
+      tokens: 120,
+      body: 'wrapped untrusted spec body',
+    });
+    expect(block.tokens).toBe(120);
+
+    const base = { system: 's', user: 'u' };
+
+    const withBlocks = PromptAssembly.parse({ ...base, spec_blocks: [block] });
+    expect(withBlocks.spec_blocks).toHaveLength(1);
+
+    const withNull = PromptAssembly.parse({ ...base, spec_blocks: null });
+    expect(withNull.spec_blocks).toBeNull();
+
+    const omitted = PromptAssembly.parse(base);
+    expect(omitted.spec_blocks).toBeUndefined();
   });
 });
