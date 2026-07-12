@@ -8,7 +8,8 @@ import {
   PrHistory,
   SmartDiff,
   Conformance,
-  Onboarding,
+  OnboardingTour,
+  TourSection,
   EvalRun,
   MemoryItem,
   RunTrace,
@@ -124,7 +125,7 @@ describe('AI contracts parse fixtures', () => {
     expect(d.groups[0]!.role).toBe('core');
   });
 
-  it('Conformance / Onboarding / EvalRun / MemoryItem', () => {
+  it('Conformance / OnboardingTour / EvalRun / MemoryItem', () => {
     expect(() =>
       Conformance.parse({
         spec_id: 's1',
@@ -134,8 +135,41 @@ describe('AI contracts parse fixtures', () => {
       }),
     ).not.toThrow();
     expect(() =>
-      Onboarding.parse({
-        sections: [{ kind: 'architecture', title: 'T', body: 'b', links: [] }],
+      TourSection.parse({
+        id: 'critical_paths',
+        title: 'Critical paths',
+        body: 'b',
+        diagram: null,
+        links: [{ label: 'entry point', path: 'src/index.ts' }],
+        commands: null,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      OnboardingTour.parse({
+        repo_id: 'r1',
+        mode: 'model',
+        reason: null,
+        sections: [
+          { id: 'architecture', title: 'Architecture', body: 'b', diagram: 'graph TD;A-->B;', links: [] },
+          { id: 'critical_paths', title: 'Critical paths', body: 'b', links: [{ label: 'entry', path: 'a.ts' }] },
+          { id: 'run_locally', title: 'Run locally', body: 'b', commands: ['pnpm install', 'pnpm dev'] },
+          { id: 'reading_path', title: 'Reading path', body: 'b', links: [{ label: 'why read this', path: 'a.ts' }] },
+          { id: 'first_tasks', title: 'First tasks', body: 'b' },
+        ],
+        index: { files_indexed: 42, sha: 'abc123' },
+        generated_at: '2026-07-12T00:00:00.000Z',
+        generated: { model: 'deepseek/deepseek-v4-flash', cost_usd: 0.0021, tokens_in: 1200, tokens_out: 400 },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      OnboardingTour.parse({
+        repo_id: 'r1',
+        mode: 'not_available',
+        reason: 'not_cloned',
+        sections: [],
+        index: { files_indexed: 0, sha: null },
+        generated_at: null,
+        generated: null,
       }),
     ).not.toThrow();
     expect(() =>
