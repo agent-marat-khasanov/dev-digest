@@ -27,3 +27,4 @@ All specs across the repo, maintained by `spec-creator` on every creation and st
 | Spec ID | Title | Location | Status |
 |---------|-------|----------|--------|
 | SPEC-01 | Project Context | `specs/SPEC-01-project-context-2026-07-12.md` | approved |
+| SPEC-02 | Onboarding Generator | `specs/SPEC-02-onboarding-generator-2026-07-12.md` | draft |
