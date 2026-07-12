@@ -15,6 +15,19 @@
 
 - Never use agent-browser "chat" command — always use --url, --text, --selector
 - Specs are numbered for consistent execution order
+- Project Context flows (`08-project-context`) need REAL FILES on disk, not just DB rows — discovery
+  walks the repo clone. The seeded demo repo's `clonePath` now points at
+  `server/fixtures/demo-context-docs/{specs,docs,insights}` (wired in `server/src/db/seed.ts`);
+  before that it was `null` and every context surface rendered empty. Any new context-doc assertion
+  must match those fixture files' content.
+- Doc discovery sorts by `path.localeCompare` over the whole tree, so fixture order is alphabetical
+  by top segment (`docs/*` < `insights/*` < `specs/*`) — "click the first Preview button"-style
+  selectors depend on this order.
+- Editor tab switches (`/agents/[id]?tab=…`, `/skills/[id]?tab=…`) use `router.replace` with a
+  `?tab=` param — `wait --url tab=<key>` is the reliable "tab switched" assertion (same as
+  04-pr-findings).
+- `run.ts` discovers specs via `readdirSync(SPECS_DIR)` — adding a new `NN-*.flow.json` needs no
+  runner/registry change (only the README coverage table).
 
 ## Tool & Library Notes
 

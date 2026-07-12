@@ -155,6 +155,29 @@ root `AGENTS.md`/`CLAUDE.md`.
 
 ## Session Notes
 
+### 2026-07-12 — /impl first full run: SPEC-01 Project Context shipped (11 tasks + 3 fixes, zero redone)
+- Wave orchestration that worked: G1 (4 parallel foundational implementers) → converge (typecheck) →
+  server track (T5→T6) ‖ client track (T7→T8/T9/T10/T11), then findings gate → 3 parallel fix
+  implementers → re-review. 14 implementer runs, ALL accepted first try — the plan's disjoint-files
+  guarantee + "merge feature branch first" prompt clause is what made parallel integration trivial.
+- Integration recipe that beats file-copying: each implementer's worktree merge of the feature branch
+  fast-forwards (worktree base == feature HEAD), so its commit's parent IS the feature branch head →
+  `git cherry-pick <sha>` from the main tree lands every task cleanly, keeping linear history.
+  Caveat: cherry-pick refuses to start while the INDEX is dirty (a staged rename counts) — commit or
+  unstage orchestrator-side changes first; a failed attempt leaves sequencer state (`cherry-pick
+  --abort` before retrying).
+- CORRECTION to the older "no Node toolchain" entry below: node/pnpm ARE now available at
+  `~/.local/bin` (node v26, pnpm 11.9) — implementers can and should typecheck/test in worktrees
+  (`pnpm install` per package is lockfile-fast; also install `reviewer-core/` deps or server tsc
+  fails on the path alias). Bypass `pnpm test`-wrapper env quirks by running `./node_modules/.bin/
+  {vitest,tsc}` directly.
+- Reviewer pairing paid off again: plan-verifier caught a literal-spec gap (AC-5 "reason") +
+  2 deliverable-drift items that all tests missed; architecture-reviewer caught 2 real wiring
+  WARNINGs. One combined fix-implementer per overlapping file-set (AC-5+arch shared context/service.ts)
+  avoided a cherry-pick conflict between parallel fixers.
+- Findings-gate UX: presenting reviewer findings grouped + one multiSelect AskUserQuestion (fix
+  candidates as options) worked; user picked all four.
+
 ### 2026-07-12 — SPEC-01 Project Context: full spec→clarify→approve→plan chain
 - First real run of the SDD front half: `spec-creator` authored `specs/SPEC-01-project-context-2026-07-12.md`
   (30 EARS ACs) from 4 design mockups + Ukrainian requirements; 6 `[NEEDS CLARIFICATION]` items were

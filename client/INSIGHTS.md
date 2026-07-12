@@ -30,6 +30,23 @@
 - Blast Radius is a **section inside the Overview tab**, NOT a top-level tab — this is what the L04 course design specifies (Intent on the left, Blast on the right, two-column grid). The component lives at `OverviewTab/_components/BlastPanel/` (co-located, since only Overview uses it). Do NOT "restore" a standalone Blast tab — an earlier note below (line ~21, "Blast tab followed this exactly") predates this and is now stale. Consequence of the move: `useBlast(prId)` previously fired only on `?tab=blast` click (per-tab conditional mount in `page.tsx`); now it fires whenever Overview renders — i.e. on default page load. That's intended and matches the design (Blast visible immediately).
 - Add a new repo-scoped Skills Lab page by reading the active repo from `useActiveRepo()` (`@/lib/repo-context` → `{ repoId, activeRepo }` with `activeRepo.full_name`/`default_branch`); the nav entry goes in `vendor/ui/nav.ts` (between Skills and Agents), and `components/app-shell/helpers.ts` `activeKeyFor()` already maps `/conventions`. Build GitHub evidence links with `githubBlobUrl(repoFullName, branch, file, line)` from `@/lib/github-urls`.
 
+- Project-context attach tabs (agent `AgentEditor/_components/ContextTab`, skill
+  `SkillDetail/_components/ContextTab`) deliberately do NOT copy SkillsTab's bound/unbound-popover
+  state: they list EVERY discovered doc (attached + available) with a filter, so local state is one
+  ordered path array + an attached `Set`. Also `AgentContextLink`/`SkillContextLink` have NO `enabled`
+  field (unlike `AgentSkillLink`) — the checkbox is attach/detach, not a per-link toggle.
+- "Rescan" for project context is purely `qc.refetchQueries({queryKey:["context",repoId]})` — there is
+  no server reindex endpoint (discovery is a stateless fresh walk). The context list response is
+  `ContextList {docs, reason:'not_cloned'|null}`, NOT a bare array — when a list contract reshapes
+  like this, grep the hook name (`useContextFiles`) for every destructuring call site (was 5).
+- The scope of "update ALL trace test mocks" (line above) is: mocks that carry `prompt_assembly`
+  (i.e. `RunTrace`) — `RunSummary`-based mocks (RunHistory) have no prompt-assembly fields and need
+  nothing. `SpecBlock` has no `id` (only `path/tokens/body`) — `path` is the correct React key
+  (unique per trace via dedupe-by-path).
+- The pre-scaffolded `messages/en/context.json` describes the OLD SpecFile/edit-mode/chunks design and
+  is stale relative to SPEC-01 (read-only page, NG1–NG3); the shipped `/context` page hardcodes its
+  strings. Anyone wiring i18n for that page should rewrite the file, not reuse it.
+
 ## Tool & Library Notes
 
 <!-- Quirks and gotchas of dependencies -->
