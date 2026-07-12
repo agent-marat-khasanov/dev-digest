@@ -1,0 +1,42 @@
+{
+  "name": "Project Context: repo doc browser, agent Context tab, skill Project context tab",
+  "description": "Covers AC-6 (repo-scoped /context page: doc rows with path + folder badge, read-only markdown preview), AC-10 (agent editor Context tab: doc rows with checkbox/name/badge, filter input), and AC-15 (skill editor 'Project context to use' tab, equivalent section). The seeded demo repo's clonePath points at server/fixtures/demo-context-docs (specs/docs/insights markdown), so context.walkContext discovers real docs without a real git clone. Read-only seeded data — no model call, no context saved.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/context"], "label": "load the Project Context page" },
+    { "cmd": ["wait", "--url", "/context"], "label": "context route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "context discovery fetch settles" },
+    { "cmd": ["wait", "--text", "architecture.md"], "label": "seeded doc row (docs/architecture.md) is visible" },
+    { "cmd": ["wait", "--text", "docs/architecture.md"], "label": "doc row shows the repo-relative path" },
+    { "cmd": ["wait", "--text", "rate-limit-api.md"], "label": "seeded doc row (specs/rate-limit-api.md) is visible" },
+    { "cmd": ["find", "text", "rate-limit-api.md", "click"], "label": "select the specs doc row" },
+    { "cmd": ["wait", "--text", "token-bucket rate limiter"], "label": "read-only markdown preview renders the selected doc's content" },
+
+    { "cmd": ["open", "{BASE}/agents"], "label": "load the agents list" },
+    { "cmd": ["wait", "--url", "/agents"], "label": "agents route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "agents fetch settles" },
+    { "cmd": ["find", "text", "Security Reviewer", "click"], "label": "open the seeded Security Reviewer agent" },
+    { "cmd": ["wait", "--url", "/agents/"], "label": "navigate to the agent detail route" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "agent detail data settles" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Context"], "label": "switch to the agent editor's Context tab" },
+    { "cmd": ["wait", "--url", "tab=context"], "label": "context tab is active in the URL" },
+    { "cmd": ["wait", "--text", "Project context"], "label": "Context tab renders its title" },
+    { "cmd": ["wait", "--text", "Filter documents…"], "label": "filter input is present" },
+    { "cmd": ["wait", "--text", "architecture.md"], "label": "discovered doc row (name) renders in the Context tab" },
+    { "cmd": ["wait", "--text", "docs/architecture.md"], "label": "discovered doc row (path) renders in the Context tab" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Preview"], "label": "open the per-row preview modal" },
+    { "cmd": ["wait", "--text", "No route talks to the database directly."], "label": "preview modal renders the doc's read-only markdown content" },
+
+    { "cmd": ["open", "{BASE}/skills"], "label": "load the skills list" },
+    { "cmd": ["wait", "--url", "/skills"], "label": "skills route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "skills fetch settles" },
+    { "cmd": ["find", "text", "pr-quality-rubric", "click"], "label": "open the seeded pr-quality-rubric skill" },
+    { "cmd": ["wait", "--url", "/skills/"], "label": "navigate to the skill detail route" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "skill detail data settles" },
+    { "cmd": ["find", "role", "button", "click", "--name", "Context"], "label": "switch to the skill editor's Context tab" },
+    { "cmd": ["wait", "--url", "tab=context"], "label": "context tab is active in the URL" },
+    { "cmd": ["wait", "--text", "Project context to use"], "label": "skill Context tab renders its title (equivalent to the agent tab)" },
+    { "cmd": ["wait", "--text", "Filter documents…"], "label": "filter input is present" },
+    { "cmd": ["wait", "--text", "architecture.md"], "label": "discovered doc row (name) renders in the skill Context tab" },
+    { "cmd": ["wait", "--text", "docs/architecture.md"], "label": "discovered doc row (path) renders in the skill Context tab" }
+  ]
+}
