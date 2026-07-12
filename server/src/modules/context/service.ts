@@ -136,8 +136,11 @@ export class ContextService {
  * (absolute paths, `..`) — `resolve(root, rel)` must stay under
  * `resolve(root)` (== root or start with `root + sep`). Mirrors
  * `conventions/service.ts`'s guarded read; NOT `readClone` (no guard there).
+ *
+ * Exported for reuse by `reviews/run-executor.ts` (T6 run-time doc injection)
+ * so the guard is defined exactly once.
  */
-function resolveInClone(clonePath: string, rel: string): string | null {
+export function resolveInClone(clonePath: string, rel: string): string | null {
   const root = resolve(clonePath);
   const full = resolve(root, rel);
   if (full !== root && !full.startsWith(root + sep)) return null;

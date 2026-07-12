@@ -1,5 +1,6 @@
+import { readFile, stat } from 'node:fs/promises';
 import type { Container } from '../../platform/container.js';
-import type { Provider, Review, RunTrace, SkillBlock, UnifiedDiff } from '@devdigest/shared';
+import type { Provider, Review, RunTrace, SkillBlock, SpecBlock, UnifiedDiff } from '@devdigest/shared';
 import { reviewPullRequest, countBlockers } from '@devdigest/reviewer-core';
 import { RunLogger } from '../../platform/run-logger.js';
 import * as schema from '../../db/schema.js';
@@ -8,8 +9,11 @@ import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './reposit
 import { REVIEW_STRATEGY } from './constants.js';
 import { taskLine } from './helpers.js';
 import { selectActiveSkillBlocks } from './skill-blocks.js';
+import { orderContextPaths } from './context-blocks.js';
 import { loadDiff } from './diff-loader.js';
 import { IntentRepository } from '../intent/repository.js';
+import { resolveInClone } from '../context/service.js';
+import { MAX_FILE_SIZE } from '../repo-intel/constants.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
 export class RunCancelledError extends Error {
@@ -196,6 +200,11 @@ export class ReviewRunExecutor {
       // only strings; the per-skill metadata is rebuilt into the trace here.
       const skillBlocks = await this.buildSkillBlocks(agent, runLog);
 
+      // T6 — project-context docs attached to the agent + inherited from its
+      // enabled skills (ordered, deduped, read fresh from the clone). Best-
+      // effort: any failure/missing-file is skipped, never fails the run.
+      const specBlocks = await this.buildSpecBlocks(repo, agent, runLog);
+
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
       // the CI runner). The service owns only I/O: repo-intel context resolution
@@ -216,6 +225,11 @@ export class ReviewRunExecutor {
         // Bound + enabled skills, in the order configured on the Agent editor.
         // assemblePrompt joins these into the "Skills / rules" section.
         ...(skillBlocks.length > 0 ? { skills: skillBlocks.map((s) => s.body) } : {}),
+        // T6 — attached + inherited project-context docs. assemblePrompt joins
+        // these under "## Project context", each wrapped as untrusted data.
+        // Omitted entirely when nothing is attached (AC-21: byte-identical
+        // prompt to the pre-feature shape).
+        ...(specBlocks.length > 0 ? { specs: specBlocks.map((s) => s.body) } : {}),
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
@@ -291,6 +305,7 @@ export class ReviewRunExecutor {
         prompt_assembly: {
           ...outcome.assembly,
           skill_blocks: skillBlocks.length > 0 ? skillBlocks : null,
+          spec_blocks: specBlocks.length > 0 ? specBlocks : null,
         },
         tool_calls: outcome.chunks.map((c) => ({
           tool: 'review_file',
@@ -300,7 +315,7 @@ export class ReviewRunExecutor {
         })),
         raw_output: outcome.raw,
         memory_pulled: [],
-        specs_read: [],
+        specs_read: specBlocks.map((b) => b.path),
         // Persisted log = the run's FULL event buffer (incl. shared pre-work:
         // diff load + intent), not just events recorded inside this method.
         log: runLog.logFor(runId),
@@ -355,6 +370,76 @@ export class ReviewRunExecutor {
     if (blocks.length === 0) return [];
     const total = blocks.reduce((sum, b) => sum + b.tokens, 0);
     runLog.info(`skills: attached ${blocks.length} skill(s), ${total} token(s) total`);
+    return blocks;
+  }
+
+  /**
+   * T6 — resolve the agent's attached project-context docs + docs inherited
+   * from its ENABLED skills, dedupe (agent order first, keep-first, AC-19),
+   * and read each fresh from the repo clone. A path that resolves outside the
+   * clone, no longer exists, or exceeds the read cap is skipped (recorded in
+   * the Live Log) rather than failing the run (AC-27, AC-28). Returns `[]`
+   * when nothing is attached/inherited or the repo has no clone, in which
+   * case the prompt is identical to the pre-lesson shape and the trace
+   * records `spec_blocks: null` / `specs_read: []`.
+   */
+  private async buildSpecBlocks(
+    repo: typeof schema.repos.$inferSelect,
+    agent: AgentRow,
+    runLog: RunLogger,
+  ): Promise<SpecBlock[]> {
+    if (!repo.clonePath) return [];
+    const clonePath = repo.clonePath;
+
+    let agentLinks, inherited;
+    try {
+      agentLinks = await this.container.contextRepo.listAgentContext(agent.id);
+      inherited = await this.container.contextRepo.skillInheritedContext(agent.id);
+    } catch (err) {
+      runLog.info(`project context: failed to load attached docs — ${(err as Error).message}`);
+      return [];
+    }
+
+    const paths = orderContextPaths(
+      agentLinks.map((l) => l.path),
+      inherited.map((l) => l.path),
+    );
+    if (paths.length === 0) return [];
+
+    const blocks: SpecBlock[] = [];
+    const skipped: string[] = [];
+    for (const path of paths) {
+      const full = resolveInClone(clonePath, path);
+      if (!full) {
+        skipped.push(path);
+        continue;
+      }
+      let size: number;
+      try {
+        size = (await stat(full)).size;
+      } catch {
+        skipped.push(path);
+        continue;
+      }
+      if (size > MAX_FILE_SIZE) {
+        skipped.push(path);
+        continue;
+      }
+      const content = await readFile(full, 'utf8').catch(() => null);
+      if (content === null) {
+        skipped.push(path);
+        continue;
+      }
+      blocks.push({ path, tokens: this.container.tokenizer.count(content), body: content });
+    }
+
+    if (skipped.length > 0) {
+      runLog.info(`project context: skipped ${skipped.length} missing/unsafe doc(s) — ${skipped.join(', ')}`);
+    }
+    if (blocks.length > 0) {
+      const total = blocks.reduce((sum, b) => sum + b.tokens, 0);
+      runLog.info(`project context: attached ${blocks.length} doc(s), ${total} token(s) total`);
+    }
     return blocks;
   }
 
@@ -498,7 +583,15 @@ export class ReviewRunExecutor {
         source: 'local',
       },
       stats: { duration_ms: durationMs, tokens_in: 0, tokens_out: 0, cost_usd: null, findings: 0, grounding },
-      prompt_assembly: { system: agent.systemPrompt, skills: null, skill_blocks: null, memory: null, specs: null, user: '' },
+      prompt_assembly: {
+        system: agent.systemPrompt,
+        skills: null,
+        skill_blocks: null,
+        memory: null,
+        specs: null,
+        spec_blocks: null,
+        user: '',
+      },
       tool_calls: [],
       raw_output: '',
       memory_pulled: [],
