@@ -247,21 +247,37 @@ export const PrCommentInput = z.object({
 export type PrCommentInput = z.infer<typeof PrCommentInput>;
 
 // ---- Project Context ----
-export const SpecFile = z.object({
+export const ContextFolderType = z.enum(['specs', 'docs', 'insights']);
+export type ContextFolderType = z.infer<typeof ContextFolderType>;
+
+/** One discovered markdown doc under a configured root folder (specs/docs/insights). */
+export const ContextDoc = z.object({
   path: z.string(),
-  content: z.string().nullish(),
-  size: z.number().int().nullish(),
+  folder_type: ContextFolderType,
+  size_bytes: z.number().int(),
+  tokens: z.number().int(),
   updated_at: z.string().nullish(),
 });
-export type SpecFile = z.infer<typeof SpecFile>;
+export type ContextDoc = z.infer<typeof ContextDoc>;
 
-export const IndexStatus = z.object({
-  status: z.enum(['idle', 'cloning', 'parsing', 'embedding', 'done', 'error']),
-  pct: z.number().min(0).max(100),
-  message: z.string().nullish(),
-  chunks_indexed: z.number().int().nullish(),
+/** On-demand doc preview (fetched per doc, not inlined in the list response). */
+export const ContextPreview = z.object({
+  path: z.string(),
+  content: z.string(),
 });
-export type IndexStatus = z.infer<typeof IndexStatus>;
+export type ContextPreview = z.infer<typeof ContextPreview>;
+
+/** Body for POST /agents/:id/context and POST /skills/:id/context — set/replace
+ *  the ordered attached-doc set. */
+export const SetContextBody = z.object({
+  docs: z.array(
+    z.object({
+      path: z.string(),
+      order: z.number().int(),
+    }),
+  ),
+});
+export type SetContextBody = z.infer<typeof SetContextBody>;
 
 // ---- Run request (review trigger; owned by A2, contract lives here) ----
 export const RunRequest = z.object({
