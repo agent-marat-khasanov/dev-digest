@@ -36,6 +36,9 @@ const EnvSchema = z.object({
     (v) => (v === '' ? undefined : v),
     z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
   ),
+  // Comma-separated top-level folder names the context discovery walk matches
+  // as root segments (any depth). Default covers the course's own doc roots.
+  CONTEXT_ROOTS: z.string().default('specs,docs,insights'),
 });
 
 export type AppConfig = {
@@ -59,6 +62,8 @@ export type AppConfig = {
    * EXACTLY like the ripgrep-only baseline.
    */
   repoIntelEnabled: boolean;
+  /** Root folder names (exact segment match, any depth) for context discovery. */
+  contextRoots: string[];
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -77,5 +82,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     webOrigin: `http://localhost:${parsed.WEB_PORT}`,
     embeddingsEnabled: parsed.EMBEDDINGS_ENABLED === 'true',
     repoIntelEnabled: parsed.REPO_INTEL_ENABLED !== 'false',
+    contextRoots: parsed.CONTEXT_ROOTS.split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
   };
 }
