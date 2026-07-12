@@ -34,7 +34,7 @@ vi.mock("@/lib/repo-context", () => ({
 }));
 
 vi.mock("@/lib/hooks/context", () => ({
-  useContextFiles: () => ({ data: DOCS }),
+  useContextFiles: () => ({ data: { docs: DOCS, reason: null } }),
   useSkillContext: () => ({ data: REMOTE_LINKS }),
   useSetSkillContext: () => ({
     mutate: setSkillContextMutate,

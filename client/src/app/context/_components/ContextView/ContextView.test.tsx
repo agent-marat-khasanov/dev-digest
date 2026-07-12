@@ -44,10 +44,28 @@ describe("ContextView", () => {
   });
 
   it("shows an empty state naming the searched root folders", () => {
-    useContextFiles.mockReturnValue({ data: [], isLoading: false, isError: false, refetch: vi.fn() });
+    useContextFiles.mockReturnValue({
+      data: { docs: [], reason: null },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     render(<ContextView />);
     expect(screen.getByText(/no docs found/i)).toBeInTheDocument();
     expect(screen.getByText(/specs, docs, insights/i)).toBeInTheDocument();
+  });
+
+  it("shows a distinct not-cloned state prompting a repo sync (AC-5)", () => {
+    useContextFiles.mockReturnValue({
+      data: { docs: [], reason: "not_cloned" },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
+    render(<ContextView />);
+    expect(screen.getByText(/isn't available yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/sync the repo/i)).toBeInTheDocument();
+    expect(screen.queryByText(/no docs found/i)).not.toBeInTheDocument();
   });
 
   it("shows an error state prompting a repo sync when discovery fails", () => {
@@ -58,7 +76,12 @@ describe("ContextView", () => {
   });
 
   it("renders one row per doc with its path and folder badge", () => {
-    useContextFiles.mockReturnValue({ data: DOCS, isLoading: false, isError: false, refetch: vi.fn() });
+    useContextFiles.mockReturnValue({
+      data: { docs: DOCS, reason: null },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     render(<ContextView />);
     expect(screen.getByText("specs/security-baseline.md")).toBeInTheDocument();
     expect(screen.getByText("docs/architecture.md")).toBeInTheDocument();
@@ -67,7 +90,12 @@ describe("ContextView", () => {
   });
 
   it("renders the read-only markdown preview for the selected doc", () => {
-    useContextFiles.mockReturnValue({ data: DOCS, isLoading: false, isError: false, refetch: vi.fn() });
+    useContextFiles.mockReturnValue({
+      data: { docs: DOCS, reason: null },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     useContextPreview.mockReturnValue({
       data: { path: "specs/security-baseline.md", content: "# Security Baseline\n\nDo not skip auth." },
       isLoading: false,
@@ -81,7 +109,12 @@ describe("ContextView", () => {
   });
 
   it("triggers a rescan via useReindexContext", () => {
-    useContextFiles.mockReturnValue({ data: DOCS, isLoading: false, isError: false, refetch: vi.fn() });
+    useContextFiles.mockReturnValue({
+      data: { docs: DOCS, reason: null },
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    });
     const mutate = vi.fn();
     useReindexContext.mockReturnValue({ mutate, isPending: false });
     render(<ContextView />);

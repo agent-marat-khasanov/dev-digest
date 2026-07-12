@@ -62,12 +62,12 @@ d('context module (routes + link CRUD + workspace scoping)', () => {
     return repo;
   }
 
-  it('AC-5: a never-cloned repo returns 200 with an empty list, not a 500', async () => {
+  it('AC-5: a never-cloned repo returns 200 with an empty list + a reason, not a 500', async () => {
     const app = await makeApp();
     const repo = await createRepo(null);
     const res = await app.inject({ method: 'GET', url: `/repos/${repo.id}/context` });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual([]);
+    expect(res.json()).toEqual({ docs: [], reason: 'not_cloned' });
     await app.close();
   });
 
@@ -76,7 +76,9 @@ d('context module (routes + link CRUD + workspace scoping)', () => {
     const repo = await createRepo(cloneRoot);
     const res = await app.inject({ method: 'GET', url: `/repos/${repo.id}/context` });
     expect(res.statusCode).toBe(200);
-    const docs = res.json();
+    const body = res.json();
+    expect(body.reason).toBeNull();
+    const docs = body.docs;
     const api = docs.find((doc: { path: string }) => doc.path === 'specs/api.md');
     expect(api).toBeDefined();
     expect(api.folder_type).toBe('specs');
@@ -92,13 +94,13 @@ d('context module (routes + link CRUD + workspace scoping)', () => {
     const repo = await createRepo(cloneRoot);
     const before = (
       await app.inject({ method: 'GET', url: `/repos/${repo.id}/context` })
-    ).json();
+    ).json().docs;
     expect(before.some((doc: { path: string }) => doc.path === 'specs/new.md')).toBe(false);
 
     await writeFile(join(cloneRoot, 'specs', 'new.md'), '# New');
     const after = (
       await app.inject({ method: 'GET', url: `/repos/${repo.id}/context` })
-    ).json();
+    ).json().docs;
     expect(after.some((doc: { path: string }) => doc.path === 'specs/new.md')).toBe(true);
     await app.close();
   });

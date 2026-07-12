@@ -22,7 +22,8 @@ export function ContextView() {
   const { data, isLoading, isError, refetch } = useContextFiles(repoId);
   const rescan = useReindexContext();
 
-  const docs = sortDocs(data ?? []);
+  const notCloned = data?.reason === "not_cloned";
+  const docs = sortDocs(data?.docs ?? []);
   const [selectedPath, setSelectedPath] = React.useState<string | null>(null);
   const selected: ContextDoc | null = docs.find((d) => d.path === selectedPath) ?? null;
 
@@ -64,7 +65,15 @@ export function ContextView() {
           />
         )}
 
-        {!isLoading && !isError && docs.length === 0 && (
+        {!isLoading && !isError && notCloned && (
+          <EmptyState
+            icon="FileText"
+            title="Project Context isn't available yet"
+            body="This repo hasn't been cloned locally. Sync the repo, then rescan to discover its docs."
+          />
+        )}
+
+        {!isLoading && !isError && !notCloned && docs.length === 0 && (
           <EmptyState
             icon="FileText"
             title="No docs found"

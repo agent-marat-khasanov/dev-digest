@@ -260,6 +260,14 @@ export const ContextDoc = z.object({
 });
 export type ContextDoc = z.infer<typeof ContextDoc>;
 
+/** Response for GET /repos/:id/context. `reason: 'not_cloned'` distinguishes a
+ *  never-cloned repo (AC-5) from a clone with zero matching docs. */
+export const ContextList = z.object({
+  docs: z.array(ContextDoc),
+  reason: z.enum(['not_cloned']).nullable(),
+});
+export type ContextList = z.infer<typeof ContextList>;
+
 /** On-demand doc preview (fetched per doc, not inlined in the list response). */
 export const ContextPreview = z.object({
   path: z.string(),

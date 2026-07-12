@@ -1,17 +1,16 @@
 import { readFile, stat } from 'node:fs/promises';
-import { resolve, sep } from 'node:path';
 import type {
   AgentContextLink,
   ContextDoc,
   ContextFolderType,
+  ContextList,
   ContextPreview,
   SkillContextLink,
 } from '@devdigest/shared';
 import type { Container } from '../../platform/container.js';
 import { NotFoundError, ValidationError } from '../../platform/errors.js';
+import { resolveInClone } from '../../platform/fs-guard.js';
 import { MAX_FILE_SIZE } from '../repo-intel/constants.js';
-import { RepoRepository } from '../repos/repository.js';
-import { SkillsRepository } from '../skills/repository.js';
 import type { ContextLinkInput } from './repository.js';
 import { walkContext } from './walk.js';
 
@@ -20,15 +19,19 @@ import { walkContext } from './walk.js';
  * of the repo clone per request (AC-7) — nothing about the doc list is
  * persisted. Only ORDERED PATHS are ever stored (agent_context/skill_context),
  * never doc text (AC-17). Every repo/agent/skill lookup is workspace-scoped
- * (AC-29, IDOR-safe).
+ * (AC-29, IDOR-safe). Cross-cutting entity repos (repo, skills) are consumed
+ * from the composition root (`container.repoRepo`/`container.skillsRepo`),
+ * mirroring `container.agentsRepo`, rather than constructed here.
  */
 export class ContextService {
-  private repos: RepoRepository;
-  private skills: SkillsRepository;
+  constructor(private container: Container) {}
 
-  constructor(private container: Container) {
-    this.repos = new RepoRepository(container.db);
-    this.skills = new SkillsRepository(container.db);
+  private get repos() {
+    return this.container.repoRepo;
+  }
+
+  private get skills() {
+    return this.container.skillsRepo;
   }
 
   private get links() {
@@ -37,13 +40,13 @@ export class ContextService {
 
   /**
    * Fresh discovery walk for a repo. AC-5: a repo that was never cloned
-   * returns a deterministic empty list (never a 500) — the client already
-   * knows the repo's clone status from `Repo.clone_path`.
+   * returns a deterministic empty list + `reason: 'not_cloned'` (never a
+   * 500), distinguishing "never cloned" from "cloned, zero matching docs".
    */
-  async list(workspaceId: string, repoId: string): Promise<ContextDoc[]> {
+  async list(workspaceId: string, repoId: string): Promise<ContextList> {
     const repo = await this.repos.getById(workspaceId, repoId);
     if (!repo) throw new NotFoundError('Repo not found');
-    if (!repo.clonePath) return [];
+    if (!repo.clonePath) return { docs: [], reason: 'not_cloned' };
 
     const clonePath = repo.clonePath;
     const docs = await walkContext(clonePath, this.container.config.contextRoots);
@@ -61,7 +64,7 @@ export class ContextService {
         updated_at: doc.mtime.toISOString(),
       });
     }
-    return out;
+    return { docs: out, reason: null };
   }
 
   /** On-demand read-only preview of one doc, guarded against path traversal. */
@@ -129,22 +132,6 @@ export class ContextService {
     await this.links.setSkillContext(skillId, docs);
     return this.getSkillContext(workspaceId, skillId);
   }
-}
-
-/**
- * Resolve a repo-relative path against a clone root, rejecting traversal
- * (absolute paths, `..`) — `resolve(root, rel)` must stay under
- * `resolve(root)` (== root or start with `root + sep`). Mirrors
- * `conventions/service.ts`'s guarded read; NOT `readClone` (no guard there).
- *
- * Exported for reuse by `reviews/run-executor.ts` (T6 run-time doc injection)
- * so the guard is defined exactly once.
- */
-export function resolveInClone(clonePath: string, rel: string): string | null {
-  const root = resolve(clonePath);
-  const full = resolve(root, rel);
-  if (full !== root && !full.startsWith(root + sep)) return null;
-  return full;
 }
 
 /**

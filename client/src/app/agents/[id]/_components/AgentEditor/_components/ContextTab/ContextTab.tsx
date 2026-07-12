@@ -31,7 +31,8 @@ export function ContextTab({ agent }: { agent: Agent }) {
   const { repoId } = useActiveRepo();
 
   const { data: linksRemote } = useAgentContext(agent.id);
-  const { data: docs } = useContextFiles(repoId);
+  const { data: contextList } = useContextFiles(repoId);
+  const docs = contextList?.docs;
   const save = useSetAgentContext(agent.id);
 
   const sensors = useSensors(

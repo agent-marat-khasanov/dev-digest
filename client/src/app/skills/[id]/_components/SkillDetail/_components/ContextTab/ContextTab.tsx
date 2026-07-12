@@ -33,7 +33,8 @@ export function ContextTab({ skill }: { skill: Skill }) {
   const toast = useToast();
   const { repoId } = useActiveRepo();
 
-  const { data: docs } = useContextFiles(repoId);
+  const { data: contextList } = useContextFiles(repoId);
+  const docs = contextList?.docs;
   const { data: linksRemote } = useSkillContext(skill.id);
   const save = useSetSkillContext(skill.id);
 

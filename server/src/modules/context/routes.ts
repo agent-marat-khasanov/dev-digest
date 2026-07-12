@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { AgentContextLink, ContextDoc, ContextPreview, SetContextBody, SkillContextLink } from '@devdigest/shared';
+import { AgentContextLink, ContextList, ContextPreview, SetContextBody, SkillContextLink } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -11,7 +11,7 @@ const PreviewBody = z.object({ path: z.string().min(1) });
 
 /**
  * context module (Project Context lesson).
- *   GET  /repos/:id/context           → ContextDoc[] (fresh walk; AC-5 → [])
+ *   GET  /repos/:id/context           → ContextList (fresh walk; AC-5 → { docs: [], reason: 'not_cloned' })
  *   POST /repos/:id/context/preview   → { path } → ContextPreview
  *   GET  /agents/:id/context          → AgentContextLink[]
  *   POST /agents/:id/context          → SetContextBody → replace ordered set
@@ -24,7 +24,7 @@ export default async function contextRoutes(appBase: FastifyInstance) {
 
   app.get(
     '/repos/:id/context',
-    { schema: { params: IdParams, response: { 200: z.array(ContextDoc) } } },
+    { schema: { params: IdParams, response: { 200: ContextList } } },
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       return service.list(workspaceId, req.params.id);

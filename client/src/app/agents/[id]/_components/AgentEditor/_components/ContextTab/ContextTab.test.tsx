@@ -38,7 +38,7 @@ vi.mock("@/lib/repo-context", () => ({
 
 vi.mock("@/lib/hooks/context", () => ({
   useAgentContext: () => ({ data: REMOTE_LINKS }),
-  useContextFiles: () => ({ data: DOCS }),
+  useContextFiles: () => ({ data: { docs: DOCS, reason: null } }),
   useSetAgentContext: () => ({
     mutate: setContextMutate,
     isPending: false,

@@ -12,7 +12,7 @@ import { selectActiveSkillBlocks } from './skill-blocks.js';
 import { orderContextPaths } from './context-blocks.js';
 import { loadDiff } from './diff-loader.js';
 import { IntentRepository } from '../intent/repository.js';
-import { resolveInClone } from '../context/service.js';
+import { resolveInClone } from '../../platform/fs-guard.js';
 import { MAX_FILE_SIZE } from '../repo-intel/constants.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */

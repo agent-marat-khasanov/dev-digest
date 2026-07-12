@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type {
   AgentContextLink,
-  ContextDoc,
+  ContextList,
   ContextPreview,
   SetContextBody,
   SkillContextLink,
@@ -16,12 +16,15 @@ import type {
 // ---------------------------------------------------------------------------
 // /repos/:repoId/context — fresh, uncached walk per request (AC-7). Rescan is
 // simply invalidating/refetching this query — there is no reindex endpoint.
+// `reason: 'not_cloned'` (AC-5) distinguishes "never cloned" from "cloned,
+// zero matching docs" so the page can prompt a repo sync instead of showing
+// the generic empty state.
 // ---------------------------------------------------------------------------
 
 export function useContextFiles(repoId: string | null | undefined) {
   return useQuery({
     queryKey: ["context", repoId],
-    queryFn: () => api.get<ContextDoc[]>(`/repos/${repoId}/context`),
+    queryFn: () => api.get<ContextList>(`/repos/${repoId}/context`),
     enabled: !!repoId,
   });
 }
