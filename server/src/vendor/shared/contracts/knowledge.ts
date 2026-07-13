@@ -26,25 +26,65 @@ export const Conformance = z.object({
 export type Conformance = z.infer<typeof Conformance>;
 
 // ---- Onboarding ----
+// Transport shape for the Onboarding Tour endpoint (GET/POST /repos/:id/tour).
+// DISTINCT from the model output schema in modules/onboarding/prompt.ts (T4) —
+// that schema wraps `items: { path, role|why }[]` for tool-use; the service maps
+// those items into `links[]` here after path validation (AC-7).
 export const OnboardingLink = z.object({
   label: z.string(),
   path: z.string(),
 });
 export type OnboardingLink = z.infer<typeof OnboardingLink>;
 
-export const OnboardingSection = z.object({
-  kind: z.string(),
-  title: z.string(),
-  body: z.string(), // markdown
-  diagram: z.string().nullish(), // mermaid
-  links: z.array(OnboardingLink),
-});
-export type OnboardingSection = z.infer<typeof OnboardingSection>;
+// Fixed, ordered, mandatory five (AC-6) — no `routes_and_apis` (NG6, folded
+// into `architecture`).
+export const TourSectionId = z.enum([
+  'architecture',
+  'critical_paths',
+  'run_locally',
+  'reading_path',
+  'first_tasks',
+]);
+export type TourSectionId = z.infer<typeof TourSectionId>;
 
-export const Onboarding = z.object({
-  sections: z.array(OnboardingSection),
+export const TourSection = z.object({
+  id: TourSectionId,
+  title: z.string(),
+  body: z.string(), // markdown narrative, rendered non-executably (AC-21)
+  diagram: z.string().nullish(), // mermaid source; architecture section only
+  links: z.array(OnboardingLink).nullish(), // each path validated against facts (AC-7)
+  commands: z.array(z.string()).nullish(), // run_locally only; code-derived (AC-8)
 });
-export type Onboarding = z.infer<typeof Onboarding>;
+export type TourSection = z.infer<typeof TourSection>;
+
+export const OnboardingTourMode = z.enum(['model', 'skeleton', 'not_available']);
+export type OnboardingTourMode = z.infer<typeof OnboardingTourMode>;
+
+export const OnboardingTourIndex = z.object({
+  files_indexed: z.number().int(),
+  sha: z.string().nullable(),
+});
+export type OnboardingTourIndex = z.infer<typeof OnboardingTourIndex>;
+
+// Persisted per generation (AC-25); null/absent in skeleton & not_available modes.
+export const OnboardingTourGenerated = z.object({
+  model: z.string().nullable(),
+  cost_usd: z.number().nullable(),
+  tokens_in: z.number().int().nullable(),
+  tokens_out: z.number().int().nullable(),
+});
+export type OnboardingTourGenerated = z.infer<typeof OnboardingTourGenerated>;
+
+export const OnboardingTour = z.object({
+  repo_id: z.string(),
+  mode: OnboardingTourMode,
+  reason: z.string().nullish(), // e.g. index_degraded, repo_too_large, not_cloned, model_failed
+  sections: z.array(TourSection), // empty when not_available
+  index: OnboardingTourIndex,
+  generated_at: z.string().nullish(), // ISO; cached tour's generation timestamp (AC-14), null in not_available
+  generated: OnboardingTourGenerated.nullish(),
+});
+export type OnboardingTour = z.infer<typeof OnboardingTour>;
 
 // ---- Eval ----
 export const EvalPerTrace = z.object({

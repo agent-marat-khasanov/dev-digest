@@ -63,6 +63,25 @@
 - To scroll to a diff line by id, use **`document.getElementById`, NOT `querySelector`** — diff line ids embed the file path (`diffline-${path}-${newNo}`) which contains `/` and `.` (CSS-special). Defer the `scrollIntoView` one tick (`setTimeout 50ms`) so a just-opened collapsed file/group finishes its re-render first; use `scrollMarginTop` on the line wrapper to clear the sticky header.
 - Testing a CONTAINER component whose children pull in heavy deps (next-intl, the full diff/comment subtree): `vi.mock` the leaf child MODULES to stub markers (`vi.mock("@/components/diff-viewer", () => ({ DiffViewer: () => <div data-testid="diff-viewer" /> }))`) and assert which stub renders. This isolates the container's own branching/toggle (e.g. `DiffTab` smart-vs-original + loading/error/empty states) without dragging child internals or a `NextIntlClientProvider` into the test — the children are covered by their own tests. Type-only re-exports from a mocked module (e.g. `import { DiffViewer, type DiffCommentApi }`) are erased at runtime, so the mock only needs the runtime component
 - The vendored `<Markdown>` primitive (`vendor/ui/primitives/Markdown.tsx`) only inlines styles for `p`/`strong`/`code`/`a`; it renders `h1-3`/`ul`/`ol`/`li`/`blockquote`/`hr` with NO styling. Tailwind preflight + the design-system reset (`vendor/ui/styles.css:205-211` zeroes heading margins; preflight strips list bullets) then make them render flat — headings look like body text, lists lose bullets. Fix WITHOUT editing vendor: the primitive sets `className="dd-md"`, so style `.dd-md h1/ul/li/...` in `app/globals.css` (done). Affects all 5 consumers: PreviewTab, FindingCard, CommentCard, BodyEditor, Showcase
+- For a markdown surface that must NEUTRALIZE model-emitted links (untrusted LLM output), use
+  `react-markdown@9` directly (already a dependency) with a `components` map overriding `a` to render
+  children as a plain `<span>` — the vendored `<Markdown>` primitive exposes no `components` override.
+  No `rehype-raw` installed = raw HTML already inert (see `tour/_components/TourView/SectionCard`).
+- `EmptyState` (`vendor/ui/primitives/EmptyState.tsx`) already has `cta`/`onCta`/`ctaLoading` props
+  wired to an internal Button — check before building a bespoke action row next to it.
+- To "make this repo available" from any repo-scoped page, the CTA action is `useRefreshRepo`
+  (`lib/hooks/core.ts`, POST `/repos/:id/refresh` — unconditionally enqueues a clone job). Do NOT use
+  `useResyncRepoIntel` (POST `/repos/:id/resync`) for that: it silently no-ops (`reason:'no_clone'`)
+  when the repo was never cloned.
+- `activeKeyFor` matches routes with substring `.includes()` — when adding a route, grep the matcher
+  for substring collisions with existing routes (a stale `/onboarding` → `onboarding-tour` mapping
+  highlighted the tour nav item on the unrelated Add Repository page until removed).
+- Icon registry additions this round: no `BookOpen`/`Compass`/`Map`/`Route` in `IconName` either —
+  `Workflow` is the best fit for tour/step-flow concepts, `FileText` for docs.
+- When a route-private component (e.g. pulls' BlastPanel `CodeViewer`) would be reused by ONE other
+  route, duplicate a trimmed local version inside the new route's `_components/` (tour's `FileViewer`)
+  instead of importing across route-private trees or promoting to `src/components/` — promotion is
+  justified at the 3rd consumer ("twice — tolerate; thrice — extract"; architecture-reviewer confirmed).
 
 ## Recurring Errors & Fixes
 

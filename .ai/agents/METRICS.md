@@ -33,6 +33,15 @@ Agent tool result (the `subagent_tokens` line); `outcome` is one of:
 | 2026-07-12 | implementer | Findings fixes A/B/C (AC-5+arch, e2e flow, contract fixtures) | sonnet/medium | ~61–164k | accepted | Fix-B correctly diagnosed seeded repo had clonePath:null and wired fixture |
 | 2026-07-12 | architecture-reviewer | project-context diff (pass 1 + re-review) | sonnet/high | ~99k+46k | accepted | 2 real WARNINGs (container bypass, cross-module import); re-review confirmed resolved |
 | 2026-07-12 | plan-verifier | SPEC-01 coverage (pass 1 + final) | sonnet/high | ~128k+77k | accepted | Caught AC-5 PARTIAL + 2 drift items pass 1; final: 28 MET / 2 MANUAL, approve |
+| 2026-07-12 | spec-creator | SPEC-02 onboarding (author + fold-in + AC-1 amend resumes) | opus/high | ~89–112k/run | accepted | 8 clarifications closed in one user round; SendMessage resumes clean (no plan mode) |
+| 2026-07-12 | implementation-planner | SPEC-02 plan (author + cross-review revision resume) | opus/high | ~110k+152k | accepted | Revision folded 5 cross-review blockers, task IDs stable, 26/26 AC coverage held |
+| 2026-07-12 | (external) GPT-5.2 via OpenRouter | SPEC-02 plan cross-model staff review | gpt-5.2 | ~14k in/5.5k out | accepted | 2/5 blockers real (markdown-link bypass, model-authored commands); 1 convention false-positive (repo-blind routes claim) |
+| 2026-07-13 | implementer | SPEC-02 T1-T5,T7-T9 (8 runs, 4 waves) | sonnet/medium | ~64–128k/run | accepted | All first-try; T9 landed as a merge commit → cherry-pick needed `-m 1` |
+| 2026-07-13 | implementer | SPEC-02 fixes: AC-2 rank sort + AC-12 CTA | sonnet/medium | ~56k, ~73k | accepted | Targeted single-finding dispatches; CTA fixer correctly picked useRefreshRepo over useResyncRepoIntel |
+| 2026-07-13 | plan-verifier | SPEC-02 coverage (pass 1 + final) | sonnet/high | ~102k+72k | accepted | Pass 1 caught prompt-only AC-2 enforcement + AC-1 literal deviation; final approve |
+| 2026-07-13 | architecture-reviewer | SPEC-02 feature diff review | sonnet/high | ~86k | accepted | Zero findings; validated FileViewer duplication decision |
+| 2026-07-13 | test-writer | SPEC-02 T10 unit + T11 integration + T12 RTL (3 runs) | sonnet/medium | ~93–124k/run | accepted | Tests derived from spec ACs; +17 server unit, +13 it, +8 RTL, all green first try |
+| 2026-07-13 | implementer | SPEC-02 T13 e2e flow 09-onboarding-tour | sonnet/medium | ~90k | accepted | Caught 05-slot collision → renumbered to 09; agent-browser absent → static flow validation, honest report |
 
 ## Review cadence
 

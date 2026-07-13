@@ -1,0 +1,33 @@
+{
+  "name": "Onboarding Tour: skeleton fallback renders honestly, Regenerate replaces the tour",
+  "description": "Covers AC-10 (skeleton badge honest, never empty/error), AC-14 (5 cards + TOC + header with files-indexed + last-refreshed), AC-15 (Regenerate replaces the displayed tour). The hermetic seed never writes a repo_index_state row for acme/payments-api, so container.repoIntel.getIndexState synthesises a degraded 'no_data' state (repo-intel/service.ts getIndexState) — the onboarding service branches straight to the deterministic skeleton (server/src/modules/onboarding/service.ts branch()) and never calls the LLM, matching this harness's 'no LLM, no API keys' convention (e2e/README.md). Regenerate re-runs the same no-model branch and replaces the cached+displayed tour with a fresh generated_at.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/tour"], "label": "load the Onboarding Tour page for the seeded repo" },
+    { "cmd": ["wait", "--url", "/tour"], "label": "tour route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "tour fetch settles" },
+
+    { "cmd": ["wait", "--text", "Onboarding for"], "label": "header renders" },
+    { "cmd": ["wait", "--text", "payments-api"], "label": "header names the active repo" },
+    { "cmd": ["wait", "--text", "0 files indexed"], "label": "header shows files-indexed count from the cached tour's index state" },
+    { "cmd": ["wait", "--text", "Last refreshed"], "label": "header shows last-refreshed from the cached tour's generated_at" },
+
+    { "cmd": ["wait", "--text", "generated without model"], "label": "AC-10: honest skeleton badge is shown, never a blank/error page" },
+    { "cmd": ["wait", "--text", "no_data"], "label": "AC-10: badge names the real reason (no index run seeded in the hermetic e2e DB)" },
+
+    { "cmd": ["wait", "--text", "On this page"], "label": "AC-14: 'On this page' TOC renders" },
+    { "cmd": ["wait", "--text", "Architecture"], "label": "AC-14: Architecture card renders" },
+    { "cmd": ["wait", "--text", "Critical Paths"], "label": "AC-14: Critical Paths card renders" },
+    { "cmd": ["wait", "--text", "How to Run Locally"], "label": "AC-14: How to Run Locally card renders" },
+    { "cmd": ["wait", "--text", "Guided Reading Path"], "label": "AC-14: Guided Reading Path card renders" },
+    { "cmd": ["wait", "--text", "First Tasks"], "label": "AC-14: First Tasks card renders" },
+    { "cmd": ["wait", "--text", "Generated without a model (no_data)"], "label": "AC-10: skeleton narrative is honest facts-only text, not empty" },
+    { "cmd": ["wait", "--text", "Start with the reading path above."], "label": "First Tasks card shows the deterministic skeleton narrative" },
+
+    { "cmd": ["find", "role", "button", "click", "--name", "Regenerate"], "label": "AC-15: trigger Regenerate" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "regenerate request settles" },
+    { "cmd": ["wait", "--text", "Regenerate"], "label": "AC-15: button returns to its idle label after the regenerated tour replaces the displayed one" },
+    { "cmd": ["wait", "--text", "generated without model"], "label": "AC-15: the replaced tour still renders its (honest) skeleton badge, not an error" },
+    { "cmd": ["wait", "--text", "no_data"], "label": "AC-15: replaced tour keeps the honest reason" },
+    { "cmd": ["wait", "--text", "Guided Reading Path"], "label": "AC-15: replaced tour still renders its 5 sections" }
+  ]
+}
