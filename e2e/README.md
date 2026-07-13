@@ -101,3 +101,4 @@ a CI artifact by `.github/workflows/e2e-web.yml`).
 | `06-onboarding` | `/onboarding` → add-repository form renders (no submit) |
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
 | `08-project-context` | `/context` doc rows + read-only preview; agent editor Context tab (rows, filter, preview); skill editor "Project context to use" tab |
+| `09-onboarding-tour` | `/tour` skeleton fallback (honest badge, never empty), header (repo, files-indexed, last-refreshed), 5 section cards + TOC, Regenerate replaces the displayed tour |
