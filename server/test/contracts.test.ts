@@ -5,7 +5,7 @@ import {
   Intent,
   BlastRadius,
   Risks,
-  PrHistory,
+  Brief,
   SmartDiff,
   Conformance,
   OnboardingTour,
@@ -73,7 +73,7 @@ describe('AI contracts parse fixtures', () => {
     expect(f.trifecta_components).toContain('exfil_path');
   });
 
-  it('Intent / BlastRadius / Risks / PrHistory', () => {
+  it('Intent / BlastRadius / Risks / Brief', () => {
     expect(() =>
       Intent.parse({ intent: 'x', in_scope: ['a'], out_of_scope: ['b'] }),
     ).not.toThrow();
@@ -97,17 +97,27 @@ describe('AI contracts parse fixtures', () => {
       }),
     ).not.toThrow();
     expect(() =>
-      PrHistory.parse({
-        history: [
-          {
-            pr_number: 401,
-            title: 't',
-            merged_at: '2026-03-18',
-            author: 'a',
-            files_overlap: [],
-            notes: 'n',
-          },
+      Brief.parse({
+        pr_id: '482',
+        what: 'Adds rate limiting to the public API.',
+        why: 'Prevent abuse of the public webhook endpoint.',
+        risk_level: 'high',
+        risks: [
+          { kind: 'security', title: 't', explanation: 'e', severity: 'high', file_refs: ['a.ts'] },
         ],
+        review_focus: [{ path: 'a.ts', reason: 'core rate-limit logic' }],
+        generated_at: '2026-07-13T00:00:00.000Z',
+        generated: { model: 'gpt-4.1', cost_usd: 0.0032, tokens_in: 1400, tokens_out: 320 },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      Brief.parse({
+        pr_id: '482',
+        what: 'w',
+        why: 'y',
+        risk_level: 'low',
+        risks: [],
+        review_focus: [],
       }),
     ).not.toThrow();
   });
