@@ -4,6 +4,7 @@ import React from "react";
 import { SectionLabel } from "@devdigest/ui";
 import { IntentPanel } from "./_components/IntentPanel";
 import { BlastPanel } from "./_components/BlastPanel";
+import { PrBriefCard } from "./_components/PrBriefCard";
 import { s } from "./styles";
 
 interface OverviewTabProps {
@@ -15,6 +16,8 @@ interface OverviewTabProps {
 export function OverviewTab({ prId, prBody, repoId }: OverviewTabProps) {
   return (
     <>
+      {prId && <PrBriefCard prId={prId} repoId={repoId} />}
+
       {prId && (
         <div style={s.grid}>
           <IntentPanel prId={prId} />
