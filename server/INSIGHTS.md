@@ -114,6 +114,17 @@
 - `drizzle-kit generate` is INTERACTIVE whenever a table gains AND drops columns in the same change — it prompts "Is X created or renamed from another column?" per new column. Piping `yes ""` or a burst of `\r` FAILS (the hanji TUI discards input buffered between renders, so it stalls). Drive it with a python `pty.fork()` script that watches stdout and writes ONE `\r` each time a new "created or renamed" prompt appears — `\r` selects the highlighted default (first option = "create column"), which is what you want for an empty future-lesson table (drops the old cols, adds the new). Then review the generated SQL before `db:migrate`
 - Running tests via `pnpm test` / `pnpm exec vitest` FAILS in this WSL+Windows-pnpm setup: the pnpm CLI runs a `runDepsStatusCheck` that shells out to `pnpm install` and dies (`ERR_PNPM_IGNORED_BUILDS` / Windows nvm path mismatch). Run the local binary directly instead: `./node_modules/.bin/vitest run <files>`. Same for typecheck: `./node_modules/.bin/tsc --noEmit`. Docker IS available, so `*.it.test.ts` testcontainer suites run fine this way (~8s incl. PG startup)
 - Integration-testing a feature that calls an LLM: register the MockLLMProvider under the provider key `resolveFeatureModel` returns for that feature, NOT always `openai`. `review_intent` defaults to **`openrouter`** (`FEATURE_MODELS`), so `overrides: { llm: { openrouter: mock } }`. `MockLLMProvider`'s constructor id param is typed `'openai'|'anthropic'` only — pass `'openai'` as the label but register it under the real `openrouter` override key; the label doesn't affect resolution
+- `RepoIntel` is a first-class container override (`overrides.repoIntel`, same seam as `llm`/`git`) —
+  a `FakeRepoIntel implements RepoIntel` that THROWS on every method outside the expected fact set
+  both controls facts deterministically and loudly fails any regression that adds unrequested
+  fact-gathering (onboarding.it.test.ts), without seeding real `file_rank`/`edges` rows.
+- Fastify's request logger is `silent` under `NODE_ENV=test`, so structured-log assertions through
+  `app.inject()` are a dead end — call the service directly with a collector `Logger` object
+  (`OnboardingService.getTour(ws, id, logger?)` takes it as a param for exactly this).
+- A hand-rolled fake `completeStructured` must include `raw: string` and `attempts: number` on
+  `StructuredResult` or `tsc --noEmit` fails; `INJECTION_GUARD`'s own prose contains a literal
+  `</untrusted>`, so never assert by counting that substring globally — assert the specific
+  `wrapUntrusted(label, content)` output instead.
 - `MockLLMProvider` records every request in `.calls` (`{ method, req }`). To assert prompt assembly / injection wrapping without a hand-rolled recorder stub, find the `completeStructured` call and read `(call.req as { messages }).messages[1].content` — e.g. assert it contains `<untrusted source="linked_spec">` to prove the linked-issue spec reached the prompt, or `.calls.length === 0` to prove a cache hit skipped the LLM entirely
 - `LLMProvider.completeStructured({ schema })` forces tool-use, and tool inputs MUST be objects — a bare `z.array(...)` schema will not work. Wrap list output as `z.object({ items: z.array(...) })` (we used `ConventionExtraction = z.object({ conventions: [...] })`). It also auto-retries on schema-validation failure and throws `ExternalServiceError` after `maxRetries`, so callers get a clean 5xx without hand-parsing JSON
 

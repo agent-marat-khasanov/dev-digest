@@ -40,6 +40,8 @@ Agent tool result (the `subagent_tokens` line); `outcome` is one of:
 | 2026-07-13 | implementer | SPEC-02 fixes: AC-2 rank sort + AC-12 CTA | sonnet/medium | ~56k, ~73k | accepted | Targeted single-finding dispatches; CTA fixer correctly picked useRefreshRepo over useResyncRepoIntel |
 | 2026-07-13 | plan-verifier | SPEC-02 coverage (pass 1 + final) | sonnet/high | ~102k+72k | accepted | Pass 1 caught prompt-only AC-2 enforcement + AC-1 literal deviation; final approve |
 | 2026-07-13 | architecture-reviewer | SPEC-02 feature diff review | sonnet/high | ~86k | accepted | Zero findings; validated FileViewer duplication decision |
+| 2026-07-13 | test-writer | SPEC-02 T10 unit + T11 integration + T12 RTL (3 runs) | sonnet/medium | ~93–124k/run | accepted | Tests derived from spec ACs; +17 server unit, +13 it, +8 RTL, all green first try |
+| 2026-07-13 | implementer | SPEC-02 T13 e2e flow 09-onboarding-tour | sonnet/medium | ~90k | accepted | Caught 05-slot collision → renumbered to 09; agent-browser absent → static flow validation, honest report |
 
 ## Review cadence
 
