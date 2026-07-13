@@ -4,20 +4,24 @@ import React from "react";
 import { Icon, Skeleton, EmptyState } from "@devdigest/ui";
 import { useRepoFile } from "@/lib/hooks/repo-file";
 
-interface FileViewerProps {
+interface RepoFileViewerProps {
   repoId: string;
   path: string;
+  line?: number;
   onClose: () => void;
 }
 
 /**
- * In-app file viewer for the tour's Open chips (AC-4). Reuses `useRepoFile`
- * like the Blast tab's CodeViewer, but has no line target — the tour only
- * ever links whole files, not call sites. Modal: closes on Escape or
+ * Shared in-app repo file viewer: fetches an arbitrary repo file via
+ * `useRepoFile` and renders it in a modal. When `line` is given, scrolls to
+ * and highlights that line (the Blast tab's "click a caller → jump to the
+ * exact line" flow); omitted, it just opens the whole file (tour's Open
+ * chips, the brief's file-reference chips). Modal: closes on Escape or
  * backdrop click.
  */
-export function FileViewer({ repoId, path, onClose }: FileViewerProps) {
+export function RepoFileViewer({ repoId, path, line, onClose }: RepoFileViewerProps) {
   const { data, isLoading, isError } = useRepoFile(repoId, path);
+  const lineRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -27,13 +31,19 @@ export function FileViewer({ repoId, path, onClose }: FileViewerProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Once content is in the DOM, center the target line.
+  React.useEffect(() => {
+    if (data && line != null) lineRef.current?.scrollIntoView({ block: "center" });
+  }, [data, line]);
+
   const lines = data ? data.content.split("\n") : [];
+  const label = line != null ? `${path}:${line}` : path;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={path}
+      aria-label={label}
       onClick={onClose}
       style={{
         position: "fixed",
@@ -69,7 +79,7 @@ export function FileViewer({ repoId, path, onClose }: FileViewerProps) {
         >
           <Icon.Code size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
           <span className="mono" style={{ fontSize: 13, color: "var(--text-primary)" }}>
-            {path}
+            {label}
           </span>
           <button
             aria-label="Close file viewer"
@@ -108,8 +118,17 @@ export function FileViewer({ repoId, path, onClose }: FileViewerProps) {
             <pre className="mono" style={{ margin: 0, padding: "8px 0", fontSize: 12.5 }}>
               {lines.map((text, i) => {
                 const n = i + 1;
+                const isTarget = n === line;
                 return (
-                  <div key={n} style={{ display: "flex", padding: "0 14px" }}>
+                  <div
+                    key={n}
+                    ref={isTarget ? lineRef : undefined}
+                    style={{
+                      display: "flex",
+                      background: isTarget ? "var(--bg-hover)" : "transparent",
+                      padding: "0 14px",
+                    }}
+                  >
                     <span
                       className="tnum"
                       style={{
@@ -123,7 +142,12 @@ export function FileViewer({ repoId, path, onClose }: FileViewerProps) {
                     >
                       {n}
                     </span>
-                    <span style={{ whiteSpace: "pre", color: "var(--text-secondary)" }}>
+                    <span
+                      style={{
+                        whiteSpace: "pre",
+                        color: isTarget ? "var(--text-primary)" : "var(--text-secondary)",
+                      }}
+                    >
                       {text || " "}
                     </span>
                   </div>

@@ -31,7 +31,7 @@ import { PrBriefCard } from "./PrBriefCard";
 
 beforeAll(() => {
   // jsdom has no scrollIntoView; not directly used here but other viewer paths
-  // in this tree rely on it, and the modal shares the FileViewer component.
+  // in this tree rely on it, and the modal shares the RepoFileViewer component.
   Element.prototype.scrollIntoView = vi.fn();
 });
 
@@ -137,6 +137,31 @@ describe("PrBriefCard", () => {
     expect(notifyError).toHaveBeenCalledWith("boom");
     expect(screen.getByText(BASE_BRIEF.what)).toBeInTheDocument();
     expect(screen.getByText(BASE_BRIEF.why)).toBeInTheDocument();
+  });
+
+  it("replaces the displayed brief after a successful Regenerate (AC-9)", () => {
+    const NEW_BRIEF: Brief = {
+      ...BASE_BRIEF,
+      what: "Switches the rate limiter to a sliding-window algorithm.",
+      why: "The token bucket allowed unbounded bursts at window edges.",
+    };
+    state.brief = { data: BASE_BRIEF, isLoading: false, isError: false, isFetching: false, refetch: vi.fn() };
+    const mutate = vi.fn((_v, opts) => {
+      state.brief = { ...(state.brief as object), data: NEW_BRIEF };
+      opts.onSuccess?.(NEW_BRIEF);
+    });
+    mockRegenerate({ mutate });
+
+    const { rerender } = render(<PrBriefCard prId="pr1" repoId="repo1" />);
+    expect(screen.getByText(BASE_BRIEF.what)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /regenerate/i }));
+    rerender(<PrBriefCard prId="pr1" repoId="repo1" />);
+
+    expect(screen.getByText(NEW_BRIEF.what)).toBeInTheDocument();
+    expect(screen.getByText(NEW_BRIEF.why)).toBeInTheDocument();
+    expect(screen.queryByText(BASE_BRIEF.what)).not.toBeInTheDocument();
+    expect(screen.queryByText(BASE_BRIEF.why)).not.toBeInTheDocument();
   });
 
   it("shows an EmptyState with a Retry action, never a raw error, when no brief is available (AC-12)", () => {

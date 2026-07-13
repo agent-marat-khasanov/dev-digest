@@ -10,8 +10,8 @@ import { useActiveRepo } from "@/lib/repo-context";
 import { useRefreshRepo } from "@/lib/hooks";
 import { useTour, useRegenerateTour } from "@/lib/hooks/onboarding";
 import { formatCost } from "@/lib/format-cost";
+import { RepoFileViewer } from "@/components/repo-file-viewer";
 import { SectionCard } from "./_components/SectionCard";
-import { FileViewer } from "./_components/FileViewer";
 import { reasonLabel, formatGeneratedAt } from "./helpers";
 import { s } from "./styles";
 
@@ -123,7 +123,7 @@ export function TourView() {
       </div>
 
       {openPath && repoId && (
-        <FileViewer repoId={repoId} path={openPath} onClose={() => setOpenPath(null)} />
+        <RepoFileViewer repoId={repoId} path={openPath} onClose={() => setOpenPath(null)} />
       )}
     </AppShell>
   );

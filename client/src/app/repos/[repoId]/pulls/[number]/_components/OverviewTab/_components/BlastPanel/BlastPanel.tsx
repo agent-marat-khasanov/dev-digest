@@ -4,8 +4,8 @@ import React from "react";
 import { Card, SectionLabel, Badge, Skeleton, EmptyState } from "@devdigest/ui";
 import { useBlast } from "@/lib/hooks/blast";
 import { useRepoIntelStatus } from "@/lib/hooks/repo-intel";
+import { RepoFileViewer } from "@/components/repo-file-viewer";
 import { SymbolNode } from "./_components/SymbolNode";
-import { CodeViewer } from "./_components/CodeViewer";
 
 interface BlastPanelProps {
   prId: string | null;
@@ -132,7 +132,7 @@ export function BlastPanel({ prId, repoId }: BlastPanelProps) {
       </Card>
 
       {viewer && (
-        <CodeViewer
+        <RepoFileViewer
           repoId={repoId}
           path={viewer.path}
           line={viewer.line}

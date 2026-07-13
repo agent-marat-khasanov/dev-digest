@@ -6,7 +6,7 @@ import { Card, SectionLabel, Badge, Button, Skeleton, EmptyState } from "@devdig
 import { useBrief, useRegenerateBrief } from "@/lib/hooks/brief";
 import { notify } from "@/lib/toast";
 import { formatCost } from "@/lib/format-cost";
-import { FileViewer } from "./_components/FileViewer";
+import { RepoFileViewer } from "@/components/repo-file-viewer";
 import { riskLevelColors, isEndpointRef } from "./helpers";
 import { s } from "./styles";
 
@@ -178,7 +178,7 @@ export function PrBriefCard({ prId, repoId }: PrBriefCardProps) {
       </Card>
 
       {viewerPath && (
-        <FileViewer repoId={repoId} path={viewerPath} onClose={() => setViewerPath(null)} />
+        <RepoFileViewer repoId={repoId} path={viewerPath} onClose={() => setViewerPath(null)} />
       )}
     </>
   );
