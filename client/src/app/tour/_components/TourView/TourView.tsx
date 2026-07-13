@@ -7,6 +7,7 @@ import React from "react";
 import { AppShell } from "@/components/app-shell";
 import { Badge, Button, EmptyState, ErrorState, Skeleton } from "@devdigest/ui";
 import { useActiveRepo } from "@/lib/repo-context";
+import { useRefreshRepo } from "@/lib/hooks";
 import { useTour, useRegenerateTour } from "@/lib/hooks/onboarding";
 import { formatCost } from "@/lib/format-cost";
 import { SectionCard } from "./_components/SectionCard";
@@ -20,6 +21,7 @@ export function TourView() {
 
   const { data: tour, isLoading, isError, refetch } = useTour(repoId);
   const regenerate = useRegenerateTour(repoId);
+  const refreshRepo = useRefreshRepo();
   const [openPath, setOpenPath] = React.useState<string | null>(null);
 
   const generating = isLoading || regenerate.isPending;
@@ -80,6 +82,9 @@ export function TourView() {
             icon="FileText"
             title="Onboarding tour isn't available yet"
             body="This repo hasn't been cloned locally. Sync the repo to generate its onboarding tour."
+            cta="Sync repo"
+            onCta={() => repoId && refreshRepo.mutate(repoId)}
+            ctaLoading={refreshRepo.isPending}
           />
         )}
 
