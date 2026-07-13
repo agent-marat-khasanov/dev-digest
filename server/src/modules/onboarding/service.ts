@@ -139,7 +139,13 @@ export class OnboardingService {
     });
 
     const criticalItems = validatePaths(result.data.critical_paths.items, facts.allowedPaths);
-    const readingItems = validatePaths(result.data.reading_path.items, facts.allowedPaths);
+    const rankOf = (path: string): number => {
+      const index = facts.topFiles.indexOf(path);
+      return index === -1 ? facts.topFiles.length : index;
+    };
+    const readingItems = validatePaths(result.data.reading_path.items, facts.allowedPaths).sort(
+      (a, b) => rankOf(a.path) - rankOf(b.path),
+    );
 
     const sections: TourSection[] = TOUR_SECTIONS.map(({ id, title }): TourSection => {
       switch (id) {
