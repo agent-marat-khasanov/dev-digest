@@ -37,7 +37,7 @@ const cardStyle: React.CSSProperties = {
 /**
  * Blast radius panel — PR impact map. Renders levels: changed symbols →
  * downstream callers (file:line) → reachable HTTP endpoints / crons. Clicking a
- * caller opens the file at that line in the in-app CodeViewer. Reads the
+ * caller opens the file at that line in the in-app RepoFileViewer. Reads the
  * repo-intel index only (no LLM); an incomplete index surfaces as a badge, not
  * a blank.
  */
