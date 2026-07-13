@@ -79,10 +79,13 @@ badge — never an empty screen or an error page. Generation cost (`StructuredRe
 ## Acceptance criteria (EARS)
 
 ### Fact gathering & reading path (G1, G2)
-- **AC-1** — WHEN a tour is generated for a repo, the system SHALL assemble its factual inputs (stack /
-  structure, routes & scripts, critical paths, reachable endpoints/crons, index state) **only** from the
-  `repoIntel` facade (`getTopFilesByRank`, `getCriticalPaths`, `getReachableFacts`, `getRepoMap`,
-  `getIndexState`), making **zero** model calls to gather facts. *Verify: integration*
+- **AC-1** — WHEN a tour is generated for a repo, the system SHALL assemble its factual inputs from two
+  deterministic sources only: (a) the `repoIntel` facade (`getTopFilesByRank`, `getCriticalPaths`,
+  `getReachableFacts`, `getRepoMap`, `getIndexState`) for structure / critical paths / reachable
+  endpoints-crons / index state, and (b) a **guarded read of the repo clone's manifest** (`package.json`
+  scripts/setup) via `resolveInClone` (`platform/fs-guard.ts`) for the scripts/setup facts that back AC-8,
+  because the facade exposes no scripts method (`getRepoMap` is a symbol-signature skeleton only). It SHALL
+  make **zero** model calls to gather facts. *Verify: integration*
 - **AC-2** — The Guided reading path SHALL be ordered by import-graph file rank (via `getTopFilesByRank`),
   not alphabetically, by path, or by modified date. *Verify: unit*
 - **AC-3** — WHILE `hotness` is 0 for the repo (the current shallow-clone default), the reading-path rank
@@ -293,10 +296,14 @@ unit anywhere (`cost_usd` is USD, `run-executor.ts:245,280-301`).
   consistent with existing repo-scoped pages. *Verify: manual*
 
 ## Inputs (provenance)
-- Stack / structure / routes / scripts / critical paths / reachable facts / reading-path order / index
-  state — **[deterministic: repo-intel facade]** (`getTopFilesByRank` `service.ts:640-657`,
-  `getCriticalPaths` `service.ts:664-703`, `getReachableFacts` `service.ts:711-766`, `getRepoMap`
-  `service.ts:399`, `getIndexState` `service.ts:190-206`).
+- Structure / critical paths / reachable facts / reading-path order / index state —
+  **[deterministic: repo-intel facade]** (`getTopFilesByRank` `service.ts:640-657`, `getCriticalPaths`
+  `service.ts:664-703`, `getReachableFacts` `service.ts:711-766`, `getRepoMap` `service.ts:399`,
+  `getIndexState` `service.ts:190-206`).
+- Run-locally scripts / setup facts — **[deterministic: guarded clone-manifest read]** — the repo clone's
+  `package.json` scripts read directly via `resolveInClone` (`platform/fs-guard.ts`), because the facade
+  exposes no scripts method (`getRepoMap` is a symbol-signature skeleton only). Still zero model calls; the
+  same path-traversal guard reused by `context/service.ts` applies (AC-22).
 - The five narrative sections — **[new: 1 LLM call]** `completeStructured` (`adapters.ts:82-89`) using the
   `onboarding` feature-model (`platform.ts:45-50`) and the drafted system prompt
   (`server/src/prompts/onboarding.system.md`); provider/model via `resolveFeatureModel`
@@ -344,6 +351,11 @@ Two trust boundaries:
   improvements: persist `cost_usd`+tokens with the cached tour and expose on the response (AC-25); added
   Implementer notes for the intent generate/recalculate split and mermaid-drop rendering. Removed the
   [NEEDS CLARIFICATION] section. Status stays draft.
+- 2026-07-13 — Clarification (aligns AC wording with accepted deterministic design; status stays approved):
+  AC-1 + Inputs now state that run-locally scripts/setup facts come from a guarded read of the repo clone's
+  `package.json` via `resolveInClone`, in addition to the `repoIntel` facade, because the facade exposes no
+  scripts method (`getRepoMap` is a symbol-signature skeleton only). Zero model calls unchanged; the
+  path-traversal guard (AC-22) applies. Accepted by the user as final behavior (plan Risk 1).
 - 2026-07-12 — Status: draft → approved (user approval; Definition of Ready verified in the
   clarification round).
 </content>
