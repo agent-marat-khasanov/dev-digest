@@ -161,8 +161,31 @@ root `AGENTS.md`/`CLAUDE.md`.
   scan) even read-only. Don't fight it: learn the key NAMES from code (`vendor/shared/adapters.ts`
   `SecretKey`, `adapters/secrets/local.ts` — flat JSON, env-style names like `OPENROUTER_API_KEY`)
   and get explicit user approval before a script consumes a key.
+- An implementer that only needs to READ plan/spec files living on another branch should use
+  `git show <branch>:<path>` instead of `git merge --no-commit` — a leftover merge state plus a plain
+  `git commit` silently produces a merge commit bundling unrelated files (a T3 agent caught and
+  reset this itself; a T9 agent didn't and its commit needed `cherry-pick -m 1`).
+- In implementer worktrees, Read/Write tool calls with ambiguous relative context can resolve against
+  the MAIN checkout instead of the worktree — verify early that absolute paths point inside the
+  worktree before trusting "file exists/matches" observations (caught by a T5 agent).
 
 ## Session Notes
+
+### 2026-07-13 — SPEC-03 PR Why+Risk Brief: /impl with the test wave ENABLED (homework L05)
+- Third full SDD chain, second /impl run. By explicit user decision the test wave ran INSIDE the
+  pipeline (3 test-writers + 1 e2e implementer as wave D) — overriding the skill text's
+  "test-writer disabled" clause for this run; the clause itself is still in `.claude/skills/impl`
+  and should be updated if this becomes permanent. 13 agent runs, zero redone.
+- Cross-model review, run 2: GPT-5.2 returned 4/4 REAL blockers (vs 2/5 with 1 false positive in
+  run 1) — the difference: SPEC-03's plan carried more spec-critical validation logic (allowlists,
+  hard NG2 input constraint) where a repo-blind staff engineer shines. Best catch: review_focus
+  validated against the broad blast set would let the model point reviewers at UNCHANGED files.
+- Findings-gate pattern held: plan-verifier's request_changes was purely test-debt (2 PARTIALs on
+  correct implementation) — both closed with targeted fixers; architecture-reviewer's
+  threshold-crossing duplication WARNING ("thrice — extract") became a clean shared-component
+  extraction (−250 lines) verified non-regressing by re-running both features' suites.
+- plan-verifier explicitly re-ran all suites itself in the final pass (not just read tests) and
+  checked the new tests for tautology — worth keeping in final-pass dispatch prompts.
 
 ### 2026-07-13 — SPEC-02 Onboarding Generator: full SDD chain incl. first cross-model plan review
 - Second full /impl run (8 impl tasks in 4 waves + 2 targeted fixes, zero redone; T10-T13 tests

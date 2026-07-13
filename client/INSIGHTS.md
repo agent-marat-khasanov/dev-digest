@@ -82,6 +82,24 @@
   route, duplicate a trimmed local version inside the new route's `_components/` (tour's `FileViewer`)
   instead of importing across route-private trees or promoting to `src/components/` — promotion is
   justified at the 3rd consumer ("twice — tolerate; thrice — extract"; architecture-reviewer confirmed).
+- …and the 3rd consumer ARRIVED with PrBriefCard: the trio (BlastPanel `CodeViewer` superset + two
+  byte-identical `FileViewer`s) is now extracted to shared `src/components/repo-file-viewer/`
+  (`RepoFileViewer { repoId, path, line?, onClose }`; `line` optional drives scrollIntoView + the
+  `path:line` label). Use IT for any in-app file-open need — do not create a 4th viewer. Merge note:
+  the copies differed only in required-vs-absent `line`, aria-label, and `maxHeight: 80vh`.
+- The POST-backed "cached-or-generate" endpoint idiom: model the READ as `useQuery` whose `queryFn`
+  does `api.post(...)` (TanStack doesn't care about the verb) + a sibling `useMutation` regenerate
+  seeding `qc.setQueryData` — `useBrief`/`useRegenerateBrief` is the 3rd instance after intent and
+  onboarding; cite `lib/hooks/intent.ts` as canonical.
+- Two severity-color mappings now intentionally diverge for `low`: `IntentPanel/helpers.ts`
+  `severityChipColors` maps `low → --sugg`, while PrBriefCard's `risk_level` badge maps `low → --ok`
+  (explicit plan instruction). Don't "unify" one to the other without checking which is contractually
+  correct for its component.
+- `notify` from `@/lib/toast` is a module-level function object (not a hook) — mock with
+  `vi.mock("@/lib/toast", () => ({ notify: { error: vi.fn(), ... } }))`, no provider wrapper needed.
+- Strong single assertion for "model markdown never becomes a link": render the card with zero
+  legitimate anchors and assert `document.querySelectorAll("a").length === 0` (plus no `img`/`script`
+  elements for raw-HTML inertness) — PrBriefCard.test.tsx AC-18.
 
 ## Recurring Errors & Fixes
 
