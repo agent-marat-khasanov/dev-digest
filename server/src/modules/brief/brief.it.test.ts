@@ -5,11 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startPg, dockerAvailable, type PgFixture } from '../../../test/helpers/pg.js';
 import { buildApp } from '../../app.js';
+import { Container } from '../../platform/container.js';
 import { loadConfig } from '../../platform/config.js';
 import { seed } from '../../db/seed.js';
 import * as t from '../../db/schema.js';
 import { MockLLMProvider, MockGitClient, MockGitHubClient } from '../../adapters/mocks.js';
 import { RepoRepository } from '../repos/repository.js';
+import { BriefService, type Logger } from './service.js';
 import type {
   BlastResult,
   IndexState,
@@ -223,6 +225,19 @@ d('brief module (Testcontainers pg)', () => {
         },
       }),
     };
+  }
+
+  /** Bypasses HTTP — used for the cost/tokens/model structured-log assertion (silent logger in
+   *  tests; onboarding `serviceWith` precedent). */
+  function serviceWith(opts: { llm?: MockLLMProvider; repoIntel?: RepoIntel } = {}) {
+    const llm = opts.llm ?? new MockLLMProvider('openai', { structured: modelFixture() });
+    const repoIntel = opts.repoIntel ?? new FakeRepoIntel();
+    const container = new Container(config(), pg.handle.db, {
+      git: new MockGitClient({ diff: DIFF }),
+      llm: { openai: llm },
+      repoIntel,
+    });
+    return { llm, service: new BriefService(container) };
   }
 
   async function createAgentWithContext(app: Awaited<ReturnType<typeof buildApp>>, docs: string[]) {
@@ -579,5 +594,45 @@ d('brief module (Testcontainers pg)', () => {
     expect(json.generated.cost_usd).toBeNull();
 
     await app.close();
+  });
+
+  it('logs cost_usd/tokens_in/tokens_out/model on generation (NFR cost/observability)', async () => {
+    const { llm, service } = serviceWith();
+    const repo = await createRepo(cloneRoot);
+    const pr = await createPr(repo.id);
+
+    const logs: { obj: unknown; msg?: string }[] = [];
+    const logger: Logger = { info: (obj, msg) => logs.push({ obj, msg }) };
+
+    const brief = await service.getBrief(workspaceId, pr.id, logger);
+    expect(brief.pr_id).toBe(pr.id);
+    expect(llm.calls.filter((c) => c.method === 'completeStructured')).toHaveLength(1);
+
+    const costLog = logs.find((l) => (l.obj as { cost_usd?: unknown }).cost_usd !== undefined);
+    expect(costLog).toBeDefined();
+    expect(costLog!.obj).toMatchObject({ cost_usd: 0.001, tokens_in: 100, tokens_out: 50 });
+    expect((costLog!.obj as { model: string }).model).toBeTruthy();
+    expect(costLog!.msg).toBe('brief: generated');
+  });
+
+  it('logs cost_usd: null when the provider reports no cost, without failing generation', async () => {
+    const nullCostLlm = new MockLLMProvider('openai', { structured: modelFixture() });
+    const originalCompleteStructured = nullCostLlm.completeStructured.bind(nullCostLlm);
+    nullCostLlm.completeStructured = (async (req: Parameters<typeof originalCompleteStructured>[0]) => {
+      const result = await originalCompleteStructured(req);
+      return { ...result, costUsd: null };
+    }) as typeof nullCostLlm.completeStructured;
+    const { service } = serviceWith({ llm: nullCostLlm });
+    const repo = await createRepo(cloneRoot);
+    const pr = await createPr(repo.id);
+
+    const logs: { obj: unknown; msg?: string }[] = [];
+    const logger: Logger = { info: (obj, msg) => logs.push({ obj, msg }) };
+
+    await service.getBrief(workspaceId, pr.id, logger);
+
+    const costLog = logs.find((l) => (l.obj as { cost_usd?: unknown }).cost_usd !== undefined);
+    expect(costLog).toBeDefined();
+    expect((costLog!.obj as { cost_usd: number | null }).cost_usd).toBeNull();
   });
 });
