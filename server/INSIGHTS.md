@@ -75,6 +75,27 @@
   `server/fixtures/demo-context-docs/` (wired in `db/seed.ts`) — Project Context discovery/e2e depend
   on it; before this it was `null` and every context list came back empty.
 
+- The `repoIntel` facade exposes NO scripts/setup method (`getRepoMap` renders a symbol-signature
+  skeleton only). Deterministic run/setup commands (onboarding AC-8) are derived by reading the
+  clone's `package.json` via `resolveInClone` + `MAX_FILE_SIZE` in `onboarding/facts.ts` — the
+  context/conventions precedent, NOT a new facade method. SPEC-02's AC-1 was amended to name both
+  fact sources; reuse this pattern for any future "scripts facts" need.
+- All repoIntel read methods are degraded-safe (empty arrays / `degraded` flags), so a fact-gathering
+  helper may call them unconditionally; the SERVICE branches once on `getIndexState` afterwards. Also:
+  `tryGetIndexState` (`repo-intel/repository.ts:218`) only sets `degraded: true` for status
+  `degraded|failed`, and `degradedReason` (incl. `repo_too_large`) is never set without that flag — a
+  single `facts.degraded` check catches every fallback case.
+- `wrapUntrusted`/`INJECTION_GUARD` from `@devdigest/reviewer-core` are the standard wrap for ANY
+  server-side prompt assembly over repo-derived content — onboarding (`onboarding/prompt.ts`) is the
+  second consumer after `intent/generate.ts`. Don't hand-roll delimiters.
+- `platform/prompts.ts` (`loadPromptTemplate`/`renderTemplate`) got its first real consumer in
+  `onboarding/service.ts`. There is NO language/locale config anywhere in the codebase — the
+  `{{language}}` prompt var is hardcoded to `'English'` (`DEFAULT_LANGUAGE` in the service); wire a
+  workspace setting there if one ever appears.
+- When a cached row can be `model` or `skeleton` mode but the table has no `reason` column, derive the
+  skeleton's display reason at cache-hit time from live `getIndexState.degradedReason` instead of
+  persisting it (`onboarding/service.ts`) — honest, and avoids a schema change.
+
 ## Tool & Library Notes
 
 <!-- Quirks and gotchas of dependencies -->

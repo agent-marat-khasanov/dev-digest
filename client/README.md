@@ -30,6 +30,7 @@ flowchart TD
   AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config · Context tab)"]
   SKILLS["/skills"] --> SKILL["/skills/:id<br/>editor ('Project context to use')"]
   CONTEXT["/context<br/>Project Context (read-only browser)"]
+  TOUR["/tour<br/>Onboarding Tour (architecture · critical paths ·<br/>run locally · reading path · first tasks)"]
   SETTINGS["/settings/:section<br/>API keys · models"]
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state"| API
@@ -37,6 +38,7 @@ flowchart TD
   AGENTS -->|"/agents · /agents/:id · /agents/:id/context"| API
   SKILLS -->|"/skills · /skills/:id · /skills/:id/context"| API
   CONTEXT -->|"GET /repos/:id/context · POST /repos/:id/context/preview"| API
+  TOUR -->|"GET /repos/:id/tour · POST /repos/:id/tour/regenerate"| API
   SETTINGS -->|"/settings · /providers"| API
 ```
 

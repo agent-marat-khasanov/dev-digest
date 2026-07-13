@@ -153,7 +153,38 @@ root `AGENTS.md`/`CLAUDE.md`.
 
 ## Recurring Errors & Fixes
 
+- `git cherry-pick <implementer-sha>` fails with "is a merge but no -m" when the implementer ran
+  `git merge feature-branch --no-commit` and its work landed as a MERGE commit (non-fast-forward
+  base). Retry with `cherry-pick -m 1 <sha>` — it extracts only the agent's own changes. Fast-forward
+  merges don't hit this (the commit is then a plain child of the feature head).
+- The Bash auto-mode classifier DENIES enumerating `~/.devdigest/secrets.json` keys (credential-store
+  scan) even read-only. Don't fight it: learn the key NAMES from code (`vendor/shared/adapters.ts`
+  `SecretKey`, `adapters/secrets/local.ts` — flat JSON, env-style names like `OPENROUTER_API_KEY`)
+  and get explicit user approval before a script consumes a key.
+
 ## Session Notes
+
+### 2026-07-13 — SPEC-02 Onboarding Generator: full SDD chain incl. first cross-model plan review
+- Second full /impl run (8 impl tasks in 4 waves + 2 targeted fixes, zero redone; T10-T13 tests
+  skipped per pipeline). New pipeline element: **cross-model plan review** — a scratchpad python
+  script POSTs spec+plan to OpenRouter with a staff-engineer system prompt (model fallback chain;
+  GPT-5.2 answered; review committed next to the plan as `.ai/plans/<feature>.cross-review.md`).
+  Verdict shape (APPROVE/REQUEST CHANGES + blocking/non-blocking + AC spot-check) slotted directly
+  into the plan-revision dispatch.
+- Cross-model review value profile: 2 of 5 "blockers" were REAL catches all local reviews missed
+  (markdown-authored links bypassing path validation; model-authorable run commands) — both
+  security/correctness. But a repo-blind reviewer also produces convention false-positives (declared
+  the `/repos/:id/tour` route a spec violation; the real SPEC-01 precedent is `/repos/:id/context`).
+  Triage rule: accept spec-grounded findings, REJECT-with-justification convention findings that
+  contradict repo precedent, and record the justification in the plan so plan-verifier sees it.
+- plan-verifier pass-1 caught a "SHALL" enforced only by prompt instruction (AC-2 reading-path rank
+  order left to the model's item ordering). Generalizable: any ordering/shape AC over LLM output
+  needs a code-level enforcement step (re-sort/normalize after validation), never just a prompt line.
+- Mid-verify spec amendment flow: when implementation legitimately deviates from an AC's literal
+  wording (AC-1's fact-source list omitted scripts — facade has no scripts method), do NOT bend code
+  or accept a permanent PARTIAL: get the user's decision at the findings gate, resume the SAME
+  spec-creator via SendMessage to fold a clarification + Changelog line into the approved spec, and
+  commit it on the feature branch. Traceability stays intact for the final verify pass.
 
 ### 2026-07-12 — /impl first full run: SPEC-01 Project Context shipped (11 tasks + 3 fixes, zero redone)
 - Wave orchestration that worked: G1 (4 parallel foundational implementers) → converge (typecheck) →

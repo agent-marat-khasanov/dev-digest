@@ -80,6 +80,9 @@ flowchart TB
   subgraph Context["Project context"]
     context["context<br/>/repos/:id/context(/preview) · /agents/:id/context · /skills/:id/context"]
   end
+  subgraph Onboarding["Onboarding tour"]
+    onboarding["onboarding<br/>/repos/:id/tour · /repos/:id/tour/regenerate"]
+  end
   subgraph Platform["Platform"]
     settings["settings<br/>/settings · /providers"]
     workspace["workspace<br/>/workspace"]
