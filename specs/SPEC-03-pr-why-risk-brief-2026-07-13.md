@@ -1,4 +1,4 @@
-# Spec: PR Why + Risk Brief  |  Spec ID: SPEC-03  |  Status: draft
+# Spec: PR Why + Risk Brief  |  Spec ID: SPEC-03  |  Status: approved
 
 ## Problem & why
 
@@ -319,3 +319,4 @@ the UI.** Two trust boundaries:
   into `Brief { what, why, risk_level, risks[], review_focus[] }`, dropped `history` (WhyTimeline, NG1),
   `review_focus` item = `{ path, reason }`. Removed the [NEEDS CLARIFICATION] section. e2e flow number
   deferred to implementation time; card placement kept a Contracts/planner note.
+- 2026-07-13 — Status: draft → approved (user approval; Definition of Ready verified in the clarification round).
