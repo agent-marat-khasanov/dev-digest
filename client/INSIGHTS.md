@@ -12,6 +12,12 @@
 - `position: absolute` popovers inside `tableCard` (`styles.ts`) get clipped — the card has `overflow: hidden` for clean border-radius. Use `position: fixed` + `getBoundingClientRect()` instead (see `FindingsPopover.tsx`). The Dropdown in `vendor/ui` works with absolute because it's never nested inside an overflow-hidden container
 - `@testing-library/user-event` is **NOT installed** — client tests use `fireEvent` from `@testing-library/react` (17+ call sites). Don't `import userEvent`; use `fireEvent.click(...)` (sync) + `await screen.findBy*` for the post-click render.
 - A component that calls `scrollIntoView` (e.g. the Blast tab's `CodeViewer`, or any `[data-*]`-anchored jump) throws under jsdom (`not a function`). Stub it in the test: `beforeAll(() => { Element.prototype.scrollIntoView = vi.fn(); })`.
+- React Query's default `networkMode: "online"` silently PAUSES queries (status pending /
+  fetchStatus paused — NO loading, NO error, no network request) whenever `navigator.onLine`
+  blips false. For this localhost-API app that froze the whole UI and the file-viewer modal with
+  zero symptoms. Fixed in `lib/providers.tsx`: `networkMode: "always"` (queries+mutations) AND
+  `onlineManager.setOnline(true)` with a no-op event listener. Debug tell: a query stuck at
+  `pending/paused` in the cache (readable via a fiber-walk to the QueryClient).
 
 ## Codebase Patterns
 

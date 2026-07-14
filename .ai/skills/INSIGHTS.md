@@ -168,6 +168,13 @@ root `AGENTS.md`/`CLAUDE.md`.
 - In implementer worktrees, Read/Write tool calls with ambiguous relative context can resolve against
   the MAIN checkout instead of the worktree — verify early that absolute paths point inside the
   worktree before trusting "file exists/matches" observations (caught by a T5 agent).
+- Debugging a Next.js dev app via Claude-in-Chrome: background/hidden tabs DEFER React hydration
+  (rAF throttling) — a freshly-navigated hidden tab shows SSR skeletons, zero fetches, zero React
+  fibers "forever"; this is NOT an app bug. Screenshots of background tabs also show stale frames
+  while the DOM is already fully rendered — trust `get_page_text`/JS probes over screenshots, and
+  reproduce user-visible bugs only in a FOCUSED window. Fiber-walking from any DOM node up to
+  QueryClientProvider (`__reactFiber$*` keys) is a reliable way to read live React Query state
+  (query status/fetchStatus/defaultOptions) without devtools.
 
 ## Session Notes
 
