@@ -8,6 +8,8 @@ interface RepoFileViewerProps {
   repoId: string;
   path: string;
   line?: number;
+  /** External fallback (e.g. GitHub blob URL at the PR head) shown when the file is not in the clone. */
+  githubUrl?: string;
   onClose: () => void;
 }
 
@@ -19,7 +21,7 @@ interface RepoFileViewerProps {
  * chips, the brief's file-reference chips). Modal: closes on Escape or
  * backdrop click.
  */
-export function RepoFileViewer({ repoId, path, line, onClose }: RepoFileViewerProps) {
+export function RepoFileViewer({ repoId, path, line, githubUrl, onClose }: RepoFileViewerProps) {
   const { data, isLoading, isError } = useRepoFile(repoId, path);
   const lineRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -78,7 +80,15 @@ export function RepoFileViewer({ repoId, path, line, onClose }: RepoFileViewerPr
           }}
         >
           <Icon.Code size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
-          <span className="mono" style={{ fontSize: 13, color: "var(--text-primary)" }}>
+          <span
+            className="mono"
+            style={{
+              fontSize: 13,
+              color: "var(--text-primary)",
+              overflowWrap: "anywhere",
+              minWidth: 0,
+            }}
+          >
             {label}
           </span>
           <button
@@ -110,7 +120,25 @@ export function RepoFileViewer({ repoId, path, line, onClose }: RepoFileViewerPr
             <EmptyState
               icon="AlertTriangle"
               title="Couldn't open file"
-              body={`${path} is not available in the repository's local clone.`}
+              body={
+                <span style={{ overflowWrap: "anywhere" }}>
+                  <span className="mono">{path}</span> is not available in the repository&apos;s
+                  local clone — it may be new in this PR (the clone tracks the default branch).
+                  {githubUrl && (
+                    <>
+                      {" "}
+                      <a
+                        href={githubUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: "var(--accent)", whiteSpace: "nowrap" }}
+                      >
+                        View on GitHub ↗
+                      </a>
+                    </>
+                  )}
+                </span>
+              }
             />
           )}
 

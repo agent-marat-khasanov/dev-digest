@@ -26,6 +26,15 @@ vi.mock("@/lib/hooks/brief", () => ({
 }));
 vi.mock("@/lib/hooks/repo-file", () => ({ useRepoFile: () => state.file }));
 vi.mock("@/lib/toast", () => ({ notify: { error: notifyError, success: vi.fn(), info: vi.fn() } }));
+vi.mock("@/lib/hooks/core", () => ({
+  usePullDetail: () => ({ data: { head_sha: "headsha123", number: 42 } }),
+}));
+vi.mock("@/lib/repo-context", () => ({
+  useActiveRepo: () => ({
+    repoId: "repo-1",
+    activeRepo: { full_name: "acme/payments-api", default_branch: "main" },
+  }),
+}));
 
 import { PrBriefCard } from "./PrBriefCard";
 

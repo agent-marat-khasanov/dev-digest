@@ -4,6 +4,9 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import { Card, SectionLabel, Badge, Button, Skeleton, EmptyState } from "@devdigest/ui";
 import { useBrief, useRegenerateBrief } from "@/lib/hooks/brief";
+import { usePullDetail } from "@/lib/hooks/core";
+import { useActiveRepo } from "@/lib/repo-context";
+import { githubBlobUrl } from "@/lib/github-urls";
 import { notify } from "@/lib/toast";
 import { formatCost } from "@/lib/format-cost";
 import { RepoFileViewer } from "@/components/repo-file-viewer";
@@ -28,6 +31,8 @@ interface PrBriefCardProps {
 export function PrBriefCard({ prId, repoId }: PrBriefCardProps) {
   const { data, isLoading, isError, isFetching, refetch } = useBrief(prId);
   const regenerate = useRegenerateBrief(prId);
+  const { activeRepo } = useActiveRepo();
+  const { data: pull } = usePullDetail(prId);
   const [viewerPath, setViewerPath] = React.useState<string | null>(null);
 
   const handleRegenerate = () =>
@@ -184,7 +189,16 @@ export function PrBriefCard({ prId, repoId }: PrBriefCardProps) {
       </Card>
 
       {viewerPath && (
-        <RepoFileViewer repoId={repoId} path={viewerPath} onClose={() => setViewerPath(null)} />
+        <RepoFileViewer
+          repoId={repoId}
+          path={viewerPath}
+          githubUrl={
+            activeRepo && pull
+              ? githubBlobUrl(activeRepo.full_name, pull.head_sha, viewerPath)
+              : undefined
+          }
+          onClose={() => setViewerPath(null)}
+        />
       )}
     </>
   );
