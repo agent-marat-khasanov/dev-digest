@@ -52,6 +52,12 @@ export const s = {
     marginTop: 4,
   } satisfies CSSProperties,
 
+  riskChip: {
+    whiteSpace: "normal" as const,
+    overflowWrap: "anywhere" as const,
+    maxWidth: "100%",
+  } satisfies CSSProperties,
+
   skeletonStack: {
     display: "flex",
     flexDirection: "column" as const,

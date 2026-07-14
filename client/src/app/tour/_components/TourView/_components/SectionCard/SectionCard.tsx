@@ -86,6 +86,7 @@ export function SectionCard({ section, onOpenFile }: SectionCardProps) {
                 icon="ExternalLink"
                 bg="transparent"
                 color="var(--accent)"
+                style={{ whiteSpace: "normal", overflowWrap: "anywhere", maxWidth: "100%" }}
               >
                 <button
                   type="button"

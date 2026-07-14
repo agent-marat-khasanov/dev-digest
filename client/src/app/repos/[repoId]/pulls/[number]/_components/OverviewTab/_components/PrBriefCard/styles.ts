@@ -105,4 +105,10 @@ export const s = {
     cursor: "pointer",
     fontFamily: "var(--mono, monospace)",
   } satisfies CSSProperties,
+
+  wrapBadge: {
+    whiteSpace: "normal" as const,
+    overflowWrap: "anywhere" as const,
+    maxWidth: "100%",
+  } satisfies CSSProperties,
 } as const;

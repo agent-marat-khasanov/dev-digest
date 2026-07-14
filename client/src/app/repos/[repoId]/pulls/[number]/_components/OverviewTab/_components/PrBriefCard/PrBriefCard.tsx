@@ -123,11 +123,17 @@ export function PrBriefCard({ prId, repoId }: PrBriefCardProps) {
                       <div style={s.refRow}>
                         {risk.file_refs.map((ref, j) =>
                           isEndpointRef(ref) ? (
-                            <Badge key={j} mono>
+                            <Badge key={j} mono style={s.wrapBadge}>
                               {ref}
                             </Badge>
                           ) : (
-                            <Badge key={j} icon="FileText" bg="transparent" color="var(--accent)">
+                            <Badge
+                              key={j}
+                              icon="FileText"
+                              bg="transparent"
+                              color="var(--accent)"
+                              style={s.wrapBadge}
+                            >
                               <button
                                 type="button"
                                 onClick={() => setViewerPath(ref)}
@@ -153,7 +159,7 @@ export function PrBriefCard({ prId, repoId }: PrBriefCardProps) {
             <ol style={s.focusList}>
               {data.review_focus.map((item, i) => (
                 <li key={i} style={s.focusItem}>
-                  <Badge icon="FileText" bg="transparent" color="var(--accent)">
+                  <Badge icon="FileText" bg="transparent" color="var(--accent)" style={s.wrapBadge}>
                     <button
                       type="button"
                       onClick={() => setViewerPath(item.path)}
