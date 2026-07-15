@@ -66,8 +66,8 @@ before the framework skill.
 | implement auth, handle user input, or review for vulnerabilities | `security` |
 | do non-trivial TypeScript type-level work | `typescript-expert` |
 
-(Manual/utility skills — `pr-self-review`, `engineering-insights`, `mermaid-diagram` — are NOT in
-this table by design; invoke them only per their own rules.)
+(Manual/utility skills — `pr-self-review`, `engineering-insights`, `mermaid-diagram`, `workflow-retro`
+— are NOT in this table by design; invoke them only per their own rules.)
 
 ## Read When
 

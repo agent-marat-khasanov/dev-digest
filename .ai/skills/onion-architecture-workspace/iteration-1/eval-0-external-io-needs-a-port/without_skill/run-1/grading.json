@@ -1,0 +1,51 @@
+{
+  "eval_id": 0,
+  "eval_name": "external-io-needs-a-port",
+  "config": "without_skill",
+  "files_proposed": 5,
+  "expectations": [
+    {
+      "text": "[0.1] A notification port interface is declared, and since nothing outside server/ names it, it lives beside its adapter (adapters/notifier/) rather than widening the client-mirrored vendor/shared surface",
+      "passed": true,
+      "evidence": "port declared beside its adapter in server/src/adapters/notifier/index.ts",
+      "rule": "Where does the port interface go? — server-local ports live beside their adapter"
+    },
+    {
+      "text": "[0.2] The concrete implementation (the HTTP POST to the webhook) lives in a file under server/src/adapters/",
+      "passed": true,
+      "evidence": "HTTP call lives in server/src/adapters/notifier/index.ts",
+      "rule": "Layer map — infrastructure"
+    },
+    {
+      "text": "[0.3] No service.ts performs the HTTP call itself (no fetch/axios/undici/WebClient inside modules/*/service.ts)",
+      "passed": true,
+      "evidence": "no service.ts performs the HTTP call",
+      "rule": "Hard rule 3 — no direct SDK/HTTP construction in a service"
+    },
+    {
+      "text": "[0.4] The adapter is wired in server/src/platform/container.ts",
+      "passed": true,
+      "evidence": "container.ts wires the notifier",
+      "rule": "Hard rule 6 — compose only at the root"
+    },
+    {
+      "text": "[0.5] The service receives the notifier as an injected dependency and does not construct the adapter itself (no `new <Adapter>(` in service.ts)",
+      "passed": true,
+      "evidence": "service receives the notifier as an injected dependency",
+      "rule": "Hard rule 6 — a service receives its dependencies"
+    },
+    {
+      "text": "[0.6] The webhook URL comes from config/secrets, not a hardcoded literal URL in the service or adapter",
+      "passed": true,
+      "evidence": "webhook URL sourced from server/.env.example",
+      "rule": "Config/secrets convention"
+    }
+  ],
+  "score": "6/6",
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  }
+}

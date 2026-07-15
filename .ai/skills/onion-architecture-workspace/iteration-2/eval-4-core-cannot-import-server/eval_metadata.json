@@ -1,0 +1,6 @@
+{
+  "eval_id": 4,
+  "eval_name": "core-cannot-import-server",
+  "prompt": "A long review feels frozen in the UI. While reviewPullRequest runs, reviewer-core should report which stage it's on (diff parsed, prompt assembled, LLM called, findings grounded) so the run's Live Log shows the stages in real time as they happen.",
+  "assertions": []
+}

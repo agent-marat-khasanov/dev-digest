@@ -1,0 +1,45 @@
+{
+  "eval_id": 3,
+  "eval_name": "cache-port-no-precedent",
+  "config": "with_skill",
+  "files_proposed": 10,
+  "expectations": [
+    {
+      "text": "[3.1] A cache port interface is declared beside its adapter under server/src/adapters/ and NOT pushed into the client-mirrored vendor/shared/adapters.ts",
+      "passed": true,
+      "evidence": "cache port declared beside its adapter in server/src/adapters/cache/index.ts",
+      "rule": "Where does the port interface go?"
+    },
+    {
+      "text": "[3.2] The Redis client is constructed only inside server/src/adapters/ — no `new Redis(...)` in a service, repository, or route",
+      "passed": true,
+      "evidence": "Redis client is constructed only inside adapters/",
+      "rule": "Hard rule 3 — no direct SDK construction outside an adapter"
+    },
+    {
+      "text": "[3.3] The cache is resolved from platform/container.ts and has a ContainerOverrides slot so tests can swap it",
+      "passed": true,
+      "evidence": "container resolves the cache and exposes a ContainerOverrides slot",
+      "rule": "Hard rule 6 — compose only at the root"
+    },
+    {
+      "text": "[3.4] The caller codes against the cache port, not against Redis types (no ioredis/Redis import outside adapters/)",
+      "passed": true,
+      "evidence": "callers code against the port, not Redis types",
+      "rule": "Hard rule 1 — the inside codes against the port"
+    },
+    {
+      "text": "[3.5] The Redis connection string comes from config/env, not a hardcoded literal",
+      "passed": true,
+      "evidence": "Redis URL sourced from server/.env.example",
+      "rule": "Config convention"
+    }
+  ],
+  "score": "5/5",
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1
+  }
+}

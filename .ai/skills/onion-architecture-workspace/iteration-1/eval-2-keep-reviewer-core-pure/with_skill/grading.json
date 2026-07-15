@@ -1,0 +1,45 @@
+{
+  "eval_id": 2,
+  "eval_name": "keep-reviewer-core-pure",
+  "config": "with_skill",
+  "files_proposed": 5,
+  "expectations": [
+    {
+      "text": "[2.1] No file under reviewer-core/ imports Octokit or any GitHub/HTTP SDK",
+      "passed": true,
+      "evidence": "reviewer-core imports no GitHub SDK",
+      "rule": "Hard rule 2 — keep the core pure"
+    },
+    {
+      "text": "[2.2] No file under reviewer-core/ performs network or filesystem I/O (no fetch/axios/node:fs/node:https)",
+      "passed": true,
+      "evidence": "reviewer-core performs no network/filesystem I/O",
+      "rule": "Hard rule 2 — reviewer-core performs zero I/O"
+    },
+    {
+      "text": "[2.3] The GitHub read happens on the server side through the existing GitHubClient port resolved from the Container (no ad-hoc Octokit construction)",
+      "passed": true,
+      "evidence": "GitHub reached via the GitHubClient port in server/src/modules/reviews/run-executor.ts",
+      "rule": "Hard rule 3 — external systems reached via ports"
+    },
+    {
+      "text": "[2.4] The open-PR/conflict data enters reviewer-core as plain injected input (a field on the review input or an injected port), not fetched by reviewer-core itself",
+      "passed": true,
+      "evidence": "reviewer-core/src/conflicts.ts takes the open-PR data as plain input",
+      "rule": "Hard rule 1 — dependencies point inward"
+    },
+    {
+      "text": "[2.5] No GitHub/HTTP dependency is added to reviewer-core/package.json",
+      "passed": true,
+      "evidence": "reviewer-core/package.json untouched",
+      "rule": "Hard rule 2 — the core stays dependency-free"
+    }
+  ],
+  "score": "5/5",
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1
+  }
+}

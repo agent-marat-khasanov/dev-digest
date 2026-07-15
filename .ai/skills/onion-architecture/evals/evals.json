@@ -1,0 +1,46 @@
+{
+  "skill_name": "onion-architecture",
+  "evals": [
+    {
+      "id": 0,
+      "name": "external-io-needs-a-port",
+      "prompt": "When a review run finishes I want DevDigest to post a short summary to our team's Slack incoming webhook — the repo name, the PR number, and how many findings came back, split by severity. The webhook URL should come from config like the other secrets do. Wire it up in the server so it fires at the end of a run.",
+      "expected_output": "A notification port declared beside its adapter under server/src/adapters/notifier/ (nothing outside server/ names it, so it must not widen the client-mirrored vendor/shared surface), the HTTP POST inside that adapter, wiring in platform/container.ts, and the review-run service depending on the injected port. No fetch/HTTP client and no webhook URL construction inside service.ts.",
+      "files": [],
+      "why": "Baseline task carried over from iteration-1: it is the one that exposed the skill's port-placement gap."
+    },
+    {
+      "id": 1,
+      "name": "endpoint-through-the-layers",
+      "prompt": "Add a GET /repos/:repoId/stats endpoint that returns, for the last 30 days: how many review runs that repo had, how many findings they produced in total, and the breakdown by severity. Should be workspace-scoped like the rest of the API.",
+      "expected_output": "Route stays thin, aggregation SQL lives in a repository, service orchestrates, row->DTO mapping in helpers.ts, response shape a Zod contract in vendor/shared/contracts/, query scoped by workspace_id.",
+      "files": [],
+      "why": "Retired after iteration-1: both arms scored 6/6, so it does not discriminate — the repo's own modules already demonstrate the pattern."
+    },
+    {
+      "id": 2,
+      "name": "keep-reviewer-core-pure",
+      "prompt": "In reviewer-core, a finding should say whether the file it points at was already touched by another open PR. Get the list of open PRs and their changed files from GitHub and use it when the findings are built, so the finding text can mention the conflict.",
+      "expected_output": "reviewer-core performs no I/O and imports no GitHub SDK; the GitHub read happens server-side through the GitHubClient port and the data is passed into reviewer-core as plain input.",
+      "files": [],
+      "why": "Retired after iteration-1: both arms scored 5/5. reviewer-core's existing purity is self-evident from its code, so the skill adds nothing here."
+    },
+    {
+      "id": 3,
+      "name": "cache-port-no-precedent",
+      "prompt": "Re-running a review on the same PR re-fetches the whole file list from GitHub every time and we're burning through the API rate limit. Put a Redis cache in front of those GitHub reads with a 15-minute TTL, keyed by repo + PR + head sha. Redis connection string comes from the environment.",
+      "expected_output": "A server-local cache port declared beside its adapter (adapters/cache/index.ts) — nothing outside server/ names it — with the ioredis/redis client constructed ONLY inside that adapter, resolved from the Container with a ContainerOverrides slot, and consumed through the port by whatever does the GitHub read. Redis URL on AppConfig, not hardcoded. No `new Redis(...)` in a service, repository, or route.",
+      "files": [],
+      "why": "Hard case: the repo has no cache and no Redis anywhere, so there is no neighbouring module to copy. The model must derive the port/adapter/container shape from the rules, not from precedent."
+    },
+    {
+      "id": 4,
+      "name": "core-cannot-import-server",
+      "prompt": "A long review feels frozen in the UI. While reviewPullRequest runs, reviewer-core should report which stage it's on (diff parsed, prompt assembled, LLM called, findings grounded) so the run's Live Log shows the stages in real time as they happen.",
+      "expected_output": "reviewer-core stays pure: it imports nothing from server/ and no logger/pino/Fastify. Progress leaves the core through an injected callback or port supplied on its input (e.g. an optional onProgress handler); the server passes a function that writes to the Live Log. A `import ... from '../../server/...'` or a logger import inside reviewer-core is the failure.",
+      "files": [],
+      "why": "Hard case: the natural move is to reach for the server's existing Live Log emitter from inside the core — an inner layer importing an outer one, which is exactly the dependency-rule violation the skill exists to prevent."
+    }
+  ],
+  "active_in_iteration_2": [0, 3, 4]
+}

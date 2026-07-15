@@ -34,5 +34,5 @@ both together. **Architecture/placement skill is ALWAYS first; then framework sk
 
 ## Not for implementation tasks
 
-`pr-self-review`, `engineering-insights`, `mermaid-diagram` are manual/utility skills — never assign
-them to an implementation task.
+`pr-self-review`, `engineering-insights`, `mermaid-diagram`, `workflow-retro` are manual/utility
+skills — never assign them to an implementation task.
