@@ -1,0 +1,45 @@
+{
+  "eval_id": 4,
+  "eval_name": "core-cannot-import-server",
+  "config": "without_skill",
+  "files_proposed": 2,
+  "expectations": [
+    {
+      "text": "[4.1] No file under reviewer-core/ imports from server/ (no relative escape into server, no server path alias)",
+      "passed": true,
+      "evidence": "reviewer-core imports nothing from server/",
+      "rule": "Hard rule 1 — dependencies point inward only"
+    },
+    {
+      "text": "[4.2] No file under reviewer-core/ imports a logger, pino, or Fastify",
+      "passed": true,
+      "evidence": "reviewer-core imports no logger or Fastify",
+      "rule": "Hard rule 2 — keep the core pure"
+    },
+    {
+      "text": "[4.3] Progress leaves reviewer-core through an injected callback/port on its input (e.g. an optional onProgress handler), not by reaching out",
+      "passed": true,
+      "evidence": "stages leave the core through the injected sink (reviewer-core/src/review/run.ts)",
+      "rule": "Ports — the core receives what it needs"
+    },
+    {
+      "text": "[4.4] The server side passes the progress handler in and writes it to the Live Log",
+      "passed": true,
+      "evidence": "no server change proposed — reuses the existing onEvent wiring in run-executor.ts",
+      "rule": "Composition — the outer ring supplies the concrete"
+    },
+    {
+      "text": "[4.5] reviewer-core still performs no network/filesystem I/O",
+      "passed": true,
+      "evidence": "reviewer-core performs no network/filesystem I/O",
+      "rule": "Hard rule 2 — reviewer-core performs zero I/O"
+    }
+  ],
+  "score": "5/5",
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "eval_id": 1,
+  "eval_name": "endpoint-through-the-layers",
+  "config": "with_skill",
+  "files_proposed": 8,
+  "expectations": [
+    {
+      "text": "[1.1] routes.ts contains no Drizzle/SQL query (no drizzle-orm import, no db.select/count/sql usage)",
+      "passed": true,
+      "evidence": "routes.ts contains no Drizzle/SQL",
+      "rule": "Hard rule 4 — routes are thin"
+    },
+    {
+      "text": "[1.2] The aggregation query lives in repository.ts",
+      "passed": true,
+      "evidence": "aggregation query in server/src/modules/reviews/repository/run.repo.ts",
+      "rule": "Layer map — infrastructure"
+    },
+    {
+      "text": "[1.3] A service.ts orchestrates: the route calls the service, the service calls the repository",
+      "passed": true,
+      "evidence": "server/src/modules/repos/routes.ts -> server/src/modules/repos/service.ts -> repository",
+      "rule": "Layer map — application"
+    },
+    {
+      "text": "[1.4] The response shape is defined as a Zod schema under server/src/vendor/shared/contracts/",
+      "passed": true,
+      "evidence": "Zod contract in server/src/vendor/shared/contracts/repo-stats.ts",
+      "rule": "Decision rule — contracts live in vendor/shared/contracts"
+    },
+    {
+      "text": "[1.5] Row -> DTO conversion happens in helpers.ts and no raw Drizzle row is handed to HTTP",
+      "passed": true,
+      "evidence": "row -> DTO mapping in server/src/modules/repos/helpers.ts",
+      "rule": "Hard rule 5 — map at the boundary"
+    },
+    {
+      "text": "[1.6] The query is workspace-scoped (filters on workspace_id / uses the request's workspace context)",
+      "passed": true,
+      "evidence": "server/src/modules/reviews/repository/run.repo.ts filters on workspace id",
+      "rule": "Tenancy (server/CLAUDE.md)"
+    }
+  ],
+  "score": "6/6",
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  }
+}

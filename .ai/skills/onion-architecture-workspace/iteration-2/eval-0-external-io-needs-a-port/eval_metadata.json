@@ -1,0 +1,6 @@
+{
+  "eval_id": 0,
+  "eval_name": "external-io-needs-a-port",
+  "prompt": "When a review run finishes I want DevDigest to post a short summary to our team's Slack incoming webhook — the repo name, the PR number, and how many findings came back, split by severity. The webhook URL should come from config like the other secrets do. Wire it up in the server so it fires at the end of a run.",
+  "assertions": []
+}

@@ -4,11 +4,28 @@ Onion's outer ring is "details": databases, APIs, SDKs. We keep them swappable w
 
 ## Port: the interface in the core
 
-A port names a capability the inside needs, in the inside's own terms. All of ours live in `server/src/vendor/shared/adapters.ts`:
+A port names a capability the inside needs, in the inside's own terms. It mentions no vendor: the core
+depends on `LLMProvider`, never on `openai`.
+
+**Where the interface is declared depends on who has to name it.**
+
+`server/src/vendor/shared/adapters.ts` — for ports that cross a package boundary:
 
 `LLMProvider`, `Embedder`, `GitHubClient`, `GitClient`, `CodeIndex`, `SecretsProvider`.
 
-They mention no vendor. The core depends on `LLMProvider`, never on `openai`.
+These are there because `reviewer-core` names them too (`reviewer-core/src/review/run.ts` takes an
+`LLMProvider`), and `vendor/shared` is the one dependency-free module both packages can import.
+
+`adapters/<name>/index.ts` — for a **server-local port**, declared next to its implementation:
+
+| Port | Declared in | Named by |
+|---|---|---|
+| `Tokenizer` | `adapters/tokenizer/index.ts` (with `TiktokenTokenizer`) | only `container.ts` + the adapter |
+
+`vendor/shared` is hand-synced and mirrored into `client/`, so parking a server-only port there widens
+that shared surface for nothing. The decoupling comes from the interface plus the container — not from
+the folder. A server-local port is still a port: resolved via `container.tokenizer`, still swappable
+through `ContainerOverrides`.
 
 ## Adapter: the implementation on the outside
 
@@ -87,7 +104,9 @@ The inside doesn't change — it still asks for `LLMProvider`. This swap-without
 
 ## How to add a new adapter (recipe)
 
-1. **Define the port** in `vendor/shared/adapters.ts` — methods in domain terms, no vendor types in the signature.
+1. **Define the port** — methods in domain terms, no vendor types in the signature. Put it in
+   `vendor/shared/adapters.ts` only if a package outside `server/` names the type; if it is server-only
+   (the common case for a new capability), declare it in `adapters/<name>/index.ts` beside the adapter.
 2. **Implement it** in `adapters/<name>/<impl>.ts` as `class XyzProvider implements YourPort`.
 3. **Add a mock** in `adapters/mocks.ts` implementing the same port.
 4. **Resolve it** in `platform/container.ts` — a getter (or async method if it needs a secret), honoring `ContainerOverrides`. Add the override field to `ContainerOverrides`.

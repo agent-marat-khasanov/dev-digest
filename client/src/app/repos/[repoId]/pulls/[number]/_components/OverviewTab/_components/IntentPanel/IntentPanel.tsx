@@ -93,7 +93,7 @@ export function IntentPanel({ prId }: IntentPanelProps) {
             {data.risks.map((risk, i) => {
               const colors = severityChipColors(risk.severity);
               return (
-                <Badge key={i} color={colors.color} bg={colors.bg}>
+                <Badge key={i} color={colors.color} bg={colors.bg} style={s.riskChip}>
                   {risk.title}
                 </Badge>
               );

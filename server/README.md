@@ -71,6 +71,9 @@ flowchart TB
   subgraph Review["Review & runs"]
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
   end
+  subgraph PrInsight["PR insight"]
+    brief["brief<br/>/pulls/:id/brief · /pulls/:id/brief/regenerate"]
+  end
   subgraph Agents["Agents"]
     agents["agents<br/>/agents · /agents/:id"]
   end

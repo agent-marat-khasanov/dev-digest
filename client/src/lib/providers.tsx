@@ -7,11 +7,19 @@ import {
   QueryClientProvider,
   QueryCache,
   MutationCache,
+  onlineManager,
 } from "@tanstack/react-query";
 import { ThemeProvider } from "./theme";
 import { RepoProvider } from "./repo-context";
 import { ToastProvider, notify } from "./toast";
 import { ApiError } from "./api";
+
+// The API lives on localhost, reachable no matter what the OS thinks about
+// internet connectivity. Left to its own devices, React Query's onlineManager
+// flips "offline" on any navigator.onLine blip and silently PAUSES every
+// in-flight query (no loading, no error — the UI just freezes). Pin it online.
+onlineManager.setEventListener(() => () => {});
+onlineManager.setOnline(true);
 
 function errorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -27,6 +35,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             retry: 1,
             staleTime: 30_000,
             refetchOnWindowFocus: false,
+            // The API lives on localhost — reachable regardless of what
+            // navigator.onLine claims. The default networkMode ("online")
+            // silently PAUSES queries (no loading, no error) when the OS
+            // flags the network as offline, freezing the whole UI.
+            networkMode: "always",
+          },
+          mutations: {
+            networkMode: "always",
           },
         },
         // Global error surfacing (errors anywhere → toast). Mutations always

@@ -1,0 +1,6 @@
+{
+  "eval_id": 3,
+  "eval_name": "cache-port-no-precedent",
+  "prompt": "Re-running a review on the same PR re-fetches the whole file list from GitHub every time and we're burning through the API rate limit. Put a Redis cache in front of those GitHub reads with a 15-minute TTL, keyed by repo + PR + head sha. Redis connection string comes from the environment.",
+  "assertions": []
+}

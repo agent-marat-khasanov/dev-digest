@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /**
- * PR Brief building blocks: Intent, Blast radius, Risks, PR History,
- * Smart Diff. Composed into PrBrief.
+ * PR Brief building blocks: Intent, Blast radius, Risks,
+ * Smart Diff. Composed into Brief.
  */
 
 // ---- Intent ----
@@ -61,22 +61,6 @@ export const Risks = z.object({
 });
 export type Risks = z.infer<typeof Risks>;
 
-// ---- PR History ----
-export const PrHistoryItem = z.object({
-  pr_number: z.number().int(),
-  title: z.string(),
-  merged_at: z.string(),
-  author: z.string(),
-  files_overlap: z.array(z.string()),
-  notes: z.string(),
-});
-export type PrHistoryItem = z.infer<typeof PrHistoryItem>;
-
-export const PrHistory = z.object({
-  history: z.array(PrHistoryItem),
-});
-export type PrHistory = z.infer<typeof PrHistory>;
-
 // ---- Smart Diff ----
 export const SmartDiffRole = z.enum(['core', 'wiring', 'boilerplate']);
 export type SmartDiffRole = z.infer<typeof SmartDiffRole>;
@@ -112,11 +96,30 @@ export const SmartDiff = z.object({
 });
 export type SmartDiff = z.infer<typeof SmartDiff>;
 
-// ---- Composed PR Brief (pr_brief.json) ----
-export const PrBrief = z.object({
-  intent: Intent,
-  blast: BlastRadius,
-  risks: Risks,
-  history: PrHistory,
+// ---- Composed PR Brief (pr_brief.json / endpoint response) ----
+export const ReviewFocusItem = z.object({
+  path: z.string(),
+  reason: z.string(),
 });
-export type PrBrief = z.infer<typeof PrBrief>;
+export type ReviewFocusItem = z.infer<typeof ReviewFocusItem>;
+
+// Persisted per generation (AC-21); null/absent when the brief has not yet been generated.
+export const BriefGenerated = z.object({
+  model: z.string().nullable(),
+  cost_usd: z.number().nullable(),
+  tokens_in: z.number().int().nullable(),
+  tokens_out: z.number().int().nullable(),
+});
+export type BriefGenerated = z.infer<typeof BriefGenerated>;
+
+export const Brief = z.object({
+  pr_id: z.string(),
+  what: z.string(),
+  why: z.string(),
+  risk_level: RiskSeverity,
+  risks: z.array(Risk),
+  review_focus: z.array(ReviewFocusItem),
+  generated_at: z.string().nullish(),
+  generated: BriefGenerated.nullish(),
+});
+export type Brief = z.infer<typeof Brief>;

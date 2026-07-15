@@ -1,0 +1,63 @@
+{
+  "skill_name": "onion-architecture",
+  "note": "Assertions are graded against the proposal each run wrote to outputs/files/<repo-relative-path>. Each one maps to a numbered Hard rule in SKILL.md, so a failure points at the exact rule the run broke.",
+  "evals": [
+    {
+      "eval_id": 0,
+      "eval_name": "external-io-needs-a-port",
+      "assertions": [
+        { "id": "0.1", "rule": "Where does the port interface go? — server-local ports live beside their adapter", "text": "A notification port interface is declared, and since nothing outside server/ names it, it lives beside its adapter (adapters/notifier/) rather than widening the client-mirrored vendor/shared surface" },
+        { "id": "0.2", "rule": "Layer map — infrastructure", "text": "The concrete implementation (the HTTP POST to the webhook) lives in a file under server/src/adapters/" },
+        { "id": "0.3", "rule": "Hard rule 3 — no direct SDK/HTTP construction in a service", "text": "No service.ts performs the HTTP call itself (no fetch/axios/undici/WebClient inside modules/*/service.ts)" },
+        { "id": "0.4", "rule": "Hard rule 6 — compose only at the root", "text": "The adapter is wired in server/src/platform/container.ts" },
+        { "id": "0.5", "rule": "Hard rule 6 — a service receives its dependencies", "text": "The service receives the notifier as an injected dependency and does not construct the adapter itself (no `new <Adapter>(` in service.ts)" },
+        { "id": "0.6", "rule": "Config/secrets convention", "text": "The webhook URL comes from config/secrets, not a hardcoded literal URL in the service or adapter" }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "endpoint-through-the-layers",
+      "assertions": [
+        { "id": "1.1", "rule": "Hard rule 4 — routes are thin", "text": "routes.ts contains no Drizzle/SQL query (no drizzle-orm import, no db.select/count/sql usage)" },
+        { "id": "1.2", "rule": "Layer map — infrastructure", "text": "The aggregation query lives in repository.ts" },
+        { "id": "1.3", "rule": "Layer map — application", "text": "A service.ts orchestrates: the route calls the service, the service calls the repository" },
+        { "id": "1.4", "rule": "Decision rule — contracts live in vendor/shared/contracts", "text": "The response shape is defined as a Zod schema under server/src/vendor/shared/contracts/" },
+        { "id": "1.5", "rule": "Hard rule 5 — map at the boundary", "text": "Row -> DTO conversion happens in helpers.ts and no raw Drizzle row is handed to HTTP" },
+        { "id": "1.6", "rule": "Tenancy (server/CLAUDE.md)", "text": "The query is workspace-scoped (filters on workspace_id / uses the request's workspace context)" }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "keep-reviewer-core-pure",
+      "assertions": [
+        { "id": "2.1", "rule": "Hard rule 2 — keep the core pure", "text": "No file under reviewer-core/ imports Octokit or any GitHub/HTTP SDK" },
+        { "id": "2.2", "rule": "Hard rule 2 — reviewer-core performs zero I/O", "text": "No file under reviewer-core/ performs network or filesystem I/O (no fetch/axios/node:fs/node:https)" },
+        { "id": "2.3", "rule": "Hard rule 3 — external systems reached via ports", "text": "The GitHub read happens on the server side through the existing GitHubClient port resolved from the Container (no ad-hoc Octokit construction)" },
+        { "id": "2.4", "rule": "Hard rule 1 — dependencies point inward", "text": "The open-PR/conflict data enters reviewer-core as plain injected input (a field on the review input or an injected port), not fetched by reviewer-core itself" },
+        { "id": "2.5", "rule": "Hard rule 2 — the core stays dependency-free", "text": "No GitHub/HTTP dependency is added to reviewer-core/package.json" }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "cache-port-no-precedent",
+      "assertions": [
+        { "id": "3.1", "rule": "Where does the port interface go?", "text": "A cache port interface is declared beside its adapter under server/src/adapters/ and NOT pushed into the client-mirrored vendor/shared/adapters.ts" },
+        { "id": "3.2", "rule": "Hard rule 3 — no direct SDK construction outside an adapter", "text": "The Redis client is constructed only inside server/src/adapters/ — no `new Redis(...)` in a service, repository, or route" },
+        { "id": "3.3", "rule": "Hard rule 6 — compose only at the root", "text": "The cache is resolved from platform/container.ts and has a ContainerOverrides slot so tests can swap it" },
+        { "id": "3.4", "rule": "Hard rule 1 — the inside codes against the port", "text": "The caller codes against the cache port, not against Redis types (no ioredis/Redis import outside adapters/)" },
+        { "id": "3.5", "rule": "Config convention", "text": "The Redis connection string comes from config/env, not a hardcoded literal" }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "eval_name": "core-cannot-import-server",
+      "assertions": [
+        { "id": "4.1", "rule": "Hard rule 1 — dependencies point inward only", "text": "No file under reviewer-core/ imports from server/ (no relative escape into server, no server path alias)" },
+        { "id": "4.2", "rule": "Hard rule 2 — keep the core pure", "text": "No file under reviewer-core/ imports a logger, pino, or Fastify" },
+        { "id": "4.3", "rule": "Ports — the core receives what it needs", "text": "Progress leaves reviewer-core through an injected callback/port on its input (e.g. an optional onProgress handler), not by reaching out" },
+        { "id": "4.4", "rule": "Composition — the outer ring supplies the concrete", "text": "The server side passes the progress handler in and writes it to the Live Log" },
+        { "id": "4.5", "rule": "Hard rule 2 — reviewer-core performs zero I/O", "text": "reviewer-core still performs no network/filesystem I/O" }
+      ]
+    }
+  ]
+}

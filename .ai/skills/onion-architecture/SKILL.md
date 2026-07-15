@@ -20,7 +20,7 @@ We use the **canonical Onion model** (domain → application → infrastructure 
 
 | Onion layer (canonical) | In DevDigest | Where |
 |---|---|---|
-| **Domain** (core): contracts, domain types, **ports** | Zod contracts + adapter **interfaces** | `server/src/vendor/shared/contracts/*`, `server/src/vendor/shared/adapters.ts` (`LLMProvider`, `GitHubClient`, `GitClient`, `CodeIndex`, `SecretsProvider`, `Embedder`); **`reviewer-core/` = the exemplar pure core** |
+| **Domain** (core): contracts, domain types, **ports** | Zod contracts + adapter **interfaces** | `server/src/vendor/shared/contracts/*`, `server/src/vendor/shared/adapters.ts` (`LLMProvider`, `GitHubClient`, `GitClient`, `CodeIndex`, `SecretsProvider`, `Embedder`) for ports crossing a package boundary; a **server-local port** lives with its adapter (`adapters/tokenizer/index.ts` → `Tokenizer`). See *Where does the port interface go?* below. **`reviewer-core/` = the exemplar pure core** |
 | **Application** (use cases): orchestration | `*Service` classes | `server/src/modules/<name>/service.ts` (`AgentsService`, …) |
 | **Infrastructure**: persistence + external clients | repositories + adapters + db | `server/src/modules/<name>/repository.ts`, `server/src/adapters/*` (`OpenAIProvider`, `OctokitGitHubClient`, …), `server/src/db/*` |
 | **Presentation**: HTTP edge | Fastify routes + Zod I/O | `server/src/modules/<name>/routes.ts` |
@@ -36,11 +36,32 @@ The vertical slice `modules/<name>/{routes,service,repository,helpers}.ts` is **
 | Business logic / orchestration of repos + adapters | `modules/<name>/service.ts` (application) |
 | A SQL/Drizzle query | `modules/<name>/repository.ts` (infrastructure) |
 | A call to an external system (LLM, GitHub, git, embeddings) | an **adapter** in `adapters/<name>/`, behind a port interface, resolved from the `Container` |
-| The **interface** an adapter must satisfy (a port) | `vendor/shared/adapters.ts` (domain) — implemented in `adapters/` |
+| The **interface** an adapter must satisfy (a port) | `vendor/shared/adapters.ts` **if a package outside `server/` names the type**; otherwise beside its adapter in `adapters/<name>/index.ts` — either way it is resolved from the `Container`. See below |
 | A row → DTO / DTO → row conversion | `modules/<name>/helpers.ts` (boundary mapping) |
 | A request/response shape (contract) | a Zod schema in `vendor/shared/contracts/*` (do not edit by hand outside its sync rules) |
 | Pure review logic (diff → prompt → grounding → findings) | `reviewer-core/` — keep it I/O-free |
 | Wiring a new dependency into the graph | `platform/container.ts` (composition root) |
+
+### Where does the port interface go?
+
+`vendor/shared/` is not "the place ports live" — it is the place **packages share**. It is mirrored
+into `client/` and imported by `reviewer-core/`, so anything put there is paid for by every package,
+and a server-only concept parked there leaks server details into a client bundle.
+
+So ask one question: **does any package outside `server/` have to name this type?**
+
+- **Yes** → `vendor/shared/adapters.ts`. `LLMProvider`, `GitHubClient` and `SecretsProvider` are there
+  because `reviewer-core` itself names them (`reviewer-core/src/review/run.ts`) — a shared, dependency-free
+  home is the only place both packages can import from.
+- **No** → declare it beside its adapter: `adapters/<name>/index.ts`, exporting the interface and its
+  implementation together. `Tokenizer` (`adapters/tokenizer/index.ts`) is the precedent: only
+  `container.ts` and the adapter itself ever name it.
+
+Either way the rules that matter are unchanged — the port is an interface in domain terms, the adapter
+implements it, and the **`Container` is what hands it out** (`container.tokenizer`, plus a
+`ContainerOverrides` slot so tests can swap it). Location is about *who must see the type*; the
+dependency rule is about *who may construct it*. Don't confuse the two — putting a server-only port in
+`vendor/shared` buys no decoupling, it just widens a shared surface that is hand-synced across packages.
 
 ## Hard rules
 

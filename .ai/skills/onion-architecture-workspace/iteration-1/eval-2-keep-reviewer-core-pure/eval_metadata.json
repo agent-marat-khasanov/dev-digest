@@ -1,0 +1,6 @@
+{
+  "eval_id": 2,
+  "eval_name": "keep-reviewer-core-pure",
+  "prompt": "In reviewer-core, a finding should say whether the file it points at was already touched by another open PR. Get the list of open PRs and their changed files from GitHub and use it when the findings are built, so the finding text can mention the conflict.",
+  "assertions": []
+}

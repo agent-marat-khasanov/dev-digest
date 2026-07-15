@@ -1,0 +1,21 @@
+{
+  "name": "PR Why+Risk Brief: card renders honestly (no LLM in the hermetic stack), Retry keeps the error state, Overview tab still renders",
+  "description": "Covers what the hermetic e2e stack can actually exercise for the brief (SPEC-03). Unlike onboarding, the brief has NO skeleton/degraded fallback (server/src/modules/brief/service.ts: 'a model failure propagates -> 5xx - NO skeleton/degraded fallback, NO partial persist', AC-16). The hermetic stack sets no OPENAI_API_KEY/ANTHROPIC_API_KEY (scripts/e2e.sh), so container.llm(provider) throws ConfigError (server/src/platform/container.ts buildLlm) BEFORE any model call, mapped to a 500 (ConfigError statusCode=500). useBrief's query therefore lands on isError, and PrBriefCard renders its EmptyState('Brief unavailable', cta 'Retry') branch (PrBriefCard.tsx) - never the success branch with what/why/risk_level/review_focus, and never the success-only 'Regenerate' button. AC-11 (rendered fields) and AC-9 (Regenerate replaces the brief) cannot be exercised end-to-end in this key-less harness; this flow instead asserts the honest error state, that clicking Retry re-fetches and still shows the same honest error (no crash, no stale/blank UI), and that the rest of the Overview tab (Intent, Blast radius - DB-only, no LLM) keeps rendering alongside the failed brief card.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/"], "label": "load the app root" },
+    { "cmd": ["wait", "--url", "/pulls"], "label": "land on the PR list" },
+    { "cmd": ["find", "text", "Add rate limiting to public API endpoints", "click"], "label": "open the seeded PR row" },
+    { "cmd": ["wait", "--url", "/pulls/482"], "label": "navigate to the PR detail route (Overview tab is the default)" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "PR detail + brief fetch settle" },
+
+    { "cmd": ["wait", "--text", "PR brief"], "label": "PrBriefCard section label renders" },
+    { "cmd": ["wait", "--text", "Brief unavailable"], "label": "honest EmptyState: no LLM key in the hermetic stack -> brief generation 5xx's, never a blank/crashed card" },
+    { "cmd": ["wait", "--text", "Could not generate a why + risk brief for this PR."], "label": "EmptyState body text renders" },
+
+    { "cmd": ["wait", "--text", "Blast radius"], "label": "Overview tab keeps rendering its other (DB-only, no-LLM) panels alongside the failed brief card" },
+
+    { "cmd": ["find", "role", "button", "click", "--name", "Retry"], "label": "click Retry on the brief EmptyState" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "retry request settles" },
+    { "cmd": ["wait", "--text", "Brief unavailable"], "label": "retry re-fetches and honestly lands back on the same error state (no LLM key still not configured) - no crash, no stale UI" }
+  ]
+}

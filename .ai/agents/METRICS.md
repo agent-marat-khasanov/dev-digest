@@ -42,6 +42,14 @@ Agent tool result (the `subagent_tokens` line); `outcome` is one of:
 | 2026-07-13 | architecture-reviewer | SPEC-02 feature diff review | sonnet/high | ~86k | accepted | Zero findings; validated FileViewer duplication decision |
 | 2026-07-13 | test-writer | SPEC-02 T10 unit + T11 integration + T12 RTL (3 runs) | sonnet/medium | ~93–124k/run | accepted | Tests derived from spec ACs; +17 server unit, +13 it, +8 RTL, all green first try |
 | 2026-07-13 | implementer | SPEC-02 T13 e2e flow 09-onboarding-tour | sonnet/medium | ~90k | accepted | Caught 05-slot collision → renumbered to 09; agent-browser absent → static flow validation, honest report |
+| 2026-07-13 | spec-creator | SPEC-03 pr-why-risk-brief (author + fold-in resumes) | opus/high | ~106k+130k | accepted | 7 clarifications, zero research needs; verified pre-scaffolding itself |
+| 2026-07-13 | implementation-planner | SPEC-03 plan (author + cross-review revision) | opus/high | ~144k+168k | accepted | 4/4 cross-review blockers folded; open Qs resolved by project rules without user round |
+| 2026-07-13 | (external) GPT-5.2 via OpenRouter | SPEC-03 plan cross-model staff review | gpt-5.2 | ~17k in/3k out | accepted | 4/4 blockers REAL (allowlist split, NG2 stats-only, deterministic union, endpoint links) — zero false positives this run |
+| 2026-07-13 | implementer | SPEC-03 T1-T7 (7 runs, 3 waves) | sonnet/medium | ~62-129k/run | accepted | Zero redone; T3 self-caught a merge-state near-miss; T5 flagged worktree path-resolution gotcha |
+| 2026-07-13 | test-writer | SPEC-03 T8 unit + T9 integration + T10 RTL | sonnet/medium | ~96-174k/run | accepted | T8 ran a mutation sanity-check (broke code, saw tests fail); T9 solved the NODE_ENV=test rate-limit trap |
+| 2026-07-13 | implementer | SPEC-03 T11 e2e + 2 findings fixes | sonnet/medium | ~72-105k/run | accepted | e2e honestly asserts error-state (no LLM key, no skeleton); RepoFileViewer extraction −250 lines |
+| 2026-07-13 | plan-verifier | SPEC-03 coverage (pass 1 + final) | sonnet/high | ~125k+100k | accepted | Pass 1: 24/24 functionally MET, 2 test-debt PARTIALs; final pass re-ran all suites itself, approve |
+| 2026-07-13 | architecture-reviewer | SPEC-03 diff review (pass 1 + scoped re-check) | sonnet/high | ~67k+31k | accepted | Caught the thrice-extract threshold crossing; re-check confirmed resolved |
 
 ## Review cadence
 

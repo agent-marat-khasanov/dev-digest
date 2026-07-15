@@ -102,3 +102,4 @@ a CI artifact by `.github/workflows/e2e-web.yml`).
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
 | `08-project-context` | `/context` doc rows + read-only preview; agent editor Context tab (rows, filter, preview); skill editor "Project context to use" tab |
 | `09-onboarding-tour` | `/tour` skeleton fallback (honest badge, never empty), header (repo, files-indexed, last-refreshed), 5 section cards + TOC, Regenerate replaces the displayed tour |
+| `10-pr-brief` | PR #482 Overview tab → PrBriefCard honest error state (no LLM key in the hermetic stack → 5xx → EmptyState/Retry, never blank/crash); Retry re-fetches to the same honest state; rest of Overview (Intent, Blast radius) keeps rendering. Coverage gap: AC-9/AC-11's success-path rendering (what/why/risks/review_focus, Regenerate) cannot be exercised in this key-less harness — see the flow's `description` |

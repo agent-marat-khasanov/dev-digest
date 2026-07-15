@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "endpoint-through-the-layers",
+  "prompt": "Add a GET /repos/:repoId/stats endpoint that returns, for the last 30 days: how many review runs that repo had, how many findings they produced in total, and the breakdown by severity. Should be workspace-scoped like the rest of the API.",
+  "assertions": []
+}

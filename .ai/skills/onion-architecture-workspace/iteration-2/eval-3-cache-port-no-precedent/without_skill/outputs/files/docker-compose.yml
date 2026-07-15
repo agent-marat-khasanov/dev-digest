@@ -1,0 +1,39 @@
+name: devdigest
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: devdigest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: devdigest
+      POSTGRES_PASSWORD: devdigest
+      POSTGRES_DB: devdigest
+    ports:
+      - "5432:5432"
+    volumes:
+      - devdigest_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devdigest -d devdigest"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Cache in front of the GitHub PR-detail reads (REDIS_URL). Ephemeral by
+  # design — no volume: everything in it is a 15-minute copy of data we can
+  # re-fetch from GitHub, so a wiped Redis costs a few API calls, nothing more.
+  redis:
+    image: redis:7-alpine
+    container_name: devdigest-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  devdigest_pgdata:
+    name: devdigest_pgdata

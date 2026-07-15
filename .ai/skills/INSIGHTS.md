@@ -23,6 +23,12 @@ root `AGENTS.md`/`CLAUDE.md`.
   good `implementer` will itself run `git merge <feature-branch> --no-commit` to pull deps into scope.
 - After an `implementer` returns, VERIFY its deliverable files exist (`ls`/`grep`) before integrating
   — its final report can be trusted only after this check (see What Doesn't Work).
+- **Proposal-mode is the cheap way to eval a placement/architecture skill.** Instead of worktrees, tell
+  each eval agent: "do NOT modify the repo; write the full content of every file you'd create/change to
+  `outputs/files/<repo-relative-path>`, plus a `PROPOSAL.md` table". It reads the real repo, so the
+  layer decision is authentic, but nothing is mutated, nothing must be cleaned up, and the artifact is
+  directly greppable by a grading script. Costs ~100–130k tokens/agent. Trade-off: no typecheck — fine
+  when what you grade is *where code goes*, not whether it compiles.
 
 ## What Doesn't Work
 
@@ -72,6 +78,50 @@ root `AGENTS.md`/`CLAUDE.md`.
   `.ai/rules/read-insights-first.md`. Always `grep -rn "\b<old-name>\b" .ai/` after the `git mv`.
   Historical artifacts (`.ai/plans/*.md`, this file's Session Notes) are records of the past — leave
   the old name there.
+- **Never sum `message.usage` across transcript lines** — one API response is written as SEVERAL
+  JSONL lines (one per content block: thinking, text, each tool_use), and **every line repeats the
+  same `usage` object**. Naive summing inflated a real spec-creator run by **5×** on output tokens
+  (32 253 → 6 300 actual) and **2.1×** on cache-reads. Dedupe on `message.id` first: 91 lines with
+  usage were only **35** real API responses. Any token accounting that skips this is fiction.
+- **Never derive an agent's duration from its first→last timestamp.** An agent resumed via
+  `SendMessage` leaves a hole in its own transcript: one spec-creator showed a **46 941-second**
+  (13-hour) gap, so first→last reported a ~10-minute agent as a 13-hour one, and poisoned any
+  parallelism figure built on those spans. Split the timeline on idle gaps (we use >5 min) and sum
+  the active segments.
+- **Never trust the parent's `toolUseResult.totalTokens` for a subagent.** Two separate defects:
+  (a) for agents the parent saw finish it records only the **last turn**, not the run — a **×25**
+  undercount measured against the agents' own transcripts; (b) for **backgrounded** agents
+  (`status: async_launched`) the Task result returns *before* the agent finishes, so the parent
+  books ≈0 — in a real 41-agent run, **39 were backgrounded**. In-context accounting is therefore not
+  merely low, it is blind. Real numbers exist only in the subagent transcripts on disk.
+
+- **A skill can be factually WRONG about the repo, and then it makes the model WORSE than no skill.**
+  `onion-architecture` asserted "all of our ports live in `vendor/shared/adapters.ts`" — false:
+  `Tokenizer` (`adapters/tokenizer/index.ts`) and `DepGraph` (`adapters/depgraph/index.ts`) are
+  server-local ports declared beside their adapters and resolved from the `Container`. In a measured
+  A/B, the skill-fed agent duly pushed a new server-only `Notifier` port into `vendor/shared` — the
+  hand-synced surface mirrored into `client/` — while the **no-skill baseline placed it correctly**,
+  citing the `Tokenizer`/`DepGraph` precedent it found by reading the code. Before trusting any
+  structural claim in a skill, grep for counter-examples; a skill that contradicts the codebase
+  actively overrides the model's correct instinct. (Fixed: the rule is now "a port goes in
+  `vendor/shared` iff a package outside `server/` must name the type".)
+- **Do not expect an A/B skill eval to show a delta in THIS repo.** The environment already teaches the
+  architecture three times over: `AGENTS.md` carries the layer table + dependency rule, the code itself
+  demonstrates the pattern in every module, and the `PreToolUse` skill-routing hook fires *inside
+  baseline subagents too* (a baseline agent explicitly reported being nudged toward
+  `onion-architecture` on every write). Across two iterations × 3 tasks the skill never beat the
+  baseline (94.4% vs 100%, then 100% vs 100%). A "with skill vs without skill" number here measures
+  *the skill against a repo that already says the same thing* — so treat such an eval as a **regression
+  gate** ("the skill doesn't push the model somewhere wrong"), not as proof of value. To get a real
+  signal you would have to strip `AGENTS.md` from the baseline's context, which measures a scenario
+  that never happens in practice.
+- **An eval task with no trap teaches nothing — verify the trap exists before spending agents on it.**
+  Two of five tasks were dead on arrival: "endpoint through the layers" and "keep reviewer-core pure"
+  both scored 6/6 and 5/5 on *both* arms because neighbouring modules already demonstrate the answer.
+  A third ("core must not import the server's logger") had no trap at all — `reviewPullRequest` already
+  takes an injected `onEvent?: (e: ReviewEvent) => void` sink (`reviewer-core/src/review/run.ts:92`),
+  so the correct design was sitting in the function signature. Read the seam before assuming the model
+  will reach for the wrong one.
 
 ## Codebase Patterns
 
@@ -150,8 +200,43 @@ root `AGENTS.md`/`CLAUDE.md`.
   dispatch later in the session, or smoke-test via a nested headless run (`claude -p "dispatch
   <agent> …" --permission-mode acceptEdits`) — a fresh session sees the new agent immediately, but
   it is slow (minutes) and burns tokens.
+- **Session transcript layout** (source of truth for any run-metrics work): project dir is
+  `~/.claude/projects/<cwd with every non-alphanumeric char replaced by `-`>/`. Inside it,
+  `<session-id>.jsonl` is the main thread, and each subagent gets its **own file** at
+  `<session-id>/subagents/agent-<id>.jsonl` **plus** `agent-<id>.meta.json`
+  (`agentType`, `description`, `toolUseId`, `spawnDepth`). Subagents are **not** sidechains inside the
+  parent jsonl — `select(.isSidechain==true)` returns nothing. The parent's Task `toolUseResult` does
+  carry `{status, agentId, agentType, resolvedModel, totalDurationMs, totalTokens, totalToolUseCount,
+  toolStats}` — useful for status and tool counts, but see the token caveat under What Doesn't Work.
+- **`skill-creator` (official plugin) — installed ≠ available.** It lives at
+  `~/.claude/plugins/cache/claude-plugins-official/skill-creator/unknown/skills/skill-creator/`, but a
+  plugin installed mid-session is NOT registered: `Skill(skill-creator:skill-creator)` → "Unknown
+  skill". Either restart Claude Code, or just Read its `SKILL.md` from disk and follow it — it is a
+  process description, not code, so nothing is lost.
+- **skill-creator's own scripts have undocumented schema expectations** (both bit us):
+  `scripts/aggregate_benchmark.py` only sees runs at `eval-*/<config>/run-N/grading.json` (note the
+  `run-N` level — it exists for repeated runs) and reads its numbers from a `summary: {passed, failed,
+  total, pass_rate}` block; a `grading.json` without that block silently aggregates to **0%**.
+  `eval-viewer/generate_review.py` discovers any dir containing `outputs/`, but only embeds
+  **top-level files** in it — a `outputs/files/**` tree is invisible to the human reviewer, so flatten
+  proposed code into one markdown file at the top of `outputs/`. Run both from the skill-creator dir
+  (`python3 -m scripts.aggregate_benchmark`); the viewer serves on `127.0.0.1:3117`.
+- **`spawnDepth` is always 1 today — nested subagents cannot happen.** No pipeline agent
+  (`spec-creator`, `implementation-planner`, `implementer`, `test-writer`, `architecture-reviewer`,
+  `plan-verifier`, `researcher`, …) has the `Agent` tool in its `tools:` list, so none can spawn
+  another. Any claim about "nested researchers" is aspirational, not observed. Write depth-recursive
+  code if you like, but do not model metrics around nesting that does not occur.
 
 ## Recurring Errors & Fixes
+
+- **A grading regex that encodes an assumed path/identifier will invert your verdict.** Two false
+  FAILs in one eval, each of which flipped the conclusion until caught: (a) asserting the SQL lives in
+  `modules/<m>/repository.ts` — but `reviews` keeps its repository as a **directory**
+  (`modules/reviews/repository/run.repo.ts`), the only module that splits it, so the *better* design was
+  marked wrong; (b) asserting on `onProgress` when the real injected sink in reviewer-core is called
+  **`onEvent`**, which failed both arms of a task they had both solved correctly. Grep the repo for the
+  actual identifier/path before writing an assertion about it, and treat a suspiciously symmetric
+  failure (both arms, same checks) as a bug in the grader, not a finding.
 
 - `git cherry-pick <implementer-sha>` fails with "is a merge but no -m" when the implementer ran
   `git merge feature-branch --no-commit` and its work landed as a MERGE commit (non-fast-forward
@@ -161,8 +246,80 @@ root `AGENTS.md`/`CLAUDE.md`.
   scan) even read-only. Don't fight it: learn the key NAMES from code (`vendor/shared/adapters.ts`
   `SecretKey`, `adapters/secrets/local.ts` — flat JSON, env-style names like `OPENROUTER_API_KEY`)
   and get explicit user approval before a script consumes a key.
+- An implementer that only needs to READ plan/spec files living on another branch should use
+  `git show <branch>:<path>` instead of `git merge --no-commit` — a leftover merge state plus a plain
+  `git commit` silently produces a merge commit bundling unrelated files (a T3 agent caught and
+  reset this itself; a T9 agent didn't and its commit needed `cherry-pick -m 1`).
+- In implementer worktrees, Read/Write tool calls with ambiguous relative context can resolve against
+  the MAIN checkout instead of the worktree — verify early that absolute paths point inside the
+  worktree before trusting "file exists/matches" observations (caught by a T5 agent).
+- Debugging a Next.js dev app via Claude-in-Chrome: background/hidden tabs DEFER React hydration
+  (rAF throttling) — a freshly-navigated hidden tab shows SSR skeletons, zero fetches, zero React
+  fibers "forever"; this is NOT an app bug. Screenshots of background tabs also show stale frames
+  while the DOM is already fully rendered — trust `get_page_text`/JS probes over screenshots, and
+  reproduce user-visible bugs only in a FOCUSED window. Fiber-walking from any DOM node up to
+  QueryClientProvider (`__reactFiber$*` keys) is a reliable way to read live React Query state
+  (query status/fetchStatus/defaultOptions) without devtools.
 
 ## Session Notes
+
+### 2026-07-14 — First skill eval (`onion-architecture`): the skill was wrong, the baseline was right
+
+Built the repo's first skill eval via the `skill-creator` flow: 5 task prompts
+(`.ai/skills/onion-architecture/evals/`), a mechanical grader (`grade.mjs`, one assertion per Hard rule),
+and 12 subagent runs across 2 iterations (with-skill vs no-skill, proposal-mode).
+
+The headline is uncomfortable and worth remembering: **the eval's main finding was a defect in the skill
+being evaluated.** `onion-architecture` claimed every port belongs in `vendor/shared/adapters.ts`; the
+repo says otherwise (`Tokenizer`, `DepGraph`). The skill-fed agent therefore pushed a server-only
+`Notifier` port into the client-mirrored shared surface, while the unaided baseline placed it correctly
+by reading the code. Under corrected grading, iteration-1 was **with-skill 94.4% vs baseline 100%** — the
+skill's only measurable effect was negative. Fixing the rule ("a port goes in `vendor/shared` iff a
+package outside `server/` names the type") flipped iteration-2 to **100% vs 100%**.
+
+Second lesson: I could not make the eval discriminate. `AGENTS.md`, the codebase, and the PreToolUse
+routing hook already teach the architecture to *every* agent, baseline included. Two of the five tasks
+were retired as non-discriminating (both arms perfect) and one had no trap at all. What this eval is
+genuinely good for is a **regression gate on the skill's own claims** — which is exactly what caught the
+port-placement bug.
+
+Third: two of my own grader regexes produced false failures that each inverted the verdict before I
+caught them (see Recurring Errors & Fixes). A symmetric both-arms failure is a grader bug until proven
+otherwise.
+
+### 2026-07-14 — `workflow-retro`: run post-mortems, and three ways to measure a run wrongly
+
+Added `/workflow-retro` (manual-only skill) + `scripts/retro.mjs` + `docs/retros/ledger.md` — the
+first observability on our own multi-agent runs. Split deliberately: the **script** computes the
+numbers (deterministic, cheap, reusable by a later cost-report), the **skill** reads them and writes
+the narrative. Scope is one session (default: current; `last`; or an id prefix).
+
+The work was mostly *unlearning wrong measurements*. Every headline number I produced on the first
+pass was wrong, and each error looked plausible: summed per-line usage (5× too high), first→last
+timestamps (a 10-min agent shown as 13 h), and the parent's own accounting of its subagents (×25 low,
+and ≈0 for the 39 backgrounded agents out of 41). All three are now written up under **What Doesn't
+Work** — they will bite anyone who touches token accounting again.
+
+Deliberately **out of scope: dollar figures.** The script emits the four raw token categories; a
+pricing layer can sit on top without touching the skill. This matters because the raw total is
+~95% cache-read (218 M of 228 M in one run) — the cheapest token there is, so an unweighted "total
+tokens" headline is actively misleading.
+
+### 2026-07-13 — SPEC-03 PR Why+Risk Brief: /impl with the test wave ENABLED (homework L05)
+- Third full SDD chain, second /impl run. By explicit user decision the test wave ran INSIDE the
+  pipeline (3 test-writers + 1 e2e implementer as wave D) — overriding the skill text's
+  "test-writer disabled" clause for this run; the clause itself is still in `.claude/skills/impl`
+  and should be updated if this becomes permanent. 13 agent runs, zero redone.
+- Cross-model review, run 2: GPT-5.2 returned 4/4 REAL blockers (vs 2/5 with 1 false positive in
+  run 1) — the difference: SPEC-03's plan carried more spec-critical validation logic (allowlists,
+  hard NG2 input constraint) where a repo-blind staff engineer shines. Best catch: review_focus
+  validated against the broad blast set would let the model point reviewers at UNCHANGED files.
+- Findings-gate pattern held: plan-verifier's request_changes was purely test-debt (2 PARTIALs on
+  correct implementation) — both closed with targeted fixers; architecture-reviewer's
+  threshold-crossing duplication WARNING ("thrice — extract") became a clean shared-component
+  extraction (−250 lines) verified non-regressing by re-running both features' suites.
+- plan-verifier explicitly re-ran all suites itself in the final pass (not just read tests) and
+  checked the new tests for tautology — worth keeping in final-pass dispatch prompts.
 
 ### 2026-07-13 — SPEC-02 Onboarding Generator: full SDD chain incl. first cross-model plan review
 - Second full /impl run (8 impl tasks in 4 waves + 2 targeted fixes, zero redone; T10-T13 tests

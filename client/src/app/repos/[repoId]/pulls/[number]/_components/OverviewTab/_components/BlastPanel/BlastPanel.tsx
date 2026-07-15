@@ -4,8 +4,8 @@ import React from "react";
 import { Card, SectionLabel, Badge, Skeleton, EmptyState } from "@devdigest/ui";
 import { useBlast } from "@/lib/hooks/blast";
 import { useRepoIntelStatus } from "@/lib/hooks/repo-intel";
+import { RepoFileViewer } from "@/components/repo-file-viewer";
 import { SymbolNode } from "./_components/SymbolNode";
-import { CodeViewer } from "./_components/CodeViewer";
 
 interface BlastPanelProps {
   prId: string | null;
@@ -37,7 +37,7 @@ const cardStyle: React.CSSProperties = {
 /**
  * Blast radius panel — PR impact map. Renders levels: changed symbols →
  * downstream callers (file:line) → reachable HTTP endpoints / crons. Clicking a
- * caller opens the file at that line in the in-app CodeViewer. Reads the
+ * caller opens the file at that line in the in-app RepoFileViewer. Reads the
  * repo-intel index only (no LLM); an incomplete index surfaces as a badge, not
  * a blank.
  */
@@ -132,7 +132,7 @@ export function BlastPanel({ prId, repoId }: BlastPanelProps) {
       </Card>
 
       {viewer && (
-        <CodeViewer
+        <RepoFileViewer
           repoId={repoId}
           path={viewer.path}
           line={viewer.line}

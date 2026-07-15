@@ -1,0 +1,377 @@
+{
+  "metadata": {
+    "skill_name": "onion-architecture",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-07-14T15:10:33Z",
+    "evals_run": [
+      0,
+      1,
+      2
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8333,
+        "passed": 5,
+        "failed": 1,
+        "total": 6,
+        "time_seconds": 475.9,
+        "tokens": 130226,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[0.1] A notification port interface is declared, and since nothing outside server/ names it, it lives beside its adapter (adapters/notifier/) rather than widening the client-mirrored vendor/shared surface",
+          "passed": false,
+          "evidence": "server-only Notifier port pushed into the client-mirrored vendor/shared/adapters.ts",
+          "rule": "Where does the port interface go? \u2014 server-local ports live beside their adapter"
+        },
+        {
+          "text": "[0.2] The concrete implementation (the HTTP POST to the webhook) lives in a file under server/src/adapters/",
+          "passed": true,
+          "evidence": "HTTP call lives in server/src/adapters/notifier/slack.ts",
+          "rule": "Layer map \u2014 infrastructure"
+        },
+        {
+          "text": "[0.3] No service.ts performs the HTTP call itself (no fetch/axios/undici/WebClient inside modules/*/service.ts)",
+          "passed": true,
+          "evidence": "no service.ts performs the HTTP call",
+          "rule": "Hard rule 3 \u2014 no direct SDK/HTTP construction in a service"
+        },
+        {
+          "text": "[0.4] The adapter is wired in server/src/platform/container.ts",
+          "passed": true,
+          "evidence": "container.ts wires the notifier",
+          "rule": "Hard rule 6 \u2014 compose only at the root"
+        },
+        {
+          "text": "[0.5] The service receives the notifier as an injected dependency and does not construct the adapter itself (no `new <Adapter>(` in service.ts)",
+          "passed": true,
+          "evidence": "service receives the notifier as an injected dependency",
+          "rule": "Hard rule 6 \u2014 a service receives its dependencies"
+        },
+        {
+          "text": "[0.6] The webhook URL comes from config/secrets, not a hardcoded literal URL in the service or adapter",
+          "passed": true,
+          "evidence": "webhook URL sourced from server/.env.example",
+          "rule": "Config/secrets convention"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 442.1,
+        "tokens": 126975,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[1.1] routes.ts contains no Drizzle/SQL query (no drizzle-orm import, no db.select/count/sql usage)",
+          "passed": true,
+          "evidence": "routes.ts contains no Drizzle/SQL",
+          "rule": "Hard rule 4 \u2014 routes are thin"
+        },
+        {
+          "text": "[1.2] The aggregation query lives in repository.ts",
+          "passed": true,
+          "evidence": "aggregation query in server/src/modules/reviews/repository/run.repo.ts",
+          "rule": "Layer map \u2014 infrastructure"
+        },
+        {
+          "text": "[1.3] A service.ts orchestrates: the route calls the service, the service calls the repository",
+          "passed": true,
+          "evidence": "server/src/modules/repos/routes.ts -> server/src/modules/repos/service.ts -> repository",
+          "rule": "Layer map \u2014 application"
+        },
+        {
+          "text": "[1.4] The response shape is defined as a Zod schema under server/src/vendor/shared/contracts/",
+          "passed": true,
+          "evidence": "Zod contract in server/src/vendor/shared/contracts/repo-stats.ts",
+          "rule": "Decision rule \u2014 contracts live in vendor/shared/contracts"
+        },
+        {
+          "text": "[1.5] Row -> DTO conversion happens in helpers.ts and no raw Drizzle row is handed to HTTP",
+          "passed": true,
+          "evidence": "row -> DTO mapping in server/src/modules/repos/helpers.ts",
+          "rule": "Hard rule 5 \u2014 map at the boundary"
+        },
+        {
+          "text": "[1.6] The query is workspace-scoped (filters on workspace_id / uses the request's workspace context)",
+          "passed": true,
+          "evidence": "server/src/modules/reviews/repository/run.repo.ts filters on workspace id",
+          "rule": "Tenancy (server/CLAUDE.md)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 389.3,
+        "tokens": 128083,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[2.1] No file under reviewer-core/ imports Octokit or any GitHub/HTTP SDK",
+          "passed": true,
+          "evidence": "reviewer-core imports no GitHub SDK",
+          "rule": "Hard rule 2 \u2014 keep the core pure"
+        },
+        {
+          "text": "[2.2] No file under reviewer-core/ performs network or filesystem I/O (no fetch/axios/node:fs/node:https)",
+          "passed": true,
+          "evidence": "reviewer-core performs no network/filesystem I/O",
+          "rule": "Hard rule 2 \u2014 reviewer-core performs zero I/O"
+        },
+        {
+          "text": "[2.3] The GitHub read happens on the server side through the existing GitHubClient port resolved from the Container (no ad-hoc Octokit construction)",
+          "passed": true,
+          "evidence": "GitHub reached via the GitHubClient port in server/src/modules/reviews/run-executor.ts",
+          "rule": "Hard rule 3 \u2014 external systems reached via ports"
+        },
+        {
+          "text": "[2.4] The open-PR/conflict data enters reviewer-core as plain injected input (a field on the review input or an injected port), not fetched by reviewer-core itself",
+          "passed": true,
+          "evidence": "reviewer-core/src/conflicts.ts takes the open-PR data as plain input",
+          "rule": "Hard rule 1 \u2014 dependencies point inward"
+        },
+        {
+          "text": "[2.5] No GitHub/HTTP dependency is added to reviewer-core/package.json",
+          "passed": true,
+          "evidence": "reviewer-core/package.json untouched",
+          "rule": "Hard rule 2 \u2014 the core stays dependency-free"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 357.6,
+        "tokens": 105001,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[0.1] A notification port interface is declared, and since nothing outside server/ names it, it lives beside its adapter (adapters/notifier/) rather than widening the client-mirrored vendor/shared surface",
+          "passed": true,
+          "evidence": "port declared beside its adapter in server/src/adapters/notifier/index.ts",
+          "rule": "Where does the port interface go? \u2014 server-local ports live beside their adapter"
+        },
+        {
+          "text": "[0.2] The concrete implementation (the HTTP POST to the webhook) lives in a file under server/src/adapters/",
+          "passed": true,
+          "evidence": "HTTP call lives in server/src/adapters/notifier/index.ts",
+          "rule": "Layer map \u2014 infrastructure"
+        },
+        {
+          "text": "[0.3] No service.ts performs the HTTP call itself (no fetch/axios/undici/WebClient inside modules/*/service.ts)",
+          "passed": true,
+          "evidence": "no service.ts performs the HTTP call",
+          "rule": "Hard rule 3 \u2014 no direct SDK/HTTP construction in a service"
+        },
+        {
+          "text": "[0.4] The adapter is wired in server/src/platform/container.ts",
+          "passed": true,
+          "evidence": "container.ts wires the notifier",
+          "rule": "Hard rule 6 \u2014 compose only at the root"
+        },
+        {
+          "text": "[0.5] The service receives the notifier as an injected dependency and does not construct the adapter itself (no `new <Adapter>(` in service.ts)",
+          "passed": true,
+          "evidence": "service receives the notifier as an injected dependency",
+          "rule": "Hard rule 6 \u2014 a service receives its dependencies"
+        },
+        {
+          "text": "[0.6] The webhook URL comes from config/secrets, not a hardcoded literal URL in the service or adapter",
+          "passed": true,
+          "evidence": "webhook URL sourced from server/.env.example",
+          "rule": "Config/secrets convention"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 440.1,
+        "tokens": 116033,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[1.1] routes.ts contains no Drizzle/SQL query (no drizzle-orm import, no db.select/count/sql usage)",
+          "passed": true,
+          "evidence": "routes.ts contains no Drizzle/SQL",
+          "rule": "Hard rule 4 \u2014 routes are thin"
+        },
+        {
+          "text": "[1.2] The aggregation query lives in repository.ts",
+          "passed": true,
+          "evidence": "aggregation query in server/src/modules/repos/repository.ts",
+          "rule": "Layer map \u2014 infrastructure"
+        },
+        {
+          "text": "[1.3] A service.ts orchestrates: the route calls the service, the service calls the repository",
+          "passed": true,
+          "evidence": "server/src/modules/repos/routes.ts -> server/src/modules/repos/service.ts -> repository",
+          "rule": "Layer map \u2014 application"
+        },
+        {
+          "text": "[1.4] The response shape is defined as a Zod schema under server/src/vendor/shared/contracts/",
+          "passed": true,
+          "evidence": "Zod contract in server/src/vendor/shared/contracts/repo-stats.ts",
+          "rule": "Decision rule \u2014 contracts live in vendor/shared/contracts"
+        },
+        {
+          "text": "[1.5] Row -> DTO conversion happens in helpers.ts and no raw Drizzle row is handed to HTTP",
+          "passed": true,
+          "evidence": "row -> DTO mapping in server/src/modules/repos/helpers.ts",
+          "rule": "Hard rule 5 \u2014 map at the boundary"
+        },
+        {
+          "text": "[1.6] The query is workspace-scoped (filters on workspace_id / uses the request's workspace context)",
+          "passed": true,
+          "evidence": "server/src/modules/repos/repository.ts filters on workspace id",
+          "rule": "Tenancy (server/CLAUDE.md)"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 524.9,
+        "tokens": 115985,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[2.1] No file under reviewer-core/ imports Octokit or any GitHub/HTTP SDK",
+          "passed": true,
+          "evidence": "reviewer-core imports no GitHub SDK",
+          "rule": "Hard rule 2 \u2014 keep the core pure"
+        },
+        {
+          "text": "[2.2] No file under reviewer-core/ performs network or filesystem I/O (no fetch/axios/node:fs/node:https)",
+          "passed": true,
+          "evidence": "reviewer-core performs no network/filesystem I/O",
+          "rule": "Hard rule 2 \u2014 reviewer-core performs zero I/O"
+        },
+        {
+          "text": "[2.3] The GitHub read happens on the server side through the existing GitHubClient port resolved from the Container (no ad-hoc Octokit construction)",
+          "passed": true,
+          "evidence": "GitHub reached via the GitHubClient port in server/src/adapters/github/octokit.ts",
+          "rule": "Hard rule 3 \u2014 external systems reached via ports"
+        },
+        {
+          "text": "[2.4] The open-PR/conflict data enters reviewer-core as plain injected input (a field on the review input or an injected port), not fetched by reviewer-core itself",
+          "passed": true,
+          "evidence": "reviewer-core/src/index.ts takes the open-PR data as plain input",
+          "rule": "Hard rule 1 \u2014 dependencies point inward"
+        },
+        {
+          "text": "[2.5] No GitHub/HTTP dependency is added to reviewer-core/package.json",
+          "passed": true,
+          "evidence": "reviewer-core/package.json untouched",
+          "rule": "Hard rule 2 \u2014 the core stays dependency-free"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.9444,
+        "stddev": 0.0962,
+        "min": 0.8333,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 435.7667,
+        "stddev": 43.646,
+        "min": 389.3,
+        "max": 475.9
+      },
+      "tokens": {
+        "mean": 128428.0,
+        "stddev": 1652.7308,
+        "min": 126975,
+        "max": 130226
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 440.8667,
+        "stddev": 83.6526,
+        "min": 357.6,
+        "max": 524.9
+      },
+      "tokens": {
+        "mean": 112339.6667,
+        "stddev": 6355.5171,
+        "min": 105001,
+        "max": 116033
+      }
+    },
+    "delta": {
+      "pass_rate": "-0.06",
+      "time_seconds": "-5.1",
+      "tokens": "+16088"
+    }
+  },
+  "notes": []
+}

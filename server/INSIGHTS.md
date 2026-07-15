@@ -125,6 +125,26 @@
   `StructuredResult` or `tsc --noEmit` fails; `INJECTION_GUARD`'s own prose contains a literal
   `</untrusted>`, so never assert by counting that substring globally — assert the specific
   `wrapUntrusted(label, content)` output instead.
+- The global `@fastify/rate-limit` plugin is NOT registered when `config.nodeEnv === 'test'`
+  (`app.ts` — deliberate, so integration suites can hammer endpoints). A route's
+  `config: { rateLimit }` is inert without it: to integration-test a per-route limit, build an
+  ISOLATED app with `NODE_ENV` flipped to `'development'` but still injected with the testcontainer
+  `db` (brief.it.test.ts AC-20) — do not flip the shared suite app.
+- Drizzle's `db.select().from(table).where()` chain is trivially fakeable in unit tests with a plain
+  object that branches on the imported schema table reference (`table === t.prIntent ? rows : []`) —
+  enough to hermetically test service+repository paths (brief assemble/service tests) without
+  testcontainers or a mocking library.
+- `orderContextPaths` is agent-scoped (first-seen dedupe per agent) — the wrong tool for a
+  cross-agent deterministic union; collect all paths into a `Set`, then one global lexical `.sort()`
+  (brief AC-2a). Insertion order over `agentsRepo.list()` is NOT guaranteed stable.
+- Prompt assets in `server/src/prompts/*.md` share a reusable shape: role → output-field spec →
+  grounding rules → `SECURITY:`/`<untrusted>` contract → tone/format rules → footer. Most feature
+  prompts need ZERO `{{var}}` placeholders (then skip `renderTemplate` and call
+  `loadPromptTemplate` alone — brief/service.ts); onboarding's `{{sections}}`/`{{language}}` is the
+  exception, not the rule.
+- IDOR/cross-workspace 404 tests: make fixture helpers take an explicit `workspaceId` override — a
+  helper closing over the suite's default workspace silently builds same-workspace fixtures that
+  can't reproduce the scenario (hit in brief.it.test.ts).
 - `MockLLMProvider` records every request in `.calls` (`{ method, req }`). To assert prompt assembly / injection wrapping without a hand-rolled recorder stub, find the `completeStructured` call and read `(call.req as { messages }).messages[1].content` — e.g. assert it contains `<untrusted source="linked_spec">` to prove the linked-issue spec reached the prompt, or `.calls.length === 0` to prove a cache hit skipped the LLM entirely
 - `LLMProvider.completeStructured({ schema })` forces tool-use, and tool inputs MUST be objects — a bare `z.array(...)` schema will not work. Wrap list output as `z.object({ items: z.array(...) })` (we used `ConventionExtraction = z.object({ conventions: [...] })`). It also auto-retries on schema-validation failure and throws `ExternalServiceError` after `maxRetries`, so callers get a clean 5xx without hand-parsing JSON
 
