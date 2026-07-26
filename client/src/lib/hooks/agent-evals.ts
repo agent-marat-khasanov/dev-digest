@@ -73,6 +73,14 @@ export function useRunAgentEvalCase(agentId: string) {
   });
 }
 
+export function useAgentEvalCase(agentId: string | null | undefined, caseId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["agent", agentId, "evals", caseId],
+    queryFn: () => api.get<EvalCase>(`/agents/${agentId}/evals/${caseId}`),
+    enabled: !!agentId && !!caseId,
+  });
+}
+
 export function useCreateAgentEvalCase(agentId: string) {
   const qc = useQueryClient();
   return useMutation({

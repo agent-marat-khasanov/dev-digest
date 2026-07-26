@@ -30,6 +30,7 @@ import { EvalsService } from './service.js';
  *   POST   /agents/:id/eval-runs               → run every case (confirm-gated) → summaries
  *   POST   /agents/:id/evals/:caseId/run       → run one case (no confirm) → summary
  *   POST   /agents/:id/evals                  → create a manually-authored case
+ *   GET    /agents/:id/evals/:caseId          → full case detail (edit-form hydration)
  *   PATCH  /agents/:id/evals/:caseId          → edit a case
  *   DELETE /agents/:id/evals/:caseId          → delete a case
  *   GET    /agents/:id/eval-dashboard          → per-agent dashboard aggregate
@@ -137,6 +138,15 @@ export default async function evalsRoutes(appBase: FastifyInstance) {
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       return service.createAgentCase(workspaceId, req.params.id, req.body);
+    },
+  );
+
+  app.get(
+    '/agents/:id/evals/:caseId',
+    { schema: { params: CaseParams, response: { 200: EvalCase } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.getAgentCase(workspaceId, req.params.id, req.params.caseId);
     },
   );
 

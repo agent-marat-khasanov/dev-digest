@@ -41,6 +41,7 @@ const mockUseAgentEvalDashboard = vi.fn();
 const mockUseAgentEvalRunsEstimate = vi.fn();
 const mockUseRunAgentEvals = vi.fn();
 const mockUseRunAgentEvalCase = vi.fn();
+const mockUseAgentEvalCase = vi.fn();
 
 vi.mock("@/lib/hooks/agent-evals", () => ({
   useAgentEvals: (...args: unknown[]) => mockUseAgentEvals(...args),
@@ -48,6 +49,7 @@ vi.mock("@/lib/hooks/agent-evals", () => ({
   useAgentEvalRunsEstimate: (...args: unknown[]) => mockUseAgentEvalRunsEstimate(...args),
   useRunAgentEvals: (...args: unknown[]) => mockUseRunAgentEvals(...args),
   useRunAgentEvalCase: (...args: unknown[]) => mockUseRunAgentEvalCase(...args),
+  useAgentEvalCase: (...args: unknown[]) => mockUseAgentEvalCase(...args),
 }));
 
 // CompareView/CaseEditor/TrendChart each pull their own real data hooks
@@ -89,6 +91,7 @@ beforeEach(() => {
   });
   mockUseRunAgentEvals.mockReturnValue({ mutate: runAllMutate, isPending: false });
   mockUseRunAgentEvalCase.mockReturnValue({ mutate: runOneMutate, isPending: false, variables: undefined });
+  mockUseAgentEvalCase.mockReturnValue({ data: undefined });
 });
 
 afterEach(() => {
@@ -150,5 +153,20 @@ describe("EvalsTab", () => {
 
     fireEvent.click(screen.getByText("close-case-editor"));
     expect(screen.queryByTestId("case-editor-stub")).not.toBeInTheDocument();
+  });
+
+  it("opens the case editor in edit mode when a case's Edit button is clicked", () => {
+    mockUseAgentEvalCase.mockReturnValue({ data: undefined });
+    renderWithIntl();
+    expect(screen.queryByTestId("case-editor-stub")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByLabelText("Edit this case")[0]!);
+    expect(mockUseAgentEvalCase).toHaveBeenCalledWith("ag1", "case-1");
+
+    cleanup();
+    mockUseAgentEvalCase.mockReturnValue({ data: CASES[0] });
+    renderWithIntl();
+    fireEvent.click(screen.getAllByLabelText("Edit this case")[0]!);
+    expect(screen.getByTestId("case-editor-stub")).toBeInTheDocument();
   });
 });

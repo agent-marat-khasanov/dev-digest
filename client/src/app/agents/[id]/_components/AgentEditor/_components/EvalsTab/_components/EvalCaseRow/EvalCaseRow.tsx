@@ -13,10 +13,12 @@ export function EvalCaseRow({
   summary,
   isRunning,
   onRun,
+  onEdit,
 }: {
   summary: EvalCaseSummary;
   isRunning: boolean;
   onRun: () => void;
+  onEdit: () => void;
 }) {
   const t = useTranslations("agents.editor.evals");
   const { last_run, primary, expected_count } = summary;
@@ -51,6 +53,15 @@ export function EvalCaseRow({
       )}
 
       <div style={s.actions}>
+        <button
+          onClick={onEdit}
+          disabled={isRunning}
+          title={t("edit")}
+          aria-label={t("edit")}
+          style={s.iconBtn(isRunning)}
+        >
+          <Icon.Edit size={15} />
+        </button>
         <button
           onClick={onRun}
           disabled={isRunning}

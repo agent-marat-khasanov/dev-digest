@@ -71,6 +71,7 @@
       "neverRun": "expected {n, plural, one {# finding} other {# findings}} · never run",
       "emptyBadge": "empty []",
       "run": "Run this case",
+      "edit": "Edit this case",
       "emptyTitle": "No eval cases yet",
       "emptyBody": "Eval cases assert the findings this agent should produce on a sample diff. They ship with the demo seed.",
       "loadError": "Could not load eval cases.",
@@ -89,6 +90,7 @@
       },
       "caseEditor": {
         "newTitle": "New eval case",
+        "editTitle": "Edit eval case",
         "name": "Name",
         "namePlaceholder": "e.g. sql-injection-must-find",
         "pasteDiff": "Paste diff",

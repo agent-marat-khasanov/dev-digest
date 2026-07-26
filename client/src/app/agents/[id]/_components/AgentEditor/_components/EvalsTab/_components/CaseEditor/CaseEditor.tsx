@@ -1,18 +1,19 @@
-/* CaseEditor — create an agent eval case by pasting a diff (with an inert
-   preview via DiffViewer/parsePatch), choosing the expectation type
+/* CaseEditor — create or edit an agent eval case by pasting a diff (with an
+   inert preview via DiffViewer/parsePatch), choosing the expectation type
    (must-find vs must-not-flag), and setting the expected finding's
-   file + line range. Stored via `EvalCaseInput` through the same
-   POST /agents/:id/evals route manually authored cases always use. */
+   file + line range. Create goes through POST /agents/:id/evals; passing
+   `caseId` + `initialCase` switches the form to edit mode, hydrating from
+   the existing case and saving via PATCH /agents/:id/evals/:caseId. */
 "use client";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button, FormField, Modal, SelectInput, Textarea, TextInput } from "@devdigest/ui";
-import type { EvalCaseInput, ExpectedFinding, FindingCategory, Severity } from "@devdigest/shared";
+import type { EvalCase, EvalCaseInput, ExpectedFinding, FindingCategory, Severity } from "@devdigest/shared";
 import { DiffViewer } from "@/components/diff-viewer";
 import type { PrFile } from "@/lib/types";
 import { ApiError } from "@/lib/api";
-import { useCreateAgentEvalCase } from "@/lib/hooks/agent-evals";
+import { useCreateAgentEvalCase, useUpdateAgentEvalCase } from "@/lib/hooks/agent-evals";
 import { extractFilePath } from "./helpers";
 import { s } from "./styles";
 
@@ -21,24 +22,43 @@ const CATEGORIES: FindingCategory[] = ["bug", "security", "perf", "style", "test
 
 type ExpectationType = "mustFind" | "mustNotFlag";
 
-export function CaseEditor({ agentId, onClose }: { agentId: string; onClose: () => void }) {
+export function CaseEditor({
+  agentId,
+  caseId,
+  initialCase,
+  onClose,
+}: {
+  agentId: string;
+  caseId?: string;
+  initialCase?: EvalCase;
+  onClose: () => void;
+}) {
   const t = useTranslations("agents.editor.evals.caseEditor");
   const createCase = useCreateAgentEvalCase(agentId);
+  const updateCase = useUpdateAgentEvalCase(agentId);
 
-  const [name, setName] = useState("");
-  const [diffText, setDiffText] = useState("");
-  const [expectationType, setExpectationType] = useState<ExpectationType>("mustFind");
-  const [severity, setSeverity] = useState<Severity>("WARNING");
-  const [category, setCategory] = useState<FindingCategory>("bug");
-  const [title, setTitle] = useState("");
-  const [file, setFile] = useState("");
-  const [startLine, setStartLine] = useState("1");
-  const [endLine, setEndLine] = useState("1");
+  const initialExpected = (initialCase?.expected_output as ExpectedFinding[] | undefined) ?? [];
+  const firstExpected = initialExpected[0];
+
+  const [name, setName] = useState(initialCase?.name ?? "");
+  const [diffText, setDiffText] = useState(initialCase?.input_diff ?? "");
+  const [expectationType, setExpectationType] = useState<ExpectationType>(
+    !initialCase || initialExpected.length > 0 ? "mustFind" : "mustNotFlag",
+  );
+  const [severity, setSeverity] = useState<Severity>(firstExpected?.severity ?? "WARNING");
+  const [category, setCategory] = useState<FindingCategory>(firstExpected?.category ?? "bug");
+  const [title, setTitle] = useState(firstExpected?.title ?? "");
+  const [file, setFile] = useState(firstExpected?.file ?? "");
+  const [startLine, setStartLine] = useState(String(firstExpected?.start_line ?? 1));
+  const [endLine, setEndLine] = useState(String(firstExpected?.end_line ?? 1));
   const [serverError, setServerError] = useState<string | null>(null);
 
   const previewFiles: PrFile[] = diffText
     ? [{ path: extractFilePath(diffText), additions: 0, deletions: 0, patch: diffText }]
     : [];
+
+  const isEditing = !!caseId;
+  const activeMutation = isEditing ? updateCase : createCase;
 
   const handleSave = () => {
     setServerError(null);
@@ -64,10 +84,15 @@ export function CaseEditor({ agentId, onClose }: { agentId: string; onClose: () 
       expected_output: expectedOutput,
     };
 
-    createCase.mutate(input, {
-      onSuccess: () => onClose(),
-      onError: (err) => setServerError(err instanceof ApiError ? err.message : t("saveError")),
-    });
+    const onSuccess = () => onClose();
+    const onError = (err: unknown) =>
+      setServerError(err instanceof ApiError ? err.message : t("saveError"));
+
+    if (isEditing) {
+      updateCase.mutate({ caseId, patch: input }, { onSuccess, onError });
+    } else {
+      createCase.mutate(input, { onSuccess, onError });
+    }
   };
 
   const footer = (
@@ -78,8 +103,8 @@ export function CaseEditor({ agentId, onClose }: { agentId: string; onClose: () 
       <Button
         kind="primary"
         size="sm"
-        loading={createCase.isPending}
-        disabled={createCase.isPending || !name || !diffText}
+        loading={activeMutation.isPending}
+        disabled={activeMutation.isPending || !name || !diffText}
         onClick={handleSave}
       >
         {t("save")}
@@ -88,7 +113,7 @@ export function CaseEditor({ agentId, onClose }: { agentId: string; onClose: () 
   );
 
   return (
-    <Modal title={t("newTitle")} onClose={onClose} footer={footer}>
+    <Modal title={isEditing ? t("editTitle") : t("newTitle")} onClose={onClose} footer={footer}>
       <div style={{ padding: 20 }}>
         {serverError && <div style={s.error}>{serverError}</div>}
 

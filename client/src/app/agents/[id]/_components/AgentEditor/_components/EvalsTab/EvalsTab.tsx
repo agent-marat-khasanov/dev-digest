@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge, Button, ErrorState, Icon, MetricCard, Skeleton } from "@devdigest/ui";
 import {
+  useAgentEvalCase,
   useAgentEvalDashboard,
   useAgentEvalRunsEstimate,
   useAgentEvals,
@@ -24,12 +25,14 @@ export function EvalsTab({ agentId }: { agentId: string }) {
   const t = useTranslations("agents.editor.evals");
   const [confirmingRunAll, setConfirmingRunAll] = useState(false);
   const [caseEditorOpen, setCaseEditorOpen] = useState(false);
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useAgentEvals(agentId);
   const dashboard = useAgentEvalDashboard(agentId);
   const estimate = useAgentEvalRunsEstimate(agentId);
   const runAll = useRunAgentEvals(agentId);
   const runOne = useRunAgentEvalCase(agentId);
+  const editingCase = useAgentEvalCase(agentId, editingCaseId);
 
   if (isLoading) {
     return (
@@ -140,6 +143,7 @@ export function EvalsTab({ agentId }: { agentId: string }) {
               summary={c}
               isRunning={runAll.isPending || (runOne.isPending && runOne.variables === c.id)}
               onRun={() => runOne.mutate(c.id)}
+              onEdit={() => setEditingCaseId(c.id)}
             />
           ))}
         </div>
@@ -149,6 +153,15 @@ export function EvalsTab({ agentId }: { agentId: string }) {
       <CompareView agentId={agentId} />
 
       {caseEditorOpen && <CaseEditor agentId={agentId} onClose={() => setCaseEditorOpen(false)} />}
+
+      {editingCaseId && editingCase.data && (
+        <CaseEditor
+          agentId={agentId}
+          caseId={editingCaseId}
+          initialCase={editingCase.data}
+          onClose={() => setEditingCaseId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -271,6 +271,12 @@ export class EvalsService {
     return toSummary(c, run);
   }
 
+  /** One case's full detail, for hydrating the edit form (AC-31, Stretch 2). */
+  async getAgentCase(workspaceId: string, agentId: string, caseId: string): Promise<EvalCase> {
+    const c = await this.requireAgentCase(workspaceId, agentId, caseId);
+    return toEvalCase(c);
+  }
+
   /** Create a manually-authored case in the agent's set (AC-31/32/33, Stretch 2). */
   async createAgentCase(
     workspaceId: string,
