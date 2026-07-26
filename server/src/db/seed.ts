@@ -683,6 +683,194 @@ router.get('/api/v1/users', (req, res) => {
     }
   }
 
+  // ---- agent-scoped eval cases for the Security Reviewer (agent Evals tab, L06) ----
+  // Must-find cases plant a real vulnerability (non-empty expected_output, no hint
+  // comments). Decoy cases are tempting-but-clean code (empty expected_output) — the
+  // agent must NOT flag them. Idempotent by (workspace, owner_kind, owner_id, name).
+  if (securityId) {
+    const securityEvalCases: Array<{ name: string; inputDiff: string; expectedOutput: unknown }> = [
+      {
+        name: 'aws-key-hardcoded',
+        inputDiff: `diff --git a/src/config/aws.ts b/src/config/aws.ts
+--- a/src/config/aws.ts
++++ b/src/config/aws.ts
+@@ -4,4 +4,6 @@
+ export const s3Config = {
+   region: "us-east-1",
++  accessKeyId: "AKIAIOSFODNN7EXAMPLE",
++  secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+   bucket: "acme-uploads",
+ };
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'Hardcoded AWS access key and secret',
+            file: 'src/config/aws.ts',
+            start_line: 6,
+            end_line: 7,
+          },
+        ],
+      },
+      {
+        name: 'ssrf-open-redirect-fetch',
+        inputDiff: `diff --git a/src/api/preview.ts b/src/api/preview.ts
+--- a/src/api/preview.ts
++++ b/src/api/preview.ts
+@@ -1,2 +1,5 @@
+ export async function fetchPreview(req: Request) {
++  const target = req.query.url as string;
++  const res = await fetch(target);
++  return res.text();
+ }
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'SSRF: preview fetches a caller-controlled URL',
+            file: 'src/api/preview.ts',
+            start_line: 2,
+            end_line: 3,
+          },
+        ],
+      },
+      {
+        name: 'missing-auth-admin-route',
+        inputDiff: `diff --git a/src/api/admin/users.ts b/src/api/admin/users.ts
+--- a/src/api/admin/users.ts
++++ b/src/api/admin/users.ts
+@@ -1,3 +1,7 @@
+ import { Router } from "express";
+ const router = Router();
++router.delete("/admin/users/:id", async (req, res) => {
++  await db.users.delete(req.params.id);
++  res.sendStatus(204);
++});
+ export default router;
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'Admin delete route has no auth/authorization check',
+            file: 'src/api/admin/users.ts',
+            start_line: 3,
+            end_line: 6,
+          },
+        ],
+      },
+      {
+        name: 'sql-injection-string-concat',
+        inputDiff: `diff --git a/src/repo/search.ts b/src/repo/search.ts
+--- a/src/repo/search.ts
++++ b/src/repo/search.ts
+@@ -6,2 +6,4 @@
+ export async function searchUsers(term: string) {
++  const query = "SELECT * FROM users WHERE name = '" + term + "'";
++  return db.raw(query);
+ }
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'SQL injection via string-concatenated query',
+            file: 'src/repo/search.ts',
+            start_line: 7,
+            end_line: 8,
+          },
+        ],
+      },
+      {
+        name: 'secret-loaded-from-env',
+        inputDiff: `diff --git a/src/config/aws.ts b/src/config/aws.ts
+--- a/src/config/aws.ts
++++ b/src/config/aws.ts
+@@ -4,4 +4,6 @@
+ export const s3Config = {
+   region: "us-east-1",
++  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
++  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+   bucket: "acme-uploads",
+ };
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'fetch-with-allowlist-validation',
+        inputDiff: `diff --git a/src/api/preview.ts b/src/api/preview.ts
+--- a/src/api/preview.ts
++++ b/src/api/preview.ts
+@@ -1,2 +1,8 @@
++const ALLOWED_HOSTS = new Set(["cdn.acme.com", "static.acme.com"]);
+ export async function fetchPreview(req: Request) {
++  const target = new URL(req.query.url as string);
++  if (!ALLOWED_HOSTS.has(target.hostname)) {
++    throw new Error("host not allowed");
++  }
++  const res = await fetch(target);
++  return res.text();
+ }
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'admin-route-with-auth-middleware',
+        inputDiff: `diff --git a/src/api/admin/users.ts b/src/api/admin/users.ts
+--- a/src/api/admin/users.ts
++++ b/src/api/admin/users.ts
+@@ -1,3 +1,8 @@
+ import { Router } from "express";
++import { requireAdmin } from "../middleware/auth";
+ const router = Router();
++router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
++  await db.users.delete(req.params.id);
++  res.sendStatus(204);
++});
+ export default router;
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'parameterized-search-query',
+        inputDiff: `diff --git a/src/repo/search.ts b/src/repo/search.ts
+--- a/src/repo/search.ts
++++ b/src/repo/search.ts
+@@ -6,2 +6,3 @@
+ export async function searchUsers(term: string) {
++  return db.raw("SELECT * FROM users WHERE name = ?", [term]);
+ }
+`,
+        expectedOutput: [],
+      },
+    ];
+    for (const ec of securityEvalCases) {
+      const [existing] = await db
+        .select()
+        .from(t.evalCases)
+        .where(
+          and(
+            eq(t.evalCases.workspaceId, workspaceId),
+            eq(t.evalCases.ownerKind, 'agent'),
+            eq(t.evalCases.ownerId, securityId),
+            eq(t.evalCases.name, ec.name),
+          ),
+        );
+      if (!existing) {
+        await db.insert(t.evalCases).values({
+          workspaceId,
+          ownerKind: 'agent',
+          ownerId: securityId,
+          name: ec.name,
+          inputDiff: ec.inputDiff,
+          expectedOutput: ec.expectedOutput,
+        });
+      }
+    }
+  }
+
   return { workspaceId, userId };
 }
 
