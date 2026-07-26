@@ -1,11 +1,20 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
 import messages from "@messages/en/prReview.json";
 
 vi.mock("@/lib/hooks/reviews", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+const mintMutate = vi.fn();
+vi.mock("@/lib/hooks/agent-evals", () => ({
+  useMintEvalCaseFromFinding: () => ({ mutate: mintMutate, isPending: false, variables: undefined }),
+}));
+
+vi.mock("@/lib/toast", () => ({
+  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), toast: vi.fn() }),
 }));
 
 import { FindingsPanel } from "./FindingsPanel";
@@ -51,5 +60,12 @@ describe("FindingsPanel (smoke)", () => {
   it("shows the empty state when nothing matches", () => {
     renderWithIntl(<FindingsPanel findings={[]} prId="pr1" />);
     expect(screen.getByText("No findings match")).toBeInTheDocument();
+  });
+
+  it("mints an eval case for an accepted finding", () => {
+    const accepted: FindingRecord[] = [{ ...FINDINGS[0]!, accepted_at: "2026-01-01T00:00:00Z" }];
+    renderWithIntl(<FindingsPanel findings={accepted} prId="pr1" />);
+    fireEvent.click(screen.getByText("Turn into eval case"));
+    expect(mintMutate).toHaveBeenCalledWith("f1", expect.anything());
   });
 });

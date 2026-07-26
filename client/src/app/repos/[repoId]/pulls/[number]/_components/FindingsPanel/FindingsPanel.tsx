@@ -8,6 +8,8 @@ import { Toggle, EmptyState } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
 import { useFindingAction } from "@/lib/hooks/reviews";
+import { useMintEvalCaseFromFinding } from "@/lib/hooks/agent-evals";
+import { useToast } from "@/lib/toast";
 import { KEY_TO_ACTION } from "./constants";
 import { visibleFindings } from "./helpers";
 import { s } from "./styles";
@@ -27,6 +29,8 @@ export function FindingsPanel({
 }) {
   const t = useTranslations("prReview");
   const action = useFindingAction();
+  const mint = useMintEvalCaseFromFinding();
+  const toast = useToast();
   const [hideLow, setHideLow] = React.useState(false);
   const [focusIdx, setFocusIdx] = React.useState(0);
 
@@ -75,9 +79,13 @@ export function FindingsPanel({
               focused={i === focusIdx || f.id === focusFindingId}
               defaultExpanded={i === 0 || f.id === focusFindingId}
               pending={action.isPending}
+              mintPending={mint.isPending && mint.variables === f.id}
               repoFullName={repoFullName}
               headSha={headSha}
               onAction={(act) => action.mutate({ findingId: f.id, action: act, prId })}
+              onMintEvalCase={() =>
+                mint.mutate(f.id, { onSuccess: () => toast.success(t("finding.mintSuccess")) })
+              }
             />
           ))
         )}
