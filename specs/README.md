@@ -29,3 +29,4 @@ All specs across the repo, maintained by `spec-creator` on every creation and st
 | SPEC-01 | Project Context | `specs/SPEC-01-project-context-2026-07-12.md` | approved |
 | SPEC-02 | Onboarding Generator | `specs/SPEC-02-onboarding-generator-2026-07-12.md` | approved |
 | SPEC-03 | PR Why + Risk Brief | `specs/SPEC-03-pr-why-risk-brief-2026-07-13.md` | approved |
+| SPEC-04 | Eval Pipeline | `specs/eval-pipeline.md` | approved |
