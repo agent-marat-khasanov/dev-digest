@@ -50,6 +50,24 @@ vi.mock("@/lib/hooks/agent-evals", () => ({
   useRunAgentEvalCase: (...args: unknown[]) => mockUseRunAgentEvalCase(...args),
 }));
 
+// CompareView/CaseEditor/TrendChart each pull their own real data hooks
+// (useAgentEvalRuns, useCreateAgentEvalCase, react-query/recharts) — stub
+// them here so this container test isolates EvalsTab's own branching, per
+// the established pattern (client/INSIGHTS.md: mock leaf child modules).
+vi.mock("./_components/CompareView", () => ({
+  CompareView: () => <div data-testid="compare-view-stub" />,
+}));
+vi.mock("./_components/TrendChart", () => ({
+  TrendChart: () => <div data-testid="trend-chart-stub" />,
+}));
+vi.mock("./_components/CaseEditor", () => ({
+  CaseEditor: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="case-editor-stub">
+      <button onClick={onClose}>close-case-editor</button>
+    </div>
+  ),
+}));
+
 import { EvalsTab } from "./EvalsTab";
 
 function renderWithIntl() {
@@ -121,5 +139,16 @@ describe("EvalsTab", () => {
 
     const runAllBtn = screen.getByText("Running…").closest("button") as HTMLButtonElement;
     expect(runAllBtn.disabled).toBe(true);
+  });
+
+  it("opens and closes the case editor from the New eval case button", () => {
+    renderWithIntl();
+    expect(screen.queryByTestId("case-editor-stub")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("New eval case"));
+    expect(screen.getByTestId("case-editor-stub")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("close-case-editor"));
+    expect(screen.queryByTestId("case-editor-stub")).not.toBeInTheDocument();
   });
 });

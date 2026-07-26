@@ -74,7 +74,50 @@
       "emptyTitle": "No eval cases yet",
       "emptyBody": "Eval cases assert the findings this agent should produce on a sample diff. They ship with the demo seed.",
       "loadError": "Could not load eval cases.",
-      "comingSoon": "Creating eval cases ships in a future lesson."
+      "compare": {
+        "heading": "Run history",
+        "selectHint": "Select two runs to compare",
+        "empty": "No runs yet.",
+        "version": "v{version}",
+        "delta": "Delta",
+        "recall": "Recall",
+        "precision": "Precision",
+        "citationAccuracy": "Citation accuracy",
+        "cost": "Cost",
+        "promptDiff": "System-prompt diff",
+        "versionUnavailable": "System-prompt version unavailable for this run."
+      },
+      "caseEditor": {
+        "newTitle": "New eval case",
+        "name": "Name",
+        "namePlaceholder": "e.g. sql-injection-must-find",
+        "pasteDiff": "Paste diff",
+        "diffPlaceholder": "Paste a unified diff…",
+        "preview": "Preview",
+        "expectationType": "Expectation type",
+        "mustFind": "Must find",
+        "mustNotFlag": "Must not flag (decoy)",
+        "severity": "Severity",
+        "category": "Category",
+        "title": "Title",
+        "titlePlaceholder": "Human-readable finding title",
+        "file": "File",
+        "filePlaceholder": "src/example.ts",
+        "startLine": "Start line",
+        "endLine": "End line",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saveError": "Could not save this eval case."
+      },
+      "trend": {
+        "heading": "Trend",
+        "placeholder": "Run this agent at least twice to see a trend.",
+        "tooltipVersion": "v{version}",
+        "tooltipCost": "Cost",
+        "legendRecall": "Recall",
+        "legendPrecision": "Precision",
+        "legendCitationAccuracy": "Citation accuracy"
+      }
     }
   },
   "config": {

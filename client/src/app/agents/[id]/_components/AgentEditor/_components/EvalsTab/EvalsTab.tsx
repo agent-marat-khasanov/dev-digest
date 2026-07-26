@@ -14,22 +14,22 @@ import {
   useRunAgentEvalCase,
   useRunAgentEvals,
 } from "@/lib/hooks/agent-evals";
-import { useToast } from "@/lib/toast";
+import { CaseEditor } from "./_components/CaseEditor";
+import { CompareView } from "./_components/CompareView";
 import { EvalCaseRow } from "./_components/EvalCaseRow";
+import { TrendChart } from "./_components/TrendChart";
 import { s } from "./styles";
 
 export function EvalsTab({ agentId }: { agentId: string }) {
   const t = useTranslations("agents.editor.evals");
-  const toast = useToast();
   const [confirmingRunAll, setConfirmingRunAll] = useState(false);
+  const [caseEditorOpen, setCaseEditorOpen] = useState(false);
 
   const { data, isLoading, isError, refetch } = useAgentEvals(agentId);
   const dashboard = useAgentEvalDashboard(agentId);
   const estimate = useAgentEvalRunsEstimate(agentId);
   const runAll = useRunAgentEvals(agentId);
   const runOne = useRunAgentEvalCase(agentId);
-
-  const comingSoon = () => toast.info(t("comingSoon"));
 
   if (isLoading) {
     return (
@@ -94,7 +94,7 @@ export function EvalsTab({ agentId }: { agentId: string }) {
           >
             {runAll.isPending ? t("running") : t("runAll")}
           </Button>
-          <Button kind="primary" size="sm" icon="Plus" onClick={comingSoon}>
+          <Button kind="primary" size="sm" icon="Plus" onClick={() => setCaseEditorOpen(true)}>
             {t("newCase")}
           </Button>
         </div>
@@ -145,8 +145,10 @@ export function EvalsTab({ agentId }: { agentId: string }) {
         </div>
       )}
 
-      {/* Mount point for T10 (CompareView) / T12 (TrendChart) — run history over this agent's
-          eval runs. Left as a structural placeholder so those tasks attach without a rewrite. */}
+      <TrendChart agentId={agentId} />
+      <CompareView agentId={agentId} />
+
+      {caseEditorOpen && <CaseEditor agentId={agentId} onClose={() => setCaseEditorOpen(false)} />}
     </div>
   );
 }
