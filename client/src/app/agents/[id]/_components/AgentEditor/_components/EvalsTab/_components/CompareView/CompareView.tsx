@@ -1,17 +1,18 @@
-/* CompareView — agent eval run history + two-run compare: per-metric deltas
-   (recall/precision/citation-accuracy/cost) plus a system-prompt diff between
-   the two agent versions the runs executed under. Scoped to one `agentId`, so
-   only ever offers runs of the SAME agent (AC-30). */
+/* CompareView — agent run-all batch history + two-batch compare: per-metric
+   deltas (recall/precision/citation-accuracy/cost) plus a system-prompt diff
+   between the two agent versions the batches executed under (AC-27/AC-28).
+   Scoped to one `agentId`, so only ever offers batches of the SAME agent
+   (AC-30). One batch = one run-all execution's aggregated case rows. */
 "use client";
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Checkbox } from "@devdigest/ui";
-import type { EvalRunRecord } from "@devdigest/shared";
 import { useAgentEvalRuns } from "@/lib/hooks/agent-evals";
 import { formatCost } from "@/lib/format-cost";
 import { useAgentVersionSnapshot } from "./useAgentVersionSnapshot";
 import { diffLines, formatMetricDelta, formatCostDeltaSign } from "./helpers";
+import { groupRunsByBatch, type EvalBatch } from "../batches";
 import { s } from "./styles";
 
 export function CompareView({ agentId }: { agentId: string }) {
@@ -19,11 +20,11 @@ export function CompareView({ agentId }: { agentId: string }) {
   const { data: runs } = useAgentEvalRuns(agentId);
   const [selected, setSelected] = useState<string[]>([]);
 
-  const toggleSelect = (runId: string) => {
+  const toggleSelect = (batchId: string) => {
     setSelected((prev) => {
-      if (prev.includes(runId)) return prev.filter((id) => id !== runId);
+      if (prev.includes(batchId)) return prev.filter((id) => id !== batchId);
       if (prev.length >= 2) return prev;
-      return [...prev, runId];
+      return [...prev, batchId];
     });
   };
 
@@ -36,67 +37,66 @@ export function CompareView({ agentId }: { agentId: string }) {
     );
   }
 
-  const sorted = [...runs].sort((a, b) => a.ran_at.localeCompare(b.ran_at));
-  const selectedRuns = selected
-    .map((id) => runs.find((r) => r.id === id))
-    .filter((r): r is EvalRunRecord => !!r)
+  const batches = groupRunsByBatch(runs);
+  const selectedBatches = selected
+    .map((id) => batches.find((b) => b.batchId === id))
+    .filter((b): b is EvalBatch => !!b)
     .sort((a, b) => a.ran_at.localeCompare(b.ran_at));
-  const [runA, runB] = selectedRuns.length === 2 ? selectedRuns : [undefined, undefined];
+  const [batchA, batchB] = selectedBatches.length === 2 ? selectedBatches : [undefined, undefined];
 
   return (
     <div style={s.wrap}>
       <h3 style={s.heading}>{t("heading")}</h3>
       <p style={s.hint}>{t("selectHint")}</p>
       <div style={s.list}>
-        {sorted.map((r) => (
-          <div key={r.id} style={s.row}>
+        {batches.map((b) => (
+          <div key={b.batchId} style={s.row}>
             <Checkbox
-              checked={selected.includes(r.id)}
+              checked={selected.includes(b.batchId)}
               onChange={
-                selected.length >= 2 && !selected.includes(r.id) ? undefined : () => toggleSelect(r.id)
+                selected.length >= 2 && !selected.includes(b.batchId) ? undefined : () => toggleSelect(b.batchId)
               }
               label={
                 <div style={s.rowMain}>
-                  <span style={s.rowName}>{r.case_name ?? r.case_id}</span>
+                  <span style={s.rowName}>{t("version", { version: b.agent_version ?? "—" })}</span>
                   <span style={s.rowSub}>
-                    {new Date(r.ran_at).toLocaleString()} ·{" "}
-                    {t("version", { version: r.agent_version ?? "—" })} · {formatCost(r.cost_usd)}
+                    {new Date(b.ran_at).toLocaleString()} · {formatCost(b.cost_usd)}
                   </span>
                 </div>
               }
             />
-            <Badge mono color={r.pass ? "var(--ok)" : "var(--crit)"}>
-              {r.pass ? "pass" : "fail"}
+            <Badge mono color={b.passed === b.total ? "var(--ok)" : "var(--crit)"}>
+              {b.passed}/{b.total}
             </Badge>
           </div>
         ))}
       </div>
 
-      {runA && runB && <ComparePanel agentId={agentId} runA={runA} runB={runB} />}
+      {batchA && batchB && <ComparePanel agentId={agentId} batchA={batchA} batchB={batchB} />}
     </div>
   );
 }
 
 function ComparePanel({
   agentId,
-  runA,
-  runB,
+  batchA,
+  batchB,
 }: {
   agentId: string;
-  runA: EvalRunRecord;
-  runB: EvalRunRecord;
+  batchA: EvalBatch;
+  batchB: EvalBatch;
 }) {
   const t = useTranslations("agents.editor.evals.compare");
-  const versionA = useAgentVersionSnapshot(agentId, runA.agent_version);
-  const versionB = useAgentVersionSnapshot(agentId, runB.agent_version);
+  const versionA = useAgentVersionSnapshot(agentId, batchA.agent_version);
+  const versionB = useAgentVersionSnapshot(agentId, batchB.agent_version);
 
-  const costDeltaValue = (runB.cost_usd ?? 0) - (runA.cost_usd ?? 0);
+  const costDeltaValue = (batchB.cost_usd ?? 0) - (batchA.cost_usd ?? 0);
   const deltas = [
-    { label: t("recall"), text: formatMetricDelta((runB.recall ?? 0) - (runA.recall ?? 0)) },
-    { label: t("precision"), text: formatMetricDelta((runB.precision ?? 0) - (runA.precision ?? 0)) },
+    { label: t("recall"), text: formatMetricDelta(batchB.recall - batchA.recall) },
+    { label: t("precision"), text: formatMetricDelta(batchB.precision - batchA.precision) },
     {
       label: t("citationAccuracy"),
-      text: formatMetricDelta((runB.citation_accuracy ?? 0) - (runA.citation_accuracy ?? 0)),
+      text: formatMetricDelta(batchB.citation_accuracy - batchA.citation_accuracy),
     },
     { label: t("cost"), text: `${formatCostDeltaSign(costDeltaValue)}${formatCost(Math.abs(costDeltaValue))}` },
   ];

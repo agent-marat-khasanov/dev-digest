@@ -1,8 +1,8 @@
-/* TrendChart — recall/precision/citation-accuracy across an agent's runs,
-   one point per run, tooltip showing the prompt version + cost. Recharts is
-   already a dependency (vendor/ui/charts/LineChart.tsx, Donut.tsx) but that
-   primitive has no tooltip hook, so this composes Recharts directly rather
-   than pulling in a new charting library. */
+/* TrendChart — recall/precision/citation-accuracy across an agent's run-all
+   batches, one point per batch (AC-34), tooltip showing the prompt version +
+   cost. Recharts is already a dependency (vendor/ui/charts/LineChart.tsx,
+   Donut.tsx) but that primitive has no tooltip hook, so this composes
+   Recharts directly rather than pulling in a new charting library. */
 "use client";
 
 import { useTranslations } from "next-intl";
@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { useAgentEvalRuns } from "@/lib/hooks/agent-evals";
 import { formatCost } from "@/lib/format-cost";
+import { groupRunsByBatch } from "../batches";
 import { s } from "./styles";
 
 interface TrendRow {
@@ -48,9 +49,9 @@ export function TrendChart({ agentId }: { agentId: string }) {
 
   if (!runs) return null;
 
-  const sorted = [...runs].sort((a, b) => a.ran_at.localeCompare(b.ran_at));
+  const batches = groupRunsByBatch(runs);
 
-  if (sorted.length < 2) {
+  if (batches.length < 2) {
     return (
       <div style={s.wrap} data-testid="trend-chart-placeholder">
         <h3 style={s.heading}>{t("heading")}</h3>
@@ -59,13 +60,13 @@ export function TrendChart({ agentId }: { agentId: string }) {
     );
   }
 
-  const rows: TrendRow[] = sorted.map((r, i) => ({
+  const rows: TrendRow[] = batches.map((b, i) => ({
     i,
-    recall: r.recall ?? 0,
-    precision: r.precision ?? 0,
-    citation_accuracy: r.citation_accuracy ?? 0,
-    version: r.agent_version,
-    cost: r.cost_usd,
+    recall: b.recall,
+    precision: b.precision,
+    citation_accuracy: b.citation_accuracy,
+    version: b.agent_version,
+    cost: b.cost_usd,
   }));
 
   return (

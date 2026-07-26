@@ -43,19 +43,28 @@ afterEach(() => cleanup());
 describe("TrendChart", () => {
   beforeEach(() => mockUseAgentEvalRuns.mockReset());
 
-  it("renders a single-point placeholder (not an empty/broken chart) when fewer than two runs exist", () => {
-    mockUseAgentEvalRuns.mockReturnValue({ data: [makeRun({ id: "run-1" })] });
+  it("renders a single-point placeholder (not an empty/broken chart) when fewer than two batches exist", () => {
+    // Two per-case rows sharing one batch_id — still just ONE run-all batch.
+    mockUseAgentEvalRuns.mockReturnValue({
+      data: [
+        makeRun({ id: "run-1", case_id: "case-1", batch_id: "batch-1" }),
+        makeRun({ id: "run-2", case_id: "case-2", batch_id: "batch-1" }),
+      ],
+    });
     renderWithIntl();
 
     expect(screen.getByTestId("trend-chart-placeholder")).toBeInTheDocument();
     expect(screen.queryByTestId("trend-chart")).not.toBeInTheDocument();
   });
 
-  it("renders a chart with one point per run once there are two or more runs", () => {
+  it("renders a chart with one point per batch once there are two or more batches, even when a batch has multiple case rows", () => {
     mockUseAgentEvalRuns.mockReturnValue({
       data: [
-        makeRun({ id: "run-1", ran_at: "2026-07-01T00:00:00.000Z", agent_version: 1 }),
-        makeRun({ id: "run-2", ran_at: "2026-07-02T00:00:00.000Z", agent_version: 2 }),
+        // batch-1: two case rows, same run-all execution → ONE point
+        makeRun({ id: "run-1a", case_id: "case-1", ran_at: "2026-07-01T00:00:00.000Z", agent_version: 1, batch_id: "batch-1" }),
+        makeRun({ id: "run-1b", case_id: "case-2", ran_at: "2026-07-01T00:00:01.000Z", agent_version: 1, batch_id: "batch-1" }),
+        // batch-2: single-case run-all → its own point
+        makeRun({ id: "run-2", case_id: "case-1", ran_at: "2026-07-02T00:00:00.000Z", agent_version: 2, batch_id: "batch-2" }),
       ],
     });
     renderWithIntl();
