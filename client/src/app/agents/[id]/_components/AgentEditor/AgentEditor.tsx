@@ -24,7 +24,8 @@ export function AgentEditor({ agent, tab, onTab }: { agent: Agent; tab: string; 
       <div style={s.body}>
         {tab === "skills" && <SkillsTab agent={agent} />}
         {tab === "context" && <ContextTab agent={agent} />}
-        {tab !== "skills" && tab !== "context" && <ConfigTab agent={agent} />}
+        {tab === "evals" && <p>{t("mount.body", { owner: "Evals" })}</p>}
+        {tab !== "skills" && tab !== "context" && tab !== "evals" && <ConfigTab agent={agent} />}
       </div>
     </div>
   );
