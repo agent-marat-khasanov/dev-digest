@@ -50,6 +50,31 @@
       "evals": "Evals",
       "stats": "Stats",
       "ci": "CI"
+    },
+    "evals": {
+      "metrics": {
+        "recall": "Recall",
+        "precision": "Precision",
+        "citationAccuracy": "Citation accuracy",
+        "viewDashboard": "View full dashboard →"
+      },
+      "casesHeading": "Eval cases",
+      "passing": "{passed} / {total} passing",
+      "runAll": "Run all",
+      "running": "Running…",
+      "estimating": "Estimating cost…",
+      "confirmRunAll": "{count} cases · ≈${cost} — run now?",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "newCase": "New eval case",
+      "expectedGot": "expected {n, plural, one {# finding} other {# findings}}, got {m}",
+      "neverRun": "expected {n, plural, one {# finding} other {# findings}} · never run",
+      "emptyBadge": "empty []",
+      "run": "Run this case",
+      "emptyTitle": "No eval cases yet",
+      "emptyBody": "Eval cases assert the findings this agent should produce on a sample diff. They ship with the demo seed.",
+      "loadError": "Could not load eval cases.",
+      "comingSoon": "Creating eval cases ships in a future lesson."
     }
   },
   "config": {
