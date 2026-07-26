@@ -1,0 +1,27 @@
+{
+  "title": "Eval Dashboard",
+  "subtitle": "Regression harness across all reviewer agents.",
+  "loadError": "Failed to load the eval dashboard.",
+  "runAll": "Run all agents",
+  "running": "Running…",
+  "confirmTitle": "Run all agent evals?",
+  "confirmBody": "This runs {caseCount} eval cases across {agentCount} agents for an estimated {cost}.",
+  "confirmCta": "Confirm & run",
+  "cancel": "Cancel",
+  "estimateError": "Could not load the run estimate.",
+  "emptyTitle": "No eval runs yet",
+  "emptyBody": "Mint eval cases from findings, then run an agent's case set to see recall, precision and citation accuracy here.",
+  "agentsHeading": "Agents",
+  "recentRunsHeading": "Recent eval runs",
+  "columns": {
+    "agent": "Agent",
+    "recall": "Recall",
+    "precision": "Precision",
+    "citation": "Citation accuracy",
+    "lastRun": "Last run"
+  },
+  "neverRun": "Never run",
+  "passCount": "{passed}/{total} passed",
+  "noRecentRuns": "No recent runs.",
+  "runRow": "{caseName} · {ranAt}"
+}
