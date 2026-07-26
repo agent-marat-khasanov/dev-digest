@@ -84,6 +84,8 @@ export const EvalRunRecord = z.object({
   citation_accuracy: z.number().nullable(),
   duration_ms: z.number().int().nullable(),
   cost_usd: z.number().nullable(),
+  agent_version: z.number().int().nullable(),
+  batch_id: z.string().nullable(),
 });
 export type EvalRunRecord = z.infer<typeof EvalRunRecord>;
 
@@ -129,6 +131,22 @@ export const EvalDashboard = z.object({
   alert: z.string().nullable(),
 });
 export type EvalDashboard = z.infer<typeof EvalDashboard>;
+
+/** One row in the sidebar "Eval Dashboard" — per-agent summary across the workspace. */
+export const EvalDashboardOverview = z.object({
+  agents: z.array(
+    z.object({
+      agent_id: z.string(),
+      agent_name: z.string(),
+      recall: z.number().nullable(),
+      precision: z.number().nullable(),
+      citation_accuracy: z.number().nullable(),
+      last_run_pass_count: z.object({ passed: z.number().int(), total: z.number().int() }).nullable(),
+    }),
+  ),
+  recent_runs: z.array(EvalRunRecord),
+});
+export type EvalDashboardOverview = z.infer<typeof EvalDashboardOverview>;
 
 // ===========================================================================
 // Compose Review

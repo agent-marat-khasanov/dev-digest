@@ -32,6 +32,8 @@ export const evalRuns = pgTable('eval_runs', {
   citationAccuracy: doublePrecision('citation_accuracy'),
   durationMs: integer('duration_ms'),
   costUsd: doublePrecision('cost_usd'),
+  agentVersion: integer('agent_version'),
+  batchId: uuid('batch_id'),
 });
 
 export const conformanceChecks = pgTable('conformance_checks', {

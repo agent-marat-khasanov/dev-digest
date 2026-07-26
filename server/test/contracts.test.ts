@@ -11,6 +11,8 @@ import {
   OnboardingTour,
   TourSection,
   EvalRun,
+  EvalRunRecord,
+  EvalDashboardOverview,
   MemoryItem,
   RunTrace,
   Settings,
@@ -203,6 +205,54 @@ describe('AI contracts parse fixtures', () => {
         sources: [{ pr: 401, context: 'ctx' }],
       }),
     ).not.toThrow();
+  });
+
+  it('EvalRunRecord parses agent_version + batch_id (nullable)', () => {
+    const base = {
+      id: 'run1',
+      case_id: 'case1',
+      case_name: 'must-find secret leak',
+      ran_at: '2026-07-13T00:00:00.000Z',
+      actual_output: [],
+      pass: true,
+      recall: 1,
+      precision: 1,
+      citation_accuracy: 1,
+      duration_ms: 1200,
+      cost_usd: 0.01,
+    };
+    expect(() =>
+      EvalRunRecord.parse({ ...base, agent_version: 3, batch_id: 'batch1' }),
+    ).not.toThrow();
+    expect(() =>
+      EvalRunRecord.parse({ ...base, agent_version: null, batch_id: null }),
+    ).not.toThrow();
+  });
+
+  it('EvalDashboardOverview parses per-agent rows + recent runs', () => {
+    const overview = EvalDashboardOverview.parse({
+      agents: [
+        {
+          agent_id: 'a1',
+          agent_name: 'Security Reviewer',
+          recall: 0.9,
+          precision: 0.85,
+          citation_accuracy: 1,
+          last_run_pass_count: { passed: 7, total: 8 },
+        },
+        {
+          agent_id: 'a2',
+          agent_name: 'Style Reviewer',
+          recall: null,
+          precision: null,
+          citation_accuracy: null,
+          last_run_pass_count: null,
+        },
+      ],
+      recent_runs: [],
+    });
+    expect(overview.agents).toHaveLength(2);
+    expect(overview.agents[1]!.last_run_pass_count).toBeNull();
   });
 
   it('RunTrace (data2.jsx TRACE single-document)', () => {
