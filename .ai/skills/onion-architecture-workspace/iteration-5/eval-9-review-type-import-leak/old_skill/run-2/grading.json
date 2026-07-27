@@ -1,0 +1,45 @@
+{
+  "eval_id": 9,
+  "eval_name": "review-type-import-leak",
+  "config": "old_skill",
+  "run": "run-2",
+  "findings_reported": 1,
+  "expectations": [
+    {
+      "text": "[9.1] A finding reports contracts/report.ts importing the Drizzle row type ReportRunRow from modules/reports/repository and using it in ReportDetailDto",
+      "passed": true,
+      "evidence": "matched: server/src/vendor/shared/contracts/report.ts:3-25 (Dependency rule — domain must not import infrastructure (and raw DB rows must not cross the boundary))",
+      "rule": "Hard rule 9 — a vendor/shared contract never names server types, even via import type"
+    },
+    {
+      "text": "[9.2] No finding flags the modules' own helpers importing row types from their repository — the identical-looking import is legal inside the module boundary",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Hard rule 9 scope — within its own module, import type from ./repository is legal (rule 7)"
+    },
+    {
+      "text": "[9.3] No finding flags the schedules module, the reports repository, or the clean contracts (common.ts, schedule.ts)",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Clean layers are not noise"
+    },
+    {
+      "text": "[9.4] No finding flags the services constructing their repository in the constructor — that is the repo-wide convention (9 real modules)",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Project convention — a service builds its repository from container.db"
+    },
+    {
+      "text": "[9.5] No finding flags the ReportRenderer port beside its adapter or the container wiring",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Server-local port beside its adapter + container wiring are correct"
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "eval_id": 7,
+  "eval_name": "review-port-placement",
+  "prompt": "Review the proposed exports feature (fixture: fixtures/port-placement/) strictly for architecture violations and report each one as a structured finding.",
+  "assertions": [
+    "[7.1][detect] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+    "[7.2][detect] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+    "[7.3][detect] A finding reports the direct process.env reads inside the service",
+    "[7.4][decoy] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+    "[7.5][decoy] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+    "[7.6][decoy] No finding flags the exports route — validate, call service, parse through the contract is exactly right"
+  ],
+  "note": "Regression control for the iteration-4 skill change (mcp rule added): both arms must keep the iteration-3 result."
+}

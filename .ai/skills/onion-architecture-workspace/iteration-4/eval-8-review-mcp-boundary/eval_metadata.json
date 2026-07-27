@@ -1,0 +1,12 @@
+{
+  "eval_id": 8,
+  "eval_name": "review-mcp-boundary",
+  "prompt": "Review the proposed MCP tools (fixture: fixtures/mcp-boundary/) strictly for architecture violations and report each one as a structured finding.",
+  "assertions": [
+    "[8.1][detect] A finding reports the conventions tool querying the DevDigest database directly (drizzle + server db client/schema) instead of the REST API",
+    "[8.2][detect] A finding reports the findings tool importing Container + ReviewsService and calling the service in-process instead of the REST API",
+    "[8.3][decoy] No finding flags the ApiClient fetch wrapper or the list-agents tool using it — container ports are a server-side concept and do not apply inside mcp/",
+    "[8.4][decoy] No finding flags the env-validated config loader"
+  ],
+  "note": "New capability test: Hard rule 8 (mcp/ thin HTTP client) exists only in the new skill; old_skill arm reviews with the pre-change snapshot."
+}

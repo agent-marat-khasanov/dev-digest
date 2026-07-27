@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "file": "insight-core/src/store.ts",
+      "lines": [1, 3],
+      "rule": "Dependency rule — core imports outer-layer infrastructure",
+      "explanation": "A pure core package imports the server's Drizzle db client and schema (drizzle-orm, server/src/db/client, server/src/db/schema). Dependencies must point inward: infrastructure may depend on the core, never the reverse, and a standalone core package must not reach into another package's DB layer at all.",
+      "fix": "Delete store.ts from insight-core. Persistence belongs in server infrastructure — a repository in server/src/modules/<m>/repository.ts wired via the container."
+    },
+    {
+      "file": "insight-core/src/run.ts",
+      "lines": [41, 42],
+      "rule": "Core purity — persistence hard-wired into the engine instead of behind a port",
+      "explanation": "runInsights performs the persistence side effect itself (persistReport) rather than staying pure like reviewer-core, whose only permitted side effect is the injected LLMProvider. Even with a correct adapter, hard-wiring the write means callers cannot use the engine without hitting the database.",
+      "fix": "Remove the persist step (and the store import on line 5): return the InsightReport and let the server's application service persist it via its repository, or, if persistence must stay in the flow, accept an injected InsightStore port in RunInsightsOptions alongside llm."
+    },
+    {
+      "file": "insight-core/src/enrich.ts",
+      "lines": [13, 16],
+      "rule": "Core purity — direct external I/O (GitHub API) not behind a port",
+      "explanation": "The core calls fetch against api.github.com directly, embedding network I/O and a concrete GitHub dependency inside the pure engine. The project's pure-core convention (reviewer-core: 'No DB/GitHub/FS') requires all external effects to arrive as injected ports, as runInsights already does for the LLM.",
+      "fix": "Define an ownership port (e.g. OwnershipProvider with listRecentAuthors(repo, file)) accepted via RunInsightsOptions, and implement the GitHub call as an adapter in server/src/adapters/ wired by the container."
+    },
+    {
+      "file": "insight-core/src/summary.ts",
+      "lines": [1, 4],
+      "rule": "Core purity — infrastructure logging dependency in the pure core",
+      "explanation": "groupFindings imports pino and instantiates a module-scope logger, pulling a logging infrastructure library and an I/O side effect into an otherwise pure function. The core already exposes observability through the onProgress callback; reviewer-core carries no logger dependency.",
+      "fix": "Remove pino and the logger.info call; if callers need this signal, surface it through the existing onProgress callback or an injected logger port."
+    }
+  ]
+}

@@ -1,0 +1,383 @@
+{
+  "metadata": {
+    "skill_name": "onion-architecture",
+    "skill_path": ".ai/skills/onion-architecture",
+    "executor_model": "claude-fable-5",
+    "analyzer_model": "claude-fable-5",
+    "timestamp": "2026-07-23T15:28:17Z",
+    "evals_run": [
+      5,
+      6,
+      7
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 114.2,
+        "tokens": 46910,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[5.1] A finding reports the route constructing DigestsRepository and calling it directly, bypassing the service layer",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/routes.ts:18-20 (Route bypasses the application layer / reaches into infrastructure)",
+          "rule": "Hard rule 1/6 — route must go through the service; nothing composes outside the root"
+        },
+        {
+          "text": "[5.2] A finding reports business logic (severity aggregation / top-files ranking) living in the route",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/routes.ts:22-35 (Business logic in the route (routes are thin))",
+          "rule": "Hard rule 4 — routes are thin"
+        },
+        {
+          "text": "[5.3] A finding reports raw Drizzle rows being returned to HTTP instead of the DigestDto mapping that helpers.ts already provides",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/routes.ts:37-41 (Map at the boundary — raw Drizzle rows leaked to HTTP)",
+          "rule": "Hard rule 5 — map at the boundary"
+        },
+        {
+          "text": "[5.4] A finding reports the service calling the mail API with fetch directly (and reading process.env) instead of an adapter behind a port resolved from the Container",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/service.ts:24-36 (External I/O not behind a container port (ports & adapters, composition root))",
+          "rule": "Hard rule 3 — external I/O goes through container ports"
+        },
+        {
+          "text": "[5.6] No finding flags the concrete repository class / $inferSelect row types — rule-7 allowances, not violations",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Hard rule 7 — pragmatic allowances"
+        },
+        {
+          "text": "[5.7] No finding flags helpers.ts or the Zod contract — they are the correct pattern",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Correct boundary code is not noise"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 113.7,
+        "tokens": 44805,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[6.1] A finding reports insight-core importing the server's db client/schema and persisting reports itself",
+          "passed": true,
+          "evidence": "matched: insight-core/src/store.ts:1-3 (Keep the core pure / dependencies point inward (rules 1 & 2))",
+          "rule": "Hard rules 1+2 — the core imports nothing outer and does no DB I/O"
+        },
+        {
+          "text": "[6.2] A finding reports insight-core fetching the GitHub API directly in enrich.ts",
+          "passed": true,
+          "evidence": "matched: insight-core/src/enrich.ts:13-16 (All external I/O through container-provided ports (rules 2 & 3))",
+          "rule": "Hard rule 2 — the core performs zero network I/O"
+        },
+        {
+          "text": "[6.3] A finding reports the pino logger import/use inside the core",
+          "passed": true,
+          "evidence": "matched: insight-core/src/summary.ts:1-4 (Keep the core pure — no vendor SDKs / self-constructed dependencies in the core (rules 2 & 6))",
+          "rule": "Hard rule 2 — the core stays dependency-free of loggers/frameworks"
+        },
+        {
+          "text": "[6.4] No finding flags the injected-LLM call via the options port or the onProgress callback — that is exactly how a pure core is supposed to do I/O (a finding on the run.ts:7-9 local redeclaration of LLMProvider is legitimate and excluded from this span)",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Ports — injected I/O is the sanctioned pattern"
+        },
+        {
+          "text": "[6.5] No finding flags prompt.ts or types.ts — pure, dependency-free core code",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Correct pure code is not noise"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 131.3,
+        "tokens": 49243,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[7.1] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+          "passed": true,
+          "evidence": "matched: server/src/vendor/shared/adapters.ts:16-20 (Server-local port placement (vendor/shared is for cross-package ports only))",
+          "rule": "Where does the port interface go? — nothing outside server/ names ArchiveStore"
+        },
+        {
+          "text": "[7.2] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / external I/O via container-provided ports (rules 3 & 6))",
+          "rule": "Hard rules 3+6 — adapters are constructed only at the composition root"
+        },
+        {
+          "text": "[7.3] A finding reports the direct process.env reads inside the service",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / external I/O via container-provided ports (rules 3 & 6))",
+          "rule": "Config convention — env is read at the composition root, not in a service"
+        },
+        {
+          "text": "[7.4] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Where does the port interface go? — server-local port beside its adapter is sanctioned"
+        },
+        {
+          "text": "[7.5] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Genuinely shared ports belong in vendor/shared"
+        },
+        {
+          "text": "[7.6] No finding flags the exports route — validate, call service, parse through the contract is exactly right",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Thin route is correct"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 129.2,
+        "tokens": 42308,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[5.1] A finding reports the route constructing DigestsRepository and calling it directly, bypassing the service layer",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/routes.ts:18-20 (Presentation must not bypass the application layer / depend on infrastructure)",
+          "rule": "Hard rule 1/6 — route must go through the service; nothing composes outside the root"
+        },
+        {
+          "text": "[5.2] A finding reports business logic (severity aggregation / top-files ranking) living in the route",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/routes.ts:22-35 (No business logic in the presentation layer)",
+          "rule": "Hard rule 4 — routes are thin"
+        },
+        {
+          "text": "[5.3] A finding reports raw Drizzle rows being returned to HTTP instead of the DigestDto mapping that helpers.ts already provides",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/routes.ts:37-41 (Boundary mapping — do not leak persistence rows across the HTTP boundary)",
+          "rule": "Hard rule 5 — map at the boundary"
+        },
+        {
+          "text": "[5.4] A finding reports the service calling the mail API with fetch directly (and reading process.env) instead of an adapter behind a port resolved from the Container",
+          "passed": true,
+          "evidence": "matched: server/src/modules/digests/service.ts:24-36 (External I/O must go through a port implemented by an adapter (dependency rule)); server/src/modules/digests/service.ts:27-27 (No direct env/secret access outside the composition root)",
+          "rule": "Hard rule 3 — external I/O goes through container ports"
+        },
+        {
+          "text": "[5.6] No finding flags the concrete repository class / $inferSelect row types — rule-7 allowances, not violations",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Hard rule 7 — pragmatic allowances"
+        },
+        {
+          "text": "[5.7] No finding flags helpers.ts or the Zod contract — they are the correct pattern",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Correct boundary code is not noise"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 99.9,
+        "tokens": 31422,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[6.1] A finding reports insight-core importing the server's db client/schema and persisting reports itself",
+          "passed": true,
+          "evidence": "matched: insight-core/src/store.ts:1-3 (Dependency rule — core imports outer-layer infrastructure); insight-core/src/run.ts:41-42 (Core purity — persistence hard-wired into the engine instead of behind a port)",
+          "rule": "Hard rules 1+2 — the core imports nothing outer and does no DB I/O"
+        },
+        {
+          "text": "[6.2] A finding reports insight-core fetching the GitHub API directly in enrich.ts",
+          "passed": true,
+          "evidence": "matched: insight-core/src/enrich.ts:13-16 (Core purity — direct external I/O (GitHub API) not behind a port)",
+          "rule": "Hard rule 2 — the core performs zero network I/O"
+        },
+        {
+          "text": "[6.3] A finding reports the pino logger import/use inside the core",
+          "passed": true,
+          "evidence": "matched: insight-core/src/summary.ts:1-4 (Core purity — infrastructure logging dependency in the pure core)",
+          "rule": "Hard rule 2 — the core stays dependency-free of loggers/frameworks"
+        },
+        {
+          "text": "[6.4] No finding flags the injected-LLM call via the options port or the onProgress callback — that is exactly how a pure core is supposed to do I/O (a finding on the run.ts:7-9 local redeclaration of LLMProvider is legitimate and excluded from this span)",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Ports — injected I/O is the sanctioned pattern"
+        },
+        {
+          "text": "[6.5] No finding flags prompt.ts or types.ts — pure, dependency-free core code",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Correct pure code is not noise"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6666666666666666,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 138.6,
+        "tokens": 38747,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[7.1] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+          "passed": false,
+          "evidence": "no finding overlaps server/src/vendor/shared/adapters.ts:15-21 | server/src/adapters/archive/fs.ts:1-6",
+          "rule": "Where does the port interface go? — nothing outside server/ names ArchiveStore"
+        },
+        {
+          "text": "[7.2] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Composition root is the only place that wires concretes (dependency inversion)); server/src/modules/exports/service.ts:21-22 (Configuration/environment access belongs to the composition root)",
+          "rule": "Hard rules 3+6 — adapters are constructed only at the composition root"
+        },
+        {
+          "text": "[7.3] A finding reports the direct process.env reads inside the service",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Composition root is the only place that wires concretes (dependency inversion)); server/src/modules/exports/service.ts:21-22 (Configuration/environment access belongs to the composition root)",
+          "rule": "Config convention — env is read at the composition root, not in a service"
+        },
+        {
+          "text": "[7.4] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+          "passed": false,
+          "evidence": "false positive: server/src/adapters/clock/index.ts:1-4 (Port interfaces belong in the domain layer (vendor/shared), not in infrastructure) — The Clock port is declared inside the adapters directory, so the application layer (service.ts:1) and the container import the port type from infrastructure — the service's source dependency points outward instead of inward to vendor/shared, where all other adapter interfaces (LLMProvider, GitHubClient, SecretsProvider, ArchiveStore) live.",
+          "rule": "Where does the port interface go? — server-local port beside its adapter is sanctioned"
+        },
+        {
+          "text": "[7.5] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Genuinely shared ports belong in vendor/shared"
+        },
+        {
+          "text": "[7.6] No finding flags the exports route — validate, call service, parse through the contract is exactly right",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Thin route is correct"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 119.7333,
+        "stddev": 10.0201,
+        "min": 113.7,
+        "max": 131.3
+      },
+      "tokens": {
+        "mean": 46986,
+        "stddev": 2219.9759,
+        "min": 44805,
+        "max": 49243
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.8889,
+        "stddev": 0.1925,
+        "min": 0.6667,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 122.5667,
+        "stddev": 20.1847,
+        "min": 99.9,
+        "max": 138.6
+      },
+      "tokens": {
+        "mean": 37492.3333,
+        "stddev": 5550.3955,
+        "min": 31422,
+        "max": 42308
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.11",
+      "time_seconds": "-2.8",
+      "tokens": "+9494"
+    }
+  },
+  "notes": [
+    "Iteration-3 format change: review-mode on planted fixtures (no revealing comments) instead of generative tasks — iterations 1-2 stopped discriminating (100% vs 100%).",
+    "Eval 7 is the discriminator: baseline missed the server-only ArchiveStore port mis-placed in vendor/shared (called it correctly defined) AND false-positived the sanctioned Clock port beside its adapter — exactly the generic-hexagonal-dogma failure the skill exists to prevent.",
+    "Evals 5 and 6 did not discriminate: obvious violations (fetch in service, DB/logger/fetch in a pure core, fat route) are caught by both arms; both arms also respected the rule-7 decoys.",
+    "Grader arbitration during this run: assertion 5.5 (service constructs its own repository) was REMOVED — the real codebase constructs repositories in service constructors in 9 modules, so the planted pattern is project convention, not a violation; decoy 6.4 span was narrowed to exclude run.ts:7-9, where flagging the local LLMProvider redeclaration is a legitimate skill-grounded finding.",
+    "Single run per configuration — the 89% ± 19% stddev is across evals, not trials; treat the delta as one sample, confirmed qualitatively by the baseline REVIEW.md text."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/adapters.ts",
+      "lines": [16, 20],
+      "rule": "Server-local port placement (vendor/shared is for cross-package ports only)",
+      "explanation": "ArchiveStore is a server-only port: no package outside server/ names it (nothing in client/ or reviewer-core/ references the exports feature). vendor/shared is hand-synced and mirrored into client/, so parking a server-only port there widens the shared surface for nothing; the skill's rule is that such a port is declared beside its adapter, per the Tokenizer precedent.",
+      "fix": "Move the ArchiveStore interface out of vendor/shared/adapters.ts into server/src/adapters/archive/index.ts, exported alongside FsArchiveStore, and import it from there in the container."
+    },
+    {
+      "file": "server/src/modules/exports/service.ts",
+      "lines": [20, 23],
+      "rule": "Compose only at the root / external I/O via container-provided ports (rules 3 & 6)",
+      "explanation": "The application-layer ExportsService imports the concrete FsArchiveStore adapter and constructs it inline, reading process.env config and the EXPORT_SIGNING_SECRET directly. This wires infrastructure into the application ring, bypasses the composition root (the Container has no archive slot and no ContainerOverrides.archive), leaks secret/config handling out of the root, and makes the filesystem I/O unswappable in tests.",
+      "fix": "Wire FsArchiveStore in platform/container.ts behind the ArchiveStore port (sourcing rootDir/signing secret from AppConfig/SecretsProvider), add an archive field to ContainerOverrides, and inject the ArchiveStore into ExportsService via its constructor; the service then codes only against the port."
+    }
+  ]
+}

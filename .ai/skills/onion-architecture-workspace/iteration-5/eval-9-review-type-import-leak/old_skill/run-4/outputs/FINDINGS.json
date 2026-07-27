@@ -1,0 +1,11 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/contracts/report.ts",
+      "lines": [3, 23],
+      "rule": "Dependency rule — domain must not import infrastructure (shared contract imports a repository row type)",
+      "explanation": "The shared contract imports ReportRunRow from modules/reports/repository and embeds it in ReportDetailDto.latestRun. This points a domain-layer source dependency outward at infrastructure (and transitively at Drizzle and db/schema), leaks a raw Drizzle row into vendor/shared — which is mirrored into client/ — forces ReportDetailDto to be a plain interface instead of a Zod contract, and lets the unmapped row escape to HTTP via buildDetail.",
+      "fix": "Define latestRun as a proper Zod schema in report.ts (only the fields the wire shape needs) and make reportDetailSchema a full Zod contract; map ReportRunRow to that DTO shape in modules/reports/helpers.ts so the row never leaves the module."
+    }
+  ]
+}

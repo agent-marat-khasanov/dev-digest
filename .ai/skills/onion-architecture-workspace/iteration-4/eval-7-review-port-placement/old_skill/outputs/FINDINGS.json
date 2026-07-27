@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "file": "server/src/modules/exports/service.ts",
+      "lines": [20, 23],
+      "rule": "Compose only at the root / external I/O through container ports (rules 3 & 6)",
+      "explanation": "ExportsService constructs the FsArchiveStore adapter inline (importing the concrete class into the application layer) and reads process.env.ARCHIVE_DIR / EXPORT_SIGNING_SECRET directly, hard-wiring infrastructure and configuration into the application ring. Adapters must be built only in platform/container.ts and reached via a port; a service receives its dependencies, it never constructs adapters or resolves config/secrets itself, and this construction cannot be swapped via ContainerOverrides in tests.",
+      "fix": "Wire the archive store in platform/container.ts (getter honoring a new ContainerOverrides.archive slot, sourcing rootDir/secret from config/secrets there) and have ExportsService depend on the ArchiveStore port via injection or the container, dropping the FsArchiveStore import and process.env reads."
+    },
+    {
+      "file": "server/src/vendor/shared/adapters.ts",
+      "lines": [16, 20],
+      "rule": "Server-local port placement (port declared where only its namers can see it)",
+      "explanation": "ArchiveStore is named only by server code (the exports service, the fs adapter, the container) — no package outside server/ references it — yet it is declared in the hand-synced vendor/shared/adapters.ts, widening the shared surface that is mirrored into client/ for no decoupling gain. Per the skill, vendor/shared/adapters.ts is reserved for ports that cross a package boundary; a server-only port belongs beside its adapter (the Tokenizer/Clock precedent).",
+      "fix": "Move the ArchiveStore interface out of vendor/shared/adapters.ts into adapters/archive/index.ts next to FsArchiveStore, and update the adapter, service, and container imports accordingly."
+    }
+  ]
+}

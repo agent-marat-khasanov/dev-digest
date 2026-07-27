@@ -1,0 +1,45 @@
+{
+  "eval_id": 9,
+  "eval_name": "review-type-import-leak",
+  "config": "with_skill",
+  "run": "run-3",
+  "findings_reported": 2,
+  "expectations": [
+    {
+      "text": "[9.1] A finding reports contracts/report.ts importing the Drizzle row type ReportRunRow from modules/reports/repository and using it in ReportDetailDto",
+      "passed": true,
+      "evidence": "matched: server/src/vendor/shared/contracts/report.ts:3-23 (Dependency rule / type-only imports count (shared contract imports infrastructure row type))",
+      "rule": "Hard rule 9 — a vendor/shared contract never names server types, even via import type"
+    },
+    {
+      "text": "[9.2] No finding flags the modules' own helpers importing row types from their repository — the identical-looking import is legal inside the module boundary",
+      "passed": false,
+      "evidence": "false positive: server/src/modules/reports/helpers.ts:24-30 (Map at the boundary (raw Drizzle row escapes to HTTP)) — toReportDetailDto spreads the raw ReportRunRow into the DTO as latestRun without any row-to-DTO conversion, and the detail route returns it unvalidated, so internal columns (workspaceId, etc.) leak straight to the wire (SKILL rule 5).",
+      "rule": "Hard rule 9 scope — within its own module, import type from ./repository is legal (rule 7)"
+    },
+    {
+      "text": "[9.3] No finding flags the schedules module, the reports repository, or the clean contracts (common.ts, schedule.ts)",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Clean layers are not noise"
+    },
+    {
+      "text": "[9.4] No finding flags the services constructing their repository in the constructor — that is the repo-wide convention (9 real modules)",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Project convention — a service builds its repository from container.db"
+    },
+    {
+      "text": "[9.5] No finding flags the ReportRenderer port beside its adapter or the container wiring",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Server-local port beside its adapter + container wiring are correct"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 1,
+    "total": 5,
+    "pass_rate": 0.8
+  }
+}

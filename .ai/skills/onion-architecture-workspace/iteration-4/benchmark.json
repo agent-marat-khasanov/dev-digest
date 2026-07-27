@@ -1,0 +1,264 @@
+{
+  "metadata": {
+    "skill_name": "onion-architecture",
+    "skill_path": ".ai/skills/onion-architecture",
+    "executor_model": "claude-fable-5",
+    "analyzer_model": "claude-fable-5",
+    "timestamp": "2026-07-24T08:05:28Z",
+    "evals_run": [
+      7,
+      8
+    ],
+    "runs_per_configuration": 1,
+    "baseline": "old_skill = pre-change snapshot at .ai/skills/onion-architecture-workspace/skill-snapshot-iteration-4/"
+  },
+  "runs": [
+    {
+      "eval_id": 7,
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 133.9,
+        "tokens": 46773,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[7.1] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+          "passed": true,
+          "evidence": "matched: server/src/vendor/shared/adapters.ts:16-20 (Server-local port placement (port declared where only its namers can see it))",
+          "rule": "Where does the port interface go? — nothing outside server/ names ArchiveStore"
+        },
+        {
+          "text": "[7.2] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / external I/O through container ports (rules 3 & 6))",
+          "rule": "Hard rules 3+6 — adapters are constructed only at the composition root"
+        },
+        {
+          "text": "[7.3] A finding reports the direct process.env reads inside the service",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / external I/O through container ports (rules 3 & 6))",
+          "rule": "Config convention — env is read at the composition root, not in a service"
+        },
+        {
+          "text": "[7.4] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Where does the port interface go? — server-local port beside its adapter is sanctioned"
+        },
+        {
+          "text": "[7.5] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Genuinely shared ports belong in vendor/shared"
+        },
+        {
+          "text": "[7.6] No finding flags the exports route — validate, call service, parse through the contract is exactly right",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Thin route is correct"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "configuration": "old_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 86.8,
+        "tokens": 41614,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[8.1] A finding reports the conventions tool querying the DevDigest database directly (drizzle + server db client/schema) instead of the REST API",
+          "passed": true,
+          "evidence": "matched: mcp/src/tools/get-conventions.ts:1-3 (Package boundary: mcp must be a thin HTTP client — no direct DB access)",
+          "rule": "Hard rule 8 — mcp never touches the DB"
+        },
+        {
+          "text": "[8.2] A finding reports the findings tool importing Container + ReviewsService and calling the service in-process instead of the REST API",
+          "passed": true,
+          "evidence": "matched: mcp/src/tools/get-findings.ts:1-2 (Package boundary: mcp must consume the REST API, not server application internals); mcp/src/tools/get-findings.ts:11-12 (Compose only at the composition root)",
+          "rule": "Hard rule 8 — mcp never imports server code"
+        },
+        {
+          "text": "[8.3] No finding flags the ApiClient fetch wrapper or the list-agents tool using it — container ports are a server-side concept and do not apply inside mcp/",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Hard rule 8 — plain fetch to the API is the sanctioned thin-client pattern in mcp/"
+        },
+        {
+          "text": "[8.4] No finding flags the env-validated config loader",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Config loaded at the package entry is correct"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 171.5,
+        "tokens": 50180,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[7.1] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+          "passed": true,
+          "evidence": "matched: server/src/vendor/shared/adapters.ts:16-20 (Port placement — server-local port parked in vendor/shared)",
+          "rule": "Where does the port interface go? — nothing outside server/ names ArchiveStore"
+        },
+        {
+          "text": "[7.2] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / all external I/O through container ports (rules 3 & 6))",
+          "rule": "Hard rules 3+6 — adapters are constructed only at the composition root"
+        },
+        {
+          "text": "[7.3] A finding reports the direct process.env reads inside the service",
+          "passed": true,
+          "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / all external I/O through container ports (rules 3 & 6))",
+          "rule": "Config convention — env is read at the composition root, not in a service"
+        },
+        {
+          "text": "[7.4] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Where does the port interface go? — server-local port beside its adapter is sanctioned"
+        },
+        {
+          "text": "[7.5] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Genuinely shared ports belong in vendor/shared"
+        },
+        {
+          "text": "[7.6] No finding flags the exports route — validate, call service, parse through the contract is exactly right",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Thin route is correct"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 96,
+        "tokens": 41165,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "[8.1] A finding reports the conventions tool querying the DevDigest database directly (drizzle + server db client/schema) instead of the REST API",
+          "passed": true,
+          "evidence": "matched: mcp/src/tools/get-conventions.ts:1-3 (mcp/ package boundary — never touch Drizzle/the DB (SKILL rule 8))",
+          "rule": "Hard rule 8 — mcp never touches the DB"
+        },
+        {
+          "text": "[8.2] A finding reports the findings tool importing Container + ReviewsService and calling the service in-process instead of the REST API",
+          "passed": true,
+          "evidence": "matched: mcp/src/tools/get-findings.ts:1-2 (mcp/ package boundary — never import server code (SKILL rule 8))",
+          "rule": "Hard rule 8 — mcp never imports server code"
+        },
+        {
+          "text": "[8.3] No finding flags the ApiClient fetch wrapper or the list-agents tool using it — container ports are a server-side concept and do not apply inside mcp/",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Hard rule 8 — plain fetch to the API is the sanctioned thin-client pattern in mcp/"
+        },
+        {
+          "text": "[8.4] No finding flags the env-validated config loader",
+          "passed": true,
+          "evidence": "correctly not flagged",
+          "rule": "Config loaded at the package entry is correct"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "old_skill": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 110.35,
+        "stddev": 33.3047,
+        "min": 86.8,
+        "max": 133.9
+      },
+      "tokens": {
+        "mean": 44193.5,
+        "stddev": 3647.9639,
+        "min": 41614,
+        "max": 46773
+      }
+    },
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "time_seconds": {
+        "mean": 133.75,
+        "stddev": 53.3866,
+        "min": 96,
+        "max": 171.5
+      },
+      "tokens": {
+        "mean": 45672.5,
+        "stddev": 6374.5676,
+        "min": 41165,
+        "max": 50180
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.00",
+      "time_seconds": "-23.4",
+      "tokens": "-1479"
+    }
+  },
+  "notes": [
+    "Iteration-4 compares the NEW skill version (adds Hard rule 8: mcp/ is a thin HTTP client of the REST API — never imports server code, never touches the DB; plain fetch to the API is sanctioned there) against the pre-change snapshot (old_skill).",
+    "Result: NO quantitative delta — all four configs perfect (eval-7 6/6 both arms; eval-8 4/4 both arms).",
+    "Why the planted old-skill trap did not fire: the real mcp/README.md and mcp/src code state the thin-client boundary explicitly, so the old-skill agent recovered the rule from the environment (same effect as iterations 1-2: the repo teaches what the skill teaches). The delta the rule buys is in-context guidance, not net-new knowledge.",
+    "Qualitative difference: the new-skill agent cited hard rule 8 directly and needed no repo excursion to justify the mcp findings; the old-skill agent derived the boundary from README+code.",
+    "Regression control clean: eval-7 (port-placement) unchanged at 6/6 on both versions — the mcp addition broke nothing.",
+    "Single run per configuration — treat as one sample."
+  ]
+}

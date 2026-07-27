@@ -1,0 +1,4 @@
+# pnpm 11 reads build-script allow-listing from here (it moved out of package.json's `pnpm` field).
+# esbuild ships a native binary via a postinstall step; tsx and vitest both need it.
+allowBuilds:
+  esbuild: true

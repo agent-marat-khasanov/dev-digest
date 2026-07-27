@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/contracts/report.ts",
+      "lines": [3, 23],
+      "rule": "Dependency rule / type-only imports count (shared contract imports infrastructure row type)",
+      "explanation": "The domain-layer shared contract imports the Drizzle row type ReportRunRow from modules/reports/repository and embeds it in ReportDetailDto (latestRun). vendor/shared is mirrored into client/, so this couples the shared, client-synced surface to server infrastructure and breaks the mirror the moment it is synced; import type does not exempt it (SKILL rules 1 and 9). It also bypasses Zod: ReportDetailDto is a hand-written interface naming a server type instead of a z.infer-derived shape.",
+      "fix": "Delete the repository import; define the latestRun shape as a Zod schema in the contract (e.g. reportRunSummarySchema with only the fields the wire needs) and derive ReportDetailDto via z.infer from a reportDetailSchema."
+    },
+    {
+      "file": "server/src/modules/reports/helpers.ts",
+      "lines": [24, 30],
+      "rule": "Map at the boundary (raw Drizzle row escapes to HTTP)",
+      "explanation": "toReportDetailDto spreads the raw ReportRunRow into the DTO as latestRun without any row-to-DTO conversion, and the detail route returns it unvalidated, so internal columns (workspaceId, etc.) leak straight to the wire (SKILL rule 5).",
+      "fix": "Add a row-to-DTO mapper in helpers.ts that converts the ReportRunRow to the contract's Zod-defined latestRun shape before it is placed in ReportDetailDto."
+    }
+  ]
+}
