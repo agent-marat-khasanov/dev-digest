@@ -128,6 +128,41 @@ describe('scoreEval', () => {
     expect(mustNotFlag.pass).toBe(false);
   });
 
+  // Mutation-killing (L06 Stretch 5): the overlap tolerance in `overlaps` — an
+  // expected finding matches an actual one whose line span OVERLAPS but is not
+  // identical ("the model reported a slightly different line in the same hunk").
+  // The original suite only used exact same-line spans, so a mutation of the
+  // overlap operator (`a.start_line <= b.end_line` → `>=`) SURVIVED. These kill it.
+  it('overlap tolerance: expected 10-12 matches actual 11-13 (offset overlap) → recall 1', () => {
+    const score = scoreEval(
+      [expectedFinding({ start_line: 10, end_line: 12 })],
+      [finding({ start_line: 11, end_line: 13 })],
+      new Set(),
+    );
+    expect(score.matched).toBe(1);
+    expect(score.recall).toBe(1);
+  });
+
+  it('overlap tolerance: expected 11-13 matches actual 10-12 (reverse offset overlap) → recall 1', () => {
+    const score = scoreEval(
+      [expectedFinding({ start_line: 11, end_line: 13 })],
+      [finding({ start_line: 10, end_line: 12 })],
+      new Set(),
+    );
+    expect(score.matched).toBe(1);
+    expect(score.recall).toBe(1);
+  });
+
+  it('overlap tolerance: disjoint spans (10-10 vs 12-12) do NOT match → recall 0', () => {
+    const score = scoreEval(
+      [expectedFinding({ start_line: 10, end_line: 10 })],
+      [finding({ start_line: 12, end_line: 12 })],
+      new Set(),
+    );
+    expect(score.matched).toBe(0);
+    expect(score.recall).toBe(0);
+  });
+
   it('sanity check: a deliberately wrong expectation fails the assertion (proves the gate is live)', () => {
     const score = scoreEval([expectedFinding()], [], new Set());
     expect(() => expect(score.recall).toBe(1)).toThrow();
