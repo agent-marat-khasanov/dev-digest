@@ -113,6 +113,15 @@
 
 ## Session Notes
 
+### 2026-07-27 — Eval UI rebuilt against the course design mockups
+- **Read the design BEFORE building, and check the vendored kit first.** The first pass shipped bespoke tables/charts; the mockups were actually built on `vendor/ui` primitives that already existed: `MetricCard({label,value,delta,trend})` IS the mockup's metric tile (renders the signed delta + `Sparkline` for you), `LineChart` defaults to `yMin 0.6 / yMax 1.0` — literally the METRIC TREND axis — and `BarRow`/`Sparkline`/`Modal({title,subtitle,footer})`/`Tabs` cover the rest. Composing the kit got the design nearly for free; the hand-rolled versions had to be thrown away.
+- **`MetricCard.delta` takes a raw decimal and renders `.toFixed(2)` with an arrow** — good for a `↑0.04` screen, but a `▲4pt` screen needs its own helper (`round(new*100) - round(old*100)`); the kit exposes no delta-suffix prop, so don't try to force "pt" through it.
+- **Screen structure follows the design, not convenience:** trend + compare belong to the per-agent dashboard page (`/eval/[agentId]`), NOT the AgentEditor Evals tab. Putting them in the tab was the original mistake.
+- **Let the API define the "run" unit.** Once the server returned run-level batches (`EvalRunBatch`), the client-side `groupRunsByBatch` helper became dead weight and was deleted — client aggregation duplicating server aggregation is a drift source.
+- **A JSON textarea over `ExpectedFinding[]` beats a per-field form** for eval cases: the contract is an array (0 = decoy, 1..N = must-find), so a single-finding dropdown form silently can't express half the domain.
+- **Multi-worktree danger:** an implementer ran `rm -rf` against the SHARED main checkout instead of its worktree (caught and reverted via `git checkout --`). Read/Edit tools refuse cross-tree writes, but `Bash rm` has no such guard — always verify `pwd`/absolute path before destructive shell commands in a worktree session, and `git status` the main checkout afterwards.
+- RTL: when a route renders the same string twice (agent name in an `<h1>` and in a `<select><option>`), `getByText` throws "multiple elements" — use `getByRole("heading", {name})` or `getAllByText`.
+
 ### 2026-07-26 — Agent Eval Pipeline UI (L06, SPEC-04)
 - Mirrored the Skills Evals tab for agents: AgentEditor **Evals** tab (case list, run-all with cost-estimate→confirm, single-case run, Compare, Case Editor create/edit, Trend chart) + a sidebar **Eval Dashboard** page (`/eval`). "Turn into eval case" on `FindingCard` is disabled until the finding is accepted/dismissed.
 - **Any component that renders `<AppShell>` needs `vi.mock("@/components/app-shell", ...)` in tests** — AppShell → `useGlobalShortcuts` → `useRouter()` throws "invariant expected app router to be mounted" under plain RTL `render()`. Precedent: `TourView.test.tsx`.
