@@ -5,8 +5,8 @@ import type { EvalOwnerKind } from '@devdigest/shared';
 
 /**
  * Eval data-access. Owns `eval_cases` and `eval_runs`. Workspace-scoped.
- * Cases are created via the DB seed for now (no create/edit route this lesson);
- * this module reads cases + persists run results.
+ * Skill-owned cases come from the DB seed; agent-owned cases are also minted
+ * from findings and created/edited via the L06 routes. Persists run results.
  */
 
 export type EvalCaseRow = typeof t.evalCases.$inferSelect;

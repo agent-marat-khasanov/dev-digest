@@ -39,9 +39,10 @@ import { EvalsService } from './service.js';
  *   POST   /eval-runs                          → run every agent's case set (confirm-gated)
  *   GET    /eval-dashboard                     → workspace-wide sidebar dashboard
  *
- * Cases are created via the DB seed for now — there is no create/edit route yet.
- * A run executes the skill through @devdigest/reviewer-core and scores the
- * findings against the case's expected output (see EvalsService).
+ * Skill-owned cases come from the DB seed; agent-owned cases are minted from
+ * findings, created/edited via the routes above, or seeded. A run executes the
+ * owner through @devdigest/reviewer-core and scores the findings against the
+ * case's expected output (see EvalsService).
  */
 
 const CaseParams = z.object({ id: z.string().uuid(), caseId: z.string().uuid() });

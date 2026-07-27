@@ -803,7 +803,7 @@ router.get('/api/v1/users', (req, res) => {
         inputDiff: `diff --git a/src/api/preview.ts b/src/api/preview.ts
 --- a/src/api/preview.ts
 +++ b/src/api/preview.ts
-@@ -1,2 +1,8 @@
+@@ -1,2 +1,9 @@
 +const ALLOWED_HOSTS = new Set(["cdn.acme.com", "static.acme.com"]);
  export async function fetchPreview(req: Request) {
 +  const target = new URL(req.query.url as string);
