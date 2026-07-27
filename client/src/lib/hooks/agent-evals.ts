@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import type {
+  AgentVersion,
   EvalCase,
   EvalCaseInput,
   EvalCaseSummary,
@@ -154,5 +155,15 @@ export function useRunAllAgentEvals() {
   return useMutation({
     mutationFn: () => api.post<EvalDashboardOverview>("/eval-runs", { confirm: true }),
     onSuccess: () => qc.invalidateQueries({ queryKey: evalDashboardOverviewKey }),
+  });
+}
+
+/** One agent config snapshot (GET /agents/:id/versions/:version) — used by
+ * the Compare modal's system-prompt diff and its "Promote" action. */
+export function useAgentVersionSnapshot(agentId: string, version: number | null) {
+  return useQuery({
+    queryKey: ["agent", agentId, "version", version],
+    queryFn: () => api.get<AgentVersion>(`/agents/${agentId}/versions/${version}`),
+    enabled: version != null,
   });
 }

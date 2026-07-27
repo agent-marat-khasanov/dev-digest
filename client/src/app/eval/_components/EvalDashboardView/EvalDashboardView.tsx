@@ -1,23 +1,28 @@
-/* /eval — Eval Dashboard. Per-agent regression rows + recent runs across the
-   workspace, with a "Run all agents" action gated by a cost estimate +
-   explicit confirm. Mirrors the skill Evals tab layout at dashboard scale. */
+/* /eval — Eval Dashboard (Screen 1). Agent cards (icon, model, last run,
+   sparkline, headline metrics) each linking to /eval/:agentId, plus a
+   "recent eval runs" table across the whole workspace. "Run all agents" is
+   gated by a cost estimate + explicit confirm. */
 "use client";
 
 import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Button, EmptyState, ErrorState, Skeleton } from "@devdigest/ui";
+import { Button, EmptyState, ErrorState, SectionLabel, Skeleton } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
 import {
   useEvalDashboardOverview,
   useEvalRunsEstimate,
   useRunAllAgentEvals,
 } from "@/lib/hooks/agent-evals";
-import { formatCost, formatMetric } from "./helpers";
+import { MetricBarCell } from "../MetricBarCell";
+import { AgentEvalCard } from "./_components/AgentEvalCard";
+import { formatCost, formatRanAt } from "./helpers";
 import { s } from "./styles";
 
+const CRUMB = [{ label: "Skills Lab" }, { label: "Eval Dashboard" }];
+
 export function EvalDashboardView() {
-  const t = useTranslations("evalDashboard");
+  const t = useTranslations("evalDashboard.list");
   const { data, isLoading, isError, refetch } = useEvalDashboardOverview();
   const estimate = useEvalRunsEstimate();
   const runAll = useRunAllAgentEvals();
@@ -25,13 +30,13 @@ export function EvalDashboardView() {
 
   if (isLoading) {
     return (
-      <AppShell crumb={[{ label: t("title") }]}>
+      <AppShell crumb={CRUMB}>
         <div style={s.page}>
           <Skeleton height={32} width={280} />
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
-            <Skeleton height={54} />
-            <Skeleton height={54} />
-            <Skeleton height={54} />
+            <Skeleton height={72} />
+            <Skeleton height={72} />
+            <Skeleton height={72} />
           </div>
         </div>
       </AppShell>
@@ -40,7 +45,7 @@ export function EvalDashboardView() {
 
   if (isError || !data) {
     return (
-      <AppShell crumb={[{ label: t("title") }]}>
+      <AppShell crumb={CRUMB}>
         <div style={s.page}>
           <ErrorState body={t("loadError")} onRetry={() => refetch()} />
         </div>
@@ -48,10 +53,10 @@ export function EvalDashboardView() {
     );
   }
 
-  const isEmpty = data.recent_runs.length === 0;
+  const isEmpty = data.agents.length === 0 && data.recent_runs.length === 0;
 
   return (
-    <AppShell crumb={[{ label: t("title") }]}>
+    <AppShell crumb={CRUMB}>
       <div style={s.page}>
         <div style={s.header}>
           <div style={s.headerText}>
@@ -59,7 +64,7 @@ export function EvalDashboardView() {
             <p style={s.subtitle}>{t("subtitle")}</p>
           </div>
           <Button
-            kind="secondary"
+            kind="primary"
             size="sm"
             icon="Play"
             disabled={runAll.isPending || data.agents.length === 0}
@@ -100,55 +105,48 @@ export function EvalDashboardView() {
         )}
 
         {isEmpty ? (
-          <EmptyState
-            icon="FlaskConical"
-            title={t("emptyTitle")}
-            body={t("emptyBody")}
-          />
+          <EmptyState icon="FlaskConical" title={t("emptyTitle")} body={t("emptyBody")} />
         ) : (
           <>
             <div style={s.section}>
-              <h2 style={s.sectionHeading}>{t("agentsHeading")}</h2>
-              <div style={s.table}>
-                <div style={s.headRow}>
-                  <span>{t("columns.agent")}</span>
-                  <span>{t("columns.recall")}</span>
-                  <span>{t("columns.precision")}</span>
-                  <span>{t("columns.citation")}</span>
-                  <span>{t("columns.lastRun")}</span>
-                </div>
+              <SectionLabel icon="Cpu">{t("agentsHeading")}</SectionLabel>
+              <div style={s.cardList}>
                 {data.agents.map((agent) => (
-                  <Link key={agent.agent_id} href={`/agents/${agent.agent_id}?tab=evals`} style={s.row}>
-                    <span style={s.agentName}>{agent.agent_name}</span>
-                    <span style={s.metric}>{formatMetric(agent.recall)}</span>
-                    <span style={s.metric}>{formatMetric(agent.precision)}</span>
-                    <span style={s.metric}>{formatMetric(agent.citation_accuracy)}</span>
-                    <span style={s.passCount}>
-                      {agent.last_run_pass_count
-                        ? t("passCount", {
-                            passed: agent.last_run_pass_count.passed,
-                            total: agent.last_run_pass_count.total,
-                          })
-                        : t("neverRun")}
-                    </span>
-                  </Link>
+                  <AgentEvalCard key={agent.agent_id} agent={agent} />
                 ))}
               </div>
             </div>
 
             <div style={s.section}>
-              <h2 style={s.sectionHeading}>{t("recentRunsHeading")}</h2>
+              <SectionLabel icon="History">{t("recentRunsHeading")}</SectionLabel>
               {data.recent_runs.length === 0 ? (
-                <p style={s.metric}>{t("noRecentRuns")}</p>
+                <p style={s.noRecentRuns}>{t("noRecentRuns")}</p>
               ) : (
-                <div style={s.runsList}>
+                <div style={s.runsTable}>
+                  <div style={s.runsHeadRow}>
+                    <span>{t("columns.agent")}</span>
+                    <span>{t("columns.ranAt")}</span>
+                    <span>{t("columns.version")}</span>
+                    <span>{t("columns.recall")}</span>
+                    <span>{t("columns.precision")}</span>
+                    <span>{t("columns.citation")}</span>
+                    <span>{t("columns.pass")}</span>
+                  </div>
                   {data.recent_runs.map((run) => (
-                    <div key={run.id} style={s.runRow}>
-                      <span style={s.runName}>{run.case_name ?? run.case_id}</span>
-                      <span>{new Date(run.ran_at).toLocaleString()}</span>
-                      <span>{formatMetric(run.recall)}</span>
-                      <span>{formatMetric(run.precision)}</span>
-                      <span>{formatMetric(run.citation_accuracy)}</span>
+                    <div key={run.batch_id} style={s.runsRow}>
+                      <span style={s.runAgentName}>{run.agent_name}</span>
+                      <span className="mono" style={s.runRanAt}>
+                        {formatRanAt(run.ran_at)}
+                      </span>
+                      <Link href={`/eval/${run.agent_id}`} className="mono" style={s.versionLink}>
+                        v{run.agent_version ?? "—"}
+                      </Link>
+                      <MetricBarCell value={run.recall} color="var(--accent)" />
+                      <MetricBarCell value={run.precision} color="var(--ok)" />
+                      <MetricBarCell value={run.citation_accuracy} color="var(--warn)" />
+                      <span style={s.runPass}>
+                        {run.passed}/{run.total}
+                      </span>
                     </div>
                   ))}
                 </div>

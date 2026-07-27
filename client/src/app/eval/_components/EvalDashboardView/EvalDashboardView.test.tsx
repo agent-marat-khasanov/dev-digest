@@ -56,49 +56,48 @@ const OVERVIEW: EvalDashboardOverview = {
     {
       agent_id: "a1",
       agent_name: "Security Reviewer",
+      model: "gpt-4.1",
       recall: 0.8,
       precision: 0.9,
       citation_accuracy: 0.75,
       last_run_pass_count: { passed: 7, total: 8 },
+      last_run: { version: 7, ran_at: new Date("2026-05-29T09:14:00Z").toISOString(), passed: 7, total: 8 },
+      trend: [0.7, 0.75, 0.8],
     },
   ],
   recent_runs: [
     {
-      id: "r1",
-      case_id: "c1",
-      case_name: "stripe-key-leak",
+      batch_id: "b1",
+      agent_id: "a1",
+      agent_name: "Security Reviewer",
       ran_at: new Date("2026-07-20T10:00:00Z").toISOString(),
-      actual_output: [],
-      pass: true,
+      agent_version: 7,
       recall: 1,
       precision: 1,
       citation_accuracy: 1,
-      duration_ms: 1200,
-      cost_usd: 0.01,
-      agent_version: 3,
-      batch_id: "b1",
+      passed: 17,
+      total: 20,
+      cost_usd: 0.02,
     },
   ],
 };
 
 describe("EvalDashboardView", () => {
-  it("renders one row per agent with its latest metrics and pass count", () => {
+  it("renders one card per agent with its headline metrics, sparkline and last-run summary", () => {
     dashboardData = OVERVIEW;
     renderView();
 
-    expect(screen.getByText("Security Reviewer")).toBeInTheDocument();
+    expect(screen.getAllByText("Security Reviewer").length).toBeGreaterThan(0);
+    expect(screen.getByText("gpt-4.1")).toBeInTheDocument();
     expect(screen.getByText("80%")).toBeInTheDocument();
     expect(screen.getByText("90%")).toBeInTheDocument();
     expect(screen.getByText("75%")).toBeInTheDocument();
-    expect(screen.getByText("7/8 passed")).toBeInTheDocument();
-    expect(screen.getByText("stripe-key-leak")).toBeInTheDocument();
+    expect(screen.getByText(/Last run v7.*7\/8 pass/)).toBeInTheDocument();
+    expect(screen.getByText("17/20")).toBeInTheDocument();
   });
 
-  it("renders a clear empty state when no agent has any runs yet", () => {
-    dashboardData = {
-      agents: [{ ...OVERVIEW.agents[0]!, last_run_pass_count: null }],
-      recent_runs: [],
-    };
+  it("renders a clear empty state when there are no agents and no runs yet", () => {
+    dashboardData = { agents: [], recent_runs: [] };
     renderView();
 
     expect(screen.getByText("No eval runs yet")).toBeInTheDocument();
