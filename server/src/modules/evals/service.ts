@@ -162,8 +162,16 @@ export class EvalsService {
     if (!ctx || ctx.pull.workspaceId !== workspaceId) {
       throw new NotFoundError('Finding not found');
     }
+    // The case's owner IS the agent that produced the finding, so a finding from a
+    // review with no agent (e.g. imported/demo data) has nothing to attach to. That
+    // is a business-rule refusal, not a missing/foreign resource — say so plainly
+    // instead of a misleading 404.
     const agentId = ctx.review.agentId;
-    if (!agentId) throw new NotFoundError('Finding not found');
+    if (!agentId) {
+      throw new ValidationError(
+        'This finding did not come from an agent review, so it has no agent to own the eval case. Run an agent review on this PR and mint a case from one of its findings.',
+      );
+    }
 
     const existing = await this.repo.findCaseBySourceFinding(
       workspaceId,

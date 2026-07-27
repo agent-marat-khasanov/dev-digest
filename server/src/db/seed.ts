@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { createDb, type Db } from './client.js';
 import * as t from './schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
@@ -106,6 +106,41 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
   }
   const repoId = repo!.id;
 
+  // Patches for the two PR #482 files the seeded findings point at. Minting an eval
+  // case from a finding copies that file's patch as the case input, so without a
+  // patch the minted case would review an empty diff and could never reproduce the
+  // finding. Hunk header counts must match the body exactly, and each finding's line
+  // span must fall inside the new-side range (config.ts 12-12, users.ts 45-52) or
+  // the grounding gate drops it.
+  const DEMO_PATCHES: Record<string, string> = {
+    'src/config.ts': `--- a/src/config.ts
++++ b/src/config.ts
+@@ -10,4 +10,6 @@
+ export const config = {
+   port: Number(process.env.PORT ?? 3000),
++  stripeKey: "sk_live_EXAMPLE_NOT_A_REAL_KEY",
++  stripeWebhookSecret: "whsec_EXAMPLE_NOT_A_REAL_SECRET",
+   redisUrl: process.env.REDIS_URL,
+ };
+`,
+    'src/api/users.ts': `--- a/src/api/users.ts
++++ b/src/api/users.ts
+@@ -42,5 +42,12 @@
+ export async function listUsers(req: Request, res: Response) {
+   const users = await db.users.findMany({ take: 50 });
+
++  const enriched = [];
++  for (const user of users) {
++    const orders = await db.orders.findMany({ where: { userId: user.id } });
++    const profile = await db.profiles.findOne({ where: { userId: user.id } });
++    enriched.push({ ...user, orders, profile });
++  }
++
+   res.json(enriched);
+ }
+`,
+  };
+
   // ---- PR #482 (rate limiting) ----
   let [pr] = await db
     .select()
@@ -131,12 +166,24 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       })
       .returning();
 
-    // pr_files (subset)
+    // pr_files (subset) — the two files the findings point at carry a real patch.
     await db.insert(t.prFiles).values([
       { prId: pr!.id, path: 'src/middleware/ratelimit.ts', additions: 84, deletions: 0 },
       { prId: pr!.id, path: 'src/api/public/webhooks.ts', additions: 31, deletions: 6 },
-      { prId: pr!.id, path: 'src/config.ts', additions: 4, deletions: 0 },
-      { prId: pr!.id, path: 'src/api/users.ts', additions: 7, deletions: 2 },
+      {
+        prId: pr!.id,
+        path: 'src/config.ts',
+        additions: 4,
+        deletions: 0,
+        patch: DEMO_PATCHES['src/config.ts']!,
+      },
+      {
+        prId: pr!.id,
+        path: 'src/api/users.ts',
+        additions: 7,
+        deletions: 2,
+        patch: DEMO_PATCHES['src/api/users.ts']!,
+      },
     ]);
 
     // pr_commits
@@ -681,6 +728,29 @@ router.get('/api/v1/users', (req, res) => {
         });
       }
     }
+  }
+
+  // ---- backfill demo patches on pre-existing installs (L06) ----
+  // The pr_files rows above are only written when PR #482 is first created, so a
+  // database seeded before the patches existed keeps empty ones. Fill those in.
+  for (const [path, patch] of Object.entries(DEMO_PATCHES)) {
+    await db
+      .update(t.prFiles)
+      .set({ patch })
+      .where(and(eq(t.prFiles.prId, pr!.id), eq(t.prFiles.path, path), isNull(t.prFiles.patch)));
+  }
+
+  // ---- attach the demo review to an agent (L06) ----
+  // The sample review is seeded before the agents exist, so it lands with a null
+  // agent_id. A finding with no owning agent cannot be minted into an eval case
+  // (the case's owner IS the agent that produced the finding), which makes the
+  // "Turn into eval case" button unusable on demo data. Backfill it once the
+  // Security Reviewer exists. Idempotent: only fills rows that are still null.
+  if (securityId) {
+    await db
+      .update(t.reviews)
+      .set({ agentId: securityId })
+      .where(and(eq(t.reviews.workspaceId, workspaceId), isNull(t.reviews.agentId)));
   }
 
   // ---- agent-scoped eval cases for the Security Reviewer (agent Evals tab, L06) ----
