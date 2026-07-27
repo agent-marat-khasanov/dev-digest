@@ -12,6 +12,8 @@ import {
   TourSection,
   EvalRun,
   EvalRunRecord,
+  EvalRunBatch,
+  EvalDashboard,
   EvalDashboardOverview,
   MemoryItem,
   RunTrace,
@@ -229,30 +231,106 @@ describe('AI contracts parse fixtures', () => {
     ).not.toThrow();
   });
 
-  it('EvalDashboardOverview parses per-agent rows + recent runs', () => {
+  it('EvalRunBatch parses a run-level (batch) row', () => {
+    const batch = EvalRunBatch.parse({
+      batch_id: 'batch1',
+      agent_id: 'a1',
+      agent_name: 'Security Reviewer',
+      ran_at: '2026-05-29T09:14:00.000Z',
+      agent_version: 7,
+      recall: 0.85,
+      precision: 0.9,
+      citation_accuracy: 1,
+      passed: 17,
+      total: 20,
+      cost_usd: 0.12,
+    });
+    expect(batch.passed).toBe(17);
+    expect(() => EvalRunBatch.parse({ ...batch, agent_version: null, cost_usd: null })).not.toThrow();
+  });
+
+  it('EvalDashboard parses runs_total + batch-level recent_runs', () => {
+    const dashboard = EvalDashboard.parse({
+      owner_kind: 'agent',
+      owner_id: 'a1',
+      cases_total: 20,
+      current: {
+        recall: 0.85,
+        precision: 0.9,
+        citation_accuracy: 1,
+        traces_passed: 17,
+        traces_total: 20,
+        cost_usd: 0.12,
+      },
+      delta: { recall: 0.05, precision: 0, citation_accuracy: 0 },
+      trend: [],
+      runs_total: 5,
+      recent_runs: [
+        {
+          batch_id: 'batch1',
+          agent_id: 'a1',
+          agent_name: 'Security Reviewer',
+          ran_at: '2026-05-29T09:14:00.000Z',
+          agent_version: 7,
+          recall: 0.85,
+          precision: 0.9,
+          citation_accuracy: 1,
+          passed: 17,
+          total: 20,
+          cost_usd: 0.12,
+        },
+      ],
+      alert: null,
+    });
+    expect(dashboard.runs_total).toBe(5);
+    expect(dashboard.recent_runs).toHaveLength(1);
+  });
+
+  it('EvalDashboardOverview parses per-agent rows (model/last_run/trend) + batch-level recent runs', () => {
     const overview = EvalDashboardOverview.parse({
       agents: [
         {
           agent_id: 'a1',
           agent_name: 'Security Reviewer',
+          model: 'gpt-4.1',
           recall: 0.9,
           precision: 0.85,
           citation_accuracy: 1,
           last_run_pass_count: { passed: 7, total: 8 },
+          last_run: { version: 7, ran_at: '2026-05-29T09:14:00.000Z', passed: 17, total: 20 },
+          trend: [0.7, 0.8, 0.85, 0.9],
         },
         {
           agent_id: 'a2',
           agent_name: 'Style Reviewer',
+          model: 'gpt-4.1-mini',
           recall: null,
           precision: null,
           citation_accuracy: null,
           last_run_pass_count: null,
+          last_run: null,
+          trend: [],
         },
       ],
-      recent_runs: [],
+      recent_runs: [
+        {
+          batch_id: 'batch1',
+          agent_id: 'a1',
+          agent_name: 'Security Reviewer',
+          ran_at: '2026-05-29T09:14:00.000Z',
+          agent_version: 7,
+          recall: 0.9,
+          precision: 0.85,
+          citation_accuracy: 1,
+          passed: 17,
+          total: 20,
+          cost_usd: 0.12,
+        },
+      ],
     });
     expect(overview.agents).toHaveLength(2);
-    expect(overview.agents[1]!.last_run_pass_count).toBeNull();
+    expect(overview.agents[1]!.last_run).toBeNull();
+    expect(overview.agents[1]!.trend).toEqual([]);
   });
 
   it('RunTrace (data2.jsx TRACE single-document)', () => {

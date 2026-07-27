@@ -10,6 +10,7 @@ import {
   type EvalDashboard,
   type EvalDashboardOverview,
   type EvalOwnerKind,
+  type EvalRunBatch,
   type EvalRunRecord,
   type EvalTrendPoint,
   type FindingCategory,
@@ -324,10 +325,10 @@ export class EvalsService {
 
   /** Per-agent dashboard aggregate (AC-26). */
   async agentDashboard(workspaceId: string, agentId: string): Promise<EvalDashboard> {
-    await this.requireAgent(workspaceId, agentId);
+    const agent = await this.requireAgent(workspaceId, agentId);
     const cases = await this.repo.listCasesForOwner(workspaceId, 'agent', agentId);
     const runs = await this.repo.listRunsForCases(cases.map((c) => c.id));
-    return buildDashboard('agent', agentId, cases.length, cases, runs);
+    return buildDashboard('agent', agentId, agent.name, cases.length, runs);
   }
 
   /** Every run of the agent's cases, newest first (AC-27 Compare data source). */
@@ -389,7 +390,7 @@ export class EvalsService {
   async dashboardOverview(workspaceId: string): Promise<EvalDashboardOverview> {
     const agents = await this.container.agentsRepo.list(workspaceId);
     const rows: EvalDashboardOverview['agents'] = [];
-    const allRuns: { run: EvalRunRow; caseName: string | undefined }[] = [];
+    const allBatches: EvalRunBatch[] = [];
 
     for (const agent of agents) {
       const cases = await this.repo.listCasesForOwner(workspaceId, 'agent', agent.id);
@@ -397,33 +398,45 @@ export class EvalsService {
         rows.push({
           agent_id: agent.id,
           agent_name: agent.name,
+          model: agent.model,
           recall: null,
           precision: null,
           citation_accuracy: null,
           last_run_pass_count: null,
+          last_run: null,
+          trend: [],
         });
         continue;
       }
       const runs = await this.repo.listRunsForCases(cases.map((c) => c.id));
-      const nameById = new Map(cases.map((c) => [c.id, c.name]));
-      for (const r of runs) allRuns.push({ run: r, caseName: nameById.get(r.caseId) });
+      const batches = chronologicalBatches(runs);
+      const agentBatches = batches.map((batch) => toRunBatch(agent.id, agent.name, batch));
+      for (const b of agentBatches) allBatches.push(b);
 
-      const latest = latestBatch(runs);
-      const agg = latest ? aggregateBatch(latest) : null;
+      const latest = agentBatches.at(-1) ?? null;
       rows.push({
         agent_id: agent.id,
         agent_name: agent.name,
-        recall: agg?.recall ?? null,
-        precision: agg?.precision ?? null,
-        citation_accuracy: agg?.citationAccuracy ?? null,
-        last_run_pass_count: agg ? { passed: agg.passed, total: agg.total } : null,
+        model: agent.model,
+        recall: latest?.recall ?? null,
+        precision: latest?.precision ?? null,
+        citation_accuracy: latest?.citation_accuracy ?? null,
+        last_run_pass_count: latest ? { passed: latest.passed, total: latest.total } : null,
+        last_run: latest
+          ? {
+              version: latest.agent_version,
+              ran_at: latest.ran_at,
+              passed: latest.passed,
+              total: latest.total,
+            }
+          : null,
+        trend: agentBatches.map((b) => b.recall),
       });
     }
 
-    const recentRuns = allRuns
-      .sort((a, b) => b.run.ranAt.getTime() - a.run.ranAt.getTime())
-      .slice(0, 20)
-      .map(({ run, caseName }) => toRunRecord(run, caseName));
+    const recentRuns = allBatches
+      .sort((a, b) => new Date(b.ran_at).getTime() - new Date(a.ran_at).getTime())
+      .slice(0, 20);
 
     return { agents: rows, recent_runs: recentRuns };
   }
@@ -616,6 +629,31 @@ function toRunRecord(r: EvalRunRow, caseName: string | undefined): EvalRunRecord
   };
 }
 
+/**
+ * One run-level (batch) row for the dashboards — aggregates a batch's
+ * per-case `eval_runs` rows into the shape both `EvalDashboard.recent_runs`
+ * and `EvalDashboardOverview.recent_runs` list. `agentVersion` is read off
+ * the batch's first row (a batch is produced by one run, so every row in it
+ * shares the same `agentVersion`).
+ */
+function toRunBatch(agentId: string, agentName: string, batch: EvalRunRow[]): EvalRunBatch {
+  const agg = aggregateBatch(batch);
+  const first = batch[0]!;
+  return {
+    batch_id: first.batchId ?? first.id,
+    agent_id: agentId,
+    agent_name: agentName,
+    ran_at: new Date(batchTimestamp(batch)).toISOString(),
+    agent_version: first.agentVersion,
+    recall: agg.recall,
+    precision: agg.precision,
+    citation_accuracy: agg.citationAccuracy,
+    passed: agg.passed,
+    total: agg.total,
+    cost_usd: agg.costUsd,
+  };
+}
+
 /** Set of `${file}:${line}` keys on the new side of the diff (for citation accuracy). */
 function changedLineSet(diff: UnifiedDiff): Set<string> {
   const set = new Set<string>();
@@ -652,11 +690,6 @@ function chronologicalBatches(runs: EvalRunRow[]): EvalRunRow[][] {
   return [...groupByBatch(runs).values()].sort((a, b) => batchTimestamp(a) - batchTimestamp(b));
 }
 
-function latestBatch(runs: EvalRunRow[]): EvalRunRow[] | null {
-  const batches = chronologicalBatches(runs);
-  return batches.at(-1) ?? null;
-}
-
 interface BatchAggregate {
   recall: number;
   precision: number;
@@ -685,12 +718,11 @@ function aggregateBatch(runs: EvalRunRow[]): BatchAggregate {
 
 function buildDashboard(
   ownerKind: EvalOwnerKind | null,
-  ownerId: string | null,
+  ownerId: string,
+  ownerName: string,
   casesTotal: number,
-  cases: EvalCaseRow[],
   runs: EvalRunRow[],
 ): EvalDashboard {
-  const nameById = new Map(cases.map((c) => [c.id, c.name]));
   const batches = chronologicalBatches(runs);
   const trend: EvalTrendPoint[] = batches.map((batch) => {
     const agg = aggregateBatch(batch);
@@ -709,15 +741,16 @@ function buildDashboard(
   const latestAgg = latest ? aggregateBatch(latest) : null;
   const prevAgg = previous ? aggregateBatch(previous) : null;
 
-  const recentRuns = [...runs]
-    .sort((a, b) => b.ranAt.getTime() - a.ranAt.getTime())
-    .slice(0, 20)
-    .map((r) => toRunRecord(r, nameById.get(r.caseId)));
+  const recentRuns = batches
+    .map((batch) => toRunBatch(ownerId, ownerName, batch))
+    .sort((a, b) => new Date(b.ran_at).getTime() - new Date(a.ran_at).getTime())
+    .slice(0, 20);
 
   return {
     owner_kind: ownerKind,
     owner_id: ownerId,
     cases_total: casesTotal,
+    runs_total: batches.length,
     current: {
       recall: latestAgg?.recall ?? 0,
       precision: latestAgg?.precision ?? 0,
