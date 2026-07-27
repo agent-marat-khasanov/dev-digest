@@ -1,4 +1,4 @@
-/* EvalCaseRow — one agent eval case: status icon + name + expected/got line + badge + run action. */
+/* EvalCaseRow — one agent eval case: status icon + name + expected/got line + badge + actions. */
 "use client";
 
 import { useTranslations } from "next-intl";
@@ -12,16 +12,21 @@ const spin = { animation: "ddspin 1s linear infinite" } as const;
 export function EvalCaseRow({
   summary,
   isRunning,
+  isDeleting,
   onRun,
   onEdit,
+  onDelete,
 }: {
   summary: EvalCaseSummary;
   isRunning: boolean;
+  isDeleting: boolean;
   onRun: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   const t = useTranslations("agents.editor.evals");
   const { last_run, primary, expected_count } = summary;
+  const busy = isRunning || isDeleting;
 
   return (
     <div style={s.row}>
@@ -32,9 +37,7 @@ export function EvalCaseRow({
           {summary.name}
         </span>
         <span style={s.sub}>
-          {last_run
-            ? t("expectedGot", { n: expected_count, m: last_run.actual_count })
-            : t("neverRun", { n: expected_count })}
+          {last_run ? t("expectedGot", { n: expected_count, m: last_run.actual_count }) : t("neverRun")}
         </span>
       </div>
 
@@ -54,22 +57,31 @@ export function EvalCaseRow({
 
       <div style={s.actions}>
         <button
+          onClick={onRun}
+          disabled={busy}
+          title={t("run")}
+          aria-label={t("run")}
+          style={s.iconBtn(busy)}
+        >
+          <Icon.Play size={15} style={isRunning ? spin : undefined} />
+        </button>
+        <button
           onClick={onEdit}
-          disabled={isRunning}
+          disabled={busy}
           title={t("edit")}
           aria-label={t("edit")}
-          style={s.iconBtn(isRunning)}
+          style={s.iconBtn(busy)}
         >
           <Icon.Edit size={15} />
         </button>
         <button
-          onClick={onRun}
-          disabled={isRunning}
-          title={t("run")}
-          aria-label={t("run")}
-          style={s.iconBtn(isRunning)}
+          onClick={onDelete}
+          disabled={busy}
+          title={t("delete")}
+          aria-label={t("delete")}
+          style={s.iconBtn(busy)}
         >
-          <Icon.Play size={15} style={isRunning ? spin : undefined} />
+          <Icon.Trash size={15} style={isDeleting ? spin : undefined} />
         </button>
       </div>
     </div>

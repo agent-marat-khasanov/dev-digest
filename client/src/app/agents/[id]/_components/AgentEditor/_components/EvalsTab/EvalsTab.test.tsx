@@ -26,21 +26,24 @@ const DASHBOARD: EvalDashboard = {
   owner_kind: "agent",
   owner_id: "ag1",
   cases_total: 2,
-  current: { recall: 0.9, precision: 0.8, citation_accuracy: 0.75, traces_passed: 1, traces_total: 2, cost_usd: 0.02 },
-  delta: { recall: 0, precision: 0, citation_accuracy: 0 },
+  current: { recall: 0.82, precision: 0.91, citation_accuracy: 0.95, traces_passed: 17, traces_total: 20, cost_usd: 0.02 },
+  delta: { recall: 0.04, precision: -0.02, citation_accuracy: 0.01 },
   trend: [],
+  runs_total: 3,
   recent_runs: [],
   alert: null,
 };
 
 const runAllMutate = vi.fn();
 const runOneMutate = vi.fn();
+const deleteMutate = vi.fn();
 
 const mockUseAgentEvals = vi.fn();
 const mockUseAgentEvalDashboard = vi.fn();
 const mockUseAgentEvalRunsEstimate = vi.fn();
 const mockUseRunAgentEvals = vi.fn();
 const mockUseRunAgentEvalCase = vi.fn();
+const mockUseDeleteAgentEvalCase = vi.fn();
 const mockUseAgentEvalCase = vi.fn();
 
 vi.mock("@/lib/hooks/agent-evals", () => ({
@@ -49,19 +52,14 @@ vi.mock("@/lib/hooks/agent-evals", () => ({
   useAgentEvalRunsEstimate: (...args: unknown[]) => mockUseAgentEvalRunsEstimate(...args),
   useRunAgentEvals: (...args: unknown[]) => mockUseRunAgentEvals(...args),
   useRunAgentEvalCase: (...args: unknown[]) => mockUseRunAgentEvalCase(...args),
+  useDeleteAgentEvalCase: (...args: unknown[]) => mockUseDeleteAgentEvalCase(...args),
   useAgentEvalCase: (...args: unknown[]) => mockUseAgentEvalCase(...args),
 }));
 
-// CompareView/CaseEditor/TrendChart each pull their own real data hooks
-// (useAgentEvalRuns, useCreateAgentEvalCase, react-query/recharts) — stub
-// them here so this container test isolates EvalsTab's own branching, per
-// the established pattern (client/INSIGHTS.md: mock leaf child modules).
-vi.mock("./_components/CompareView", () => ({
-  CompareView: () => <div data-testid="compare-view-stub" />,
-}));
-vi.mock("./_components/TrendChart", () => ({
-  TrendChart: () => <div data-testid="trend-chart-stub" />,
-}));
+// CaseEditor pulls its own real data hooks (useAgent, useAgentEvalRuns, the
+// create/update mutations) — stub it here so this container test isolates
+// EvalsTab's own branching, per the established pattern (client/INSIGHTS.md:
+// mock leaf child modules).
 vi.mock("./_components/CaseEditor", () => ({
   CaseEditor: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="case-editor-stub">
@@ -91,6 +89,7 @@ beforeEach(() => {
   });
   mockUseRunAgentEvals.mockReturnValue({ mutate: runAllMutate, isPending: false });
   mockUseRunAgentEvalCase.mockReturnValue({ mutate: runOneMutate, isPending: false, variables: undefined });
+  mockUseDeleteAgentEvalCase.mockReturnValue({ mutate: deleteMutate, isPending: false, variables: undefined });
   mockUseAgentEvalCase.mockReturnValue({ data: undefined });
 });
 
@@ -98,17 +97,27 @@ afterEach(() => {
   cleanup();
   runAllMutate.mockReset();
   runOneMutate.mockReset();
+  deleteMutate.mockReset();
 });
 
 describe("EvalsTab", () => {
-  it("lists cases with status, expected/got counts, and severity·category badge (or empty [])", () => {
+  it("shows the four eval metric cards and lists cases with status, expected/got counts, and severity·category badge (or empty [])", () => {
     renderWithIntl();
+
+    // MetricCard splits "82" and "%" into separate text nodes — match the
+    // wrapping span's full textContent instead (client/INSIGHTS.md).
+    expect(screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "82%")).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "91%")).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "95%")).toBeInTheDocument();
+    expect(screen.getByText("17/20")).toBeInTheDocument();
+    expect(screen.getByText("View full dashboard →")).toHaveAttribute("href", "/eval/ag1");
+
     expect(screen.getByText("sql-injection-must-find")).toBeInTheDocument();
     expect(screen.getByText("expected 1 finding, got 1")).toBeInTheDocument();
     expect(screen.getByText("CRITICAL · security")).toBeInTheDocument();
 
     expect(screen.getByText("clean-refactor-decoy")).toBeInTheDocument();
-    expect(screen.getByText("expected 0 findings · never run")).toBeInTheDocument();
+    expect(screen.getByText("never run")).toBeInTheDocument();
     expect(screen.getByText("empty []")).toBeInTheDocument();
 
     expect(screen.getByText("1 / 2 passing")).toBeInTheDocument();
@@ -116,7 +125,7 @@ describe("EvalsTab", () => {
 
   it("run-all shows the cost estimate, requires confirm, then runs", () => {
     renderWithIntl();
-    fireEvent.click(screen.getByText("Run all"));
+    fireEvent.click(screen.getByText("Run all evals"));
 
     expect(screen.getByText("2 cases · ≈$0.1234 — run now?")).toBeInTheDocument();
     expect(runAllMutate).not.toHaveBeenCalled();
@@ -136,12 +145,24 @@ describe("EvalsTab", () => {
     expect(screen.queryByText(/run now\?/)).not.toBeInTheDocument();
   });
 
-  it("disables run-all and shows a running indicator while a run is already in progress", () => {
-    mockUseRunAgentEvals.mockReturnValue({ mutate: runAllMutate, isPending: true });
+  it("deletes a case after confirming", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderWithIntl();
 
-    const runAllBtn = screen.getByText("Running…").closest("button") as HTMLButtonElement;
-    expect(runAllBtn.disabled).toBe(true);
+    fireEvent.click(screen.getAllByLabelText("Delete this case")[0]!);
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      'Delete the eval case "sql-injection-must-find"? This cannot be undone.',
+    );
+    expect(deleteMutate).toHaveBeenCalledWith("case-1");
+  });
+
+  it("does not delete when the confirm is dismissed", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderWithIntl();
+
+    fireEvent.click(screen.getAllByLabelText("Delete this case")[0]!);
+    expect(deleteMutate).not.toHaveBeenCalled();
   });
 
   it("opens and closes the case editor from the New eval case button", () => {

@@ -1,24 +1,23 @@
 /* EvalsTab — agent eval cases: per-agent metrics header, case list, run all
-   (estimate → confirm → run) and per-case run. Mirrors the Skill Evals tab
-   (client/src/app/skills/[id]/_components/SkillDetail/_components/EvalsTab). */
+   (estimate → confirm → run) and per-case run/edit/delete. Mirrors the Skill
+   Evals tab (client/src/app/skills/[id]/_components/SkillDetail/_components/EvalsTab). */
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Badge, Button, ErrorState, Icon, MetricCard, Skeleton } from "@devdigest/ui";
+import { Badge, Button, ErrorState, Icon, MetricCard, SectionLabel, Skeleton } from "@devdigest/ui";
 import {
   useAgentEvalCase,
   useAgentEvalDashboard,
   useAgentEvalRunsEstimate,
   useAgentEvals,
+  useDeleteAgentEvalCase,
   useRunAgentEvalCase,
   useRunAgentEvals,
 } from "@/lib/hooks/agent-evals";
 import { CaseEditor } from "./_components/CaseEditor";
-import { CompareView } from "./_components/CompareView";
 import { EvalCaseRow } from "./_components/EvalCaseRow";
-import { TrendChart } from "./_components/TrendChart";
 import { s } from "./styles";
 
 export function EvalsTab({ agentId }: { agentId: string }) {
@@ -32,6 +31,7 @@ export function EvalsTab({ agentId }: { agentId: string }) {
   const estimate = useAgentEvalRunsEstimate(agentId);
   const runAll = useRunAgentEvals(agentId);
   const runOne = useRunAgentEvalCase(agentId);
+  const deleteCase = useDeleteAgentEvalCase(agentId);
   const editingCase = useAgentEvalCase(agentId, editingCaseId);
 
   if (isLoading) {
@@ -55,6 +55,7 @@ export function EvalsTab({ agentId }: { agentId: string }) {
   }
 
   const passed = data.filter((c) => c.last_run?.pass === true).length;
+  const editingSummary = data.find((c) => c.id === editingCaseId);
 
   const handleRunAllClick = () => setConfirmingRunAll(true);
   const handleCancelRunAll = () => setConfirmingRunAll(false);
@@ -66,17 +67,42 @@ export function EvalsTab({ agentId }: { agentId: string }) {
   return (
     <div style={s.wrap}>
       {dashboard.data && (
-        <div style={s.metricsRow}>
-          <MetricCard label={t("metrics.recall")} value={dashboard.data.current.recall.toFixed(2)} />
-          <MetricCard label={t("metrics.precision")} value={dashboard.data.current.precision.toFixed(2)} />
-          <MetricCard
-            label={t("metrics.citationAccuracy")}
-            value={dashboard.data.current.citation_accuracy.toFixed(2)}
-          />
-          <Link href="/eval" style={s.metricsLink}>
-            {t("metrics.viewDashboard")}
-          </Link>
-        </div>
+        <>
+          <SectionLabel
+            icon="Gauge"
+            right={
+              <Link href={`/eval/${agentId}`} style={s.metricsLink}>
+                {t("metrics.viewDashboard")}
+              </Link>
+            }
+          >
+            {t("metrics.heading")}
+          </SectionLabel>
+          <div style={s.metricsRow}>
+            <MetricCard
+              label={t("metrics.recall")}
+              value={Math.round(dashboard.data.current.recall * 100)}
+              suffix="%"
+              delta={dashboard.data.delta.recall * 100}
+            />
+            <MetricCard
+              label={t("metrics.precision")}
+              value={Math.round(dashboard.data.current.precision * 100)}
+              suffix="%"
+              delta={dashboard.data.delta.precision * 100}
+            />
+            <MetricCard
+              label={t("metrics.citationAccuracy")}
+              value={Math.round(dashboard.data.current.citation_accuracy * 100)}
+              suffix="%"
+              delta={dashboard.data.delta.citation_accuracy * 100}
+            />
+            <MetricCard
+              label={t("metrics.tracesPassed")}
+              value={`${dashboard.data.current.traces_passed}/${dashboard.data.current.traces_total}`}
+            />
+          </div>
+        </>
       )}
 
       <div style={s.headerRow}>
@@ -142,15 +168,16 @@ export function EvalsTab({ agentId }: { agentId: string }) {
               key={c.id}
               summary={c}
               isRunning={runAll.isPending || (runOne.isPending && runOne.variables === c.id)}
+              isDeleting={deleteCase.isPending && deleteCase.variables === c.id}
               onRun={() => runOne.mutate(c.id)}
               onEdit={() => setEditingCaseId(c.id)}
+              onDelete={() => {
+                if (window.confirm(t("deleteConfirm", { name: c.name }))) deleteCase.mutate(c.id);
+              }}
             />
           ))}
         </div>
       )}
-
-      <TrendChart agentId={agentId} />
-      <CompareView agentId={agentId} />
 
       {caseEditorOpen && <CaseEditor agentId={agentId} onClose={() => setCaseEditorOpen(false)} />}
 
@@ -159,6 +186,7 @@ export function EvalsTab({ agentId }: { agentId: string }) {
           agentId={agentId}
           caseId={editingCaseId}
           initialCase={editingCase.data}
+          summary={editingSummary}
           onClose={() => setEditingCaseId(null)}
         />
       )}

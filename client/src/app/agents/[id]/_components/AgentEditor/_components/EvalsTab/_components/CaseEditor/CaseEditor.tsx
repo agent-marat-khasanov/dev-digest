@@ -1,173 +1,165 @@
-/* CaseEditor — create or edit an agent eval case by pasting a diff (with an
-   inert preview via DiffViewer/parsePatch), choosing the expectation type
-   (must-find vs must-not-flag), and setting the expected finding's
-   file + line range. Create goes through POST /agents/:id/evals; passing
-   `caseId` + `initialCase` switches the form to edit mode, hydrating from
-   the existing case and saving via PATCH /agents/:id/evals/:caseId. */
+/* CaseEditor — create or edit an agent eval case: two-column modal, name +
+   pasted diff (with an inert colored preview) on the left, the raw
+   `ExpectedFinding[]` JSON contract on the right. Create goes through
+   POST /agents/:id/evals; passing `caseId` + `initialCase` switches the form
+   to edit mode, hydrating from the existing case and saving via
+   PATCH /agents/:id/evals/:caseId. "Run on save" immediately runs the case
+   after a successful save; "Run case" runs the already-persisted case. */
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button, FormField, Modal, SelectInput, Textarea, TextInput } from "@devdigest/ui";
-import type { EvalCase, EvalCaseInput, ExpectedFinding, FindingCategory, Severity } from "@devdigest/shared";
-import { DiffViewer } from "@/components/diff-viewer";
-import type { PrFile } from "@/lib/types";
+import { Button, Modal, Toggle } from "@devdigest/ui";
+import type { EvalCase, EvalCaseInput, EvalCaseSummary } from "@devdigest/shared";
 import { ApiError } from "@/lib/api";
-import { useCreateAgentEvalCase, useUpdateAgentEvalCase } from "@/lib/hooks/agent-evals";
-import { extractFilePath } from "./helpers";
+import { useAgent } from "@/lib/hooks/agents";
+import {
+  useAgentEvalRuns,
+  useCreateAgentEvalCase,
+  useRunAgentEvalCase,
+  useUpdateAgentEvalCase,
+} from "@/lib/hooks/agent-evals";
+import { ExpectedOutputPanel, type LastRunInfo } from "./_components/ExpectedOutputPanel";
+import { InputPanel, type InputTabKey } from "./_components/InputPanel";
+import { parseJson } from "./helpers";
 import { s } from "./styles";
-
-const SEVERITIES: Severity[] = ["CRITICAL", "WARNING", "SUGGESTION"];
-const CATEGORIES: FindingCategory[] = ["bug", "security", "perf", "style", "test"];
-
-type ExpectationType = "mustFind" | "mustNotFlag";
 
 export function CaseEditor({
   agentId,
   caseId,
   initialCase,
+  summary,
   onClose,
 }: {
   agentId: string;
   caseId?: string;
   initialCase?: EvalCase;
+  summary?: EvalCaseSummary;
   onClose: () => void;
 }) {
   const t = useTranslations("agents.editor.evals.caseEditor");
+  const agent = useAgent(agentId);
+  const runs = useAgentEvalRuns(agentId);
   const createCase = useCreateAgentEvalCase(agentId);
   const updateCase = useUpdateAgentEvalCase(agentId);
-
-  const initialExpected = (initialCase?.expected_output as ExpectedFinding[] | undefined) ?? [];
-  const firstExpected = initialExpected[0];
+  const runCase = useRunAgentEvalCase(agentId);
 
   const [name, setName] = useState(initialCase?.name ?? "");
   const [diffText, setDiffText] = useState(initialCase?.input_diff ?? "");
-  const [expectationType, setExpectationType] = useState<ExpectationType>(
-    !initialCase || initialExpected.length > 0 ? "mustFind" : "mustNotFlag",
+  const [inputTab, setInputTab] = useState<InputTabKey>("diff");
+  const [expectedJson, setExpectedJson] = useState(
+    JSON.stringify(initialCase?.expected_output ?? [], null, 2),
   );
-  const [severity, setSeverity] = useState<Severity>(firstExpected?.severity ?? "WARNING");
-  const [category, setCategory] = useState<FindingCategory>(firstExpected?.category ?? "bug");
-  const [title, setTitle] = useState(firstExpected?.title ?? "");
-  const [file, setFile] = useState(firstExpected?.file ?? "");
-  const [startLine, setStartLine] = useState(String(firstExpected?.start_line ?? 1));
-  const [endLine, setEndLine] = useState(String(firstExpected?.end_line ?? 1));
+  const [runOnSave, setRunOnSave] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-
-  const previewFiles: PrFile[] = diffText
-    ? [{ path: extractFilePath(diffText), additions: 0, deletions: 0, patch: diffText }]
-    : [];
 
   const isEditing = !!caseId;
   const activeMutation = isEditing ? updateCase : createCase;
+  const { valid: isValidJson, value: parsedExpected } = parseJson(expectedJson);
+
+  const latestRun = useMemo(() => {
+    if (!caseId || !runs.data) return undefined;
+    return [...runs.data]
+      .filter((r) => r.case_id === caseId)
+      .sort((a, b) => b.ran_at.localeCompare(a.ran_at))[0];
+  }, [runs.data, caseId]);
+
+  const lastRun: LastRunInfo | undefined = summary?.last_run
+    ? {
+        pass: summary.last_run.pass,
+        expectedCount: summary.expected_count,
+        actualCount: summary.last_run.actual_count,
+        durationMs: latestRun?.duration_ms ?? null,
+        costUsd: latestRun?.cost_usd ?? null,
+      }
+    : undefined;
 
   const handleSave = () => {
     setServerError(null);
-    const expectedOutput: ExpectedFinding[] =
-      expectationType === "mustFind"
-        ? [
-            {
-              severity,
-              category,
-              title,
-              file,
-              start_line: Number(startLine),
-              end_line: Number(endLine),
-            },
-          ]
-        : [];
-
     const input: EvalCaseInput = {
       owner_kind: "agent",
       owner_id: agentId,
       name,
       input_diff: diffText,
-      expected_output: expectedOutput,
+      expected_output: parsedExpected,
     };
 
-    const onSuccess = () => onClose();
     const onError = (err: unknown) =>
       setServerError(err instanceof ApiError ? err.message : t("saveError"));
+    const afterSave = (savedCaseId: string) => {
+      if (runOnSave) runCase.mutate(savedCaseId);
+      onClose();
+    };
 
     if (isEditing) {
-      updateCase.mutate({ caseId, patch: input }, { onSuccess, onError });
+      updateCase.mutate({ caseId, patch: input }, { onSuccess: () => afterSave(caseId), onError });
     } else {
-      createCase.mutate(input, { onSuccess, onError });
+      createCase.mutate(input, { onSuccess: (saved) => afterSave(saved.id), onError });
     }
   };
 
   const footer = (
     <div style={s.footer}>
-      <Button kind="ghost" size="sm" onClick={onClose}>
-        {t("cancel")}
-      </Button>
-      <Button
-        kind="primary"
-        size="sm"
-        loading={activeMutation.isPending}
-        disabled={activeMutation.isPending || !name || !diffText}
-        onClick={handleSave}
-      >
-        {t("save")}
-      </Button>
+      <div style={s.footerLeft}>
+        <Toggle on={runOnSave} onChange={setRunOnSave} />
+        <span style={s.runOnSaveLabel}>{t("runOnSave")}</span>
+      </div>
+      <div style={s.footerRight}>
+        <Button kind="ghost" size="sm" onClick={onClose}>
+          {t("cancel")}
+        </Button>
+        <Button
+          kind="secondary"
+          size="sm"
+          icon="Play"
+          loading={runCase.isPending}
+          disabled={!caseId || runCase.isPending}
+          onClick={() => caseId && runCase.mutate(caseId)}
+        >
+          {t("runCase")}
+        </Button>
+        <Button
+          kind="primary"
+          size="sm"
+          icon="Check"
+          loading={activeMutation.isPending}
+          disabled={activeMutation.isPending || !name || !diffText || !isValidJson}
+          onClick={handleSave}
+        >
+          {t("save")}
+        </Button>
+      </div>
     </div>
   );
 
   return (
-    <Modal title={isEditing ? t("editTitle") : t("newTitle")} onClose={onClose} footer={footer}>
-      <div style={{ padding: 20 }}>
+    <Modal
+      width={920}
+      title={name ? t("title", { name }) : t("newTitle")}
+      subtitle={t("subtitle", { agent: agent.data?.name ?? "" })}
+      onClose={onClose}
+      footer={footer}
+    >
+      <div style={s.body}>
         {serverError && <div style={s.error}>{serverError}</div>}
-
-        <FormField label={t("name")} required>
-          <TextInput value={name} onChange={setName} placeholder={t("namePlaceholder")} />
-        </FormField>
-
-        <FormField label={t("pasteDiff")} required>
-          <Textarea mono rows={8} value={diffText} onChange={setDiffText} placeholder={t("diffPlaceholder")} />
-        </FormField>
-
-        <FormField label={t("preview")}>
-          <DiffViewer files={previewFiles} />
-        </FormField>
-
-        <FormField label={t("expectationType")}>
-          <SelectInput
-            value={expectationType}
-            onChange={(v) => setExpectationType(v as ExpectationType)}
-            options={[
-              { value: "mustFind", label: t("mustFind") },
-              { value: "mustNotFlag", label: t("mustNotFlag") },
-            ]}
+        <div style={s.columns}>
+          <InputPanel
+            name={name}
+            onNameChange={setName}
+            diffText={diffText}
+            onDiffChange={setDiffText}
+            tab={inputTab}
+            onTabChange={setInputTab}
+            inputFiles={initialCase?.input_files}
+            inputMeta={initialCase?.input_meta}
           />
-        </FormField>
-
-        {expectationType === "mustFind" && (
-          <>
-            <FormField label={t("severity")}>
-              <SelectInput value={severity} onChange={(v) => setSeverity(v as Severity)} options={SEVERITIES} />
-            </FormField>
-            <FormField label={t("category")}>
-              <SelectInput value={category} onChange={(v) => setCategory(v as FindingCategory)} options={CATEGORIES} />
-            </FormField>
-            <FormField label={t("title")}>
-              <TextInput value={title} onChange={setTitle} placeholder={t("titlePlaceholder")} />
-            </FormField>
-            <FormField label={t("file")}>
-              <TextInput value={file} onChange={setFile} placeholder={t("filePlaceholder")} />
-            </FormField>
-            <div style={s.lineRangeRow}>
-              <div style={s.lineRangeField}>
-                <FormField label={t("startLine")}>
-                  <TextInput type="number" value={startLine} onChange={setStartLine} />
-                </FormField>
-              </div>
-              <div style={s.lineRangeField}>
-                <FormField label={t("endLine")}>
-                  <TextInput type="number" value={endLine} onChange={setEndLine} />
-                </FormField>
-              </div>
-            </div>
-          </>
-        )}
+          <ExpectedOutputPanel
+            json={expectedJson}
+            onJsonChange={setExpectedJson}
+            isValidJson={isValidJson}
+            lastRun={lastRun}
+          />
+        </div>
       </div>
     </Modal>
   );

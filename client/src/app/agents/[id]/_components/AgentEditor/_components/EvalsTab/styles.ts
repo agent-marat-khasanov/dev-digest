@@ -3,10 +3,8 @@ import type { CSSProperties } from "react";
 export const s = {
   wrap: { padding: "20px 24px 32px", maxWidth: 920 } satisfies CSSProperties,
 
-  metricsRow: { display: "flex", gap: 12, marginBottom: 20 } satisfies CSSProperties,
+  metricsRow: { display: "flex", gap: 12, marginBottom: 28 } satisfies CSSProperties,
   metricsLink: {
-    marginLeft: "auto",
-    alignSelf: "center",
     fontSize: 12.5,
     fontWeight: 600,
     color: "var(--accent)",
