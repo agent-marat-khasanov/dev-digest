@@ -24,6 +24,9 @@ export const COST_REGRESSION_RATIO = 1.25; // candidate mean tokens > 125% of ba
 // --- Tool allow-lists -------------------------------------------------------
 // Subagent-spawning tool name varies by harness; count both.
 export const SPAWN_TOOLS = new Set(["Task", "Agent"]);
+// Tools no eval ever needs. Stripped from an agent's declared set AND passed to the SDK as
+// `disallowedTools`, which is the only option that removes a tool from the model's context.
+export const MUTATING_TOOLS = ["Write", "Edit", "NotebookEdit", "Bash"] as const;
 // workflowTask runs against the LIVE repo with bypassPermissions — keep this read-only.
 export const WORKFLOW_ALLOWED_TOOLS = ["Read", "Grep", "Glob", "Task", "Agent", "Skill"];
 

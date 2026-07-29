@@ -301,11 +301,21 @@ tokens > 125% of baseline), `missing_data` (a config has zero records for a test
 
 ## Safety
 
-Sessions run with `permissionMode: "bypassPermissions"`, so `workflowTask` keeps a **read-only
-allow-list** (`Read, Grep, Glob, Task, Agent, Skill` — no `Bash`/`Write`/`Edit`). Don't copy the
-bypass pattern into a context that grants write tools. `workflowTask` runs against the LIVE repo;
-a model that decides to `Write` could touch real files, so prefer a throwaway clone for the
-workflow tier locally.
+Sessions run with `permissionMode: "bypassPermissions"`, which auto-approves every call — so the
+tool **set** is the only real boundary. `runClaude` therefore passes the list as SDK `tools`
+(*"the base set of available built-in tools"*) and adds `disallowedTools`
+(`Write, Edit, NotebookEdit, Bash`), which the SDK removes from the model's context entirely.
+
+> **Do not use `allowedTools` alone for this.** Per the SDK's own docs it only means
+> *auto-approved without prompting* — "to restrict which tools are available, use the `tools`
+> option instead". An earlier version passed only `allowedTools`, and an `investigator` eval with
+> a `Read, Grep, Glob` "allow-list" edited a fixture on disk. If you fork this runner, keep both.
+
+`workflowTask` keeps a read-only list (`Read, Grep, Glob, Task, Agent, Skill`) and runs against the
+LIVE repo. Note that `Task`/`Agent` let it spawn subagents, and a spawned subagent is not confined
+to `cwd` — a `contrast` control run has been observed reading files from an unrelated project
+elsewhere on the machine. Reads are harmless, but prefer a throwaway clone for the workflow tier if
+that bothers you.
 
 ## What is not bundled
 

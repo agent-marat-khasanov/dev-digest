@@ -5,6 +5,7 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { MUTATING_TOOLS } from "../config.js";
 import { SKILLS_DIR, AGENTS_DIR } from "./paths.js";
 
 function stripFrontmatter(md: string): string {
@@ -50,8 +51,9 @@ export function agentContent(agentName: string): string {
 
 // Tools the eval refuses to hand a subagent: evals run with bypassPermissions against the LIVE
 // repo, so a mutating tool could take real actions. An agent that declares these still runs — it
-// just runs read-only, which is all an eval ever needs.
-const MUTATING_TOOLS = new Set(["Write", "Edit", "NotebookEdit", "Bash"]);
+// just runs read-only, which is all an eval ever needs. The set lives in config.ts because
+// run-claude.ts also feeds it to the SDK as `disallowedTools`.
+const MUTATING = new Set<string>(MUTATING_TOOLS);
 const READONLY_FALLBACK = ["Read", "Grep", "Glob"];
 
 /**
@@ -74,5 +76,5 @@ export function agentTools(agentName: string): string[] {
   return raw
     .split(",")
     .map((t) => t.trim())
-    .filter((t) => t.length > 0 && !MUTATING_TOOLS.has(t));
+    .filter((t) => t.length > 0 && !MUTATING.has(t));
 }

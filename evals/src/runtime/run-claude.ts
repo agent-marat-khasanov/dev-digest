@@ -4,7 +4,7 @@
  */
 
 import { query, type Options } from "@anthropic-ai/claude-agent-sdk";
-import { EVAL_MODEL, MAX_TURNS, SPAWN_TOOLS } from "../config.js";
+import { EVAL_MODEL, MAX_TURNS, MUTATING_TOOLS, SPAWN_TOOLS } from "../config.js";
 import { REPO_ROOT } from "../artifacts/paths.js";
 import { subscriptionEnv } from "./env.js";
 
@@ -62,9 +62,17 @@ export async function runClaude(prompt: string, opts: RunOptions = {}): Promise<
   const options: Options = {
     model: opts.model ?? EVAL_MODEL,
     maxTurns: opts.maxTurns ?? MAX_TURNS,
-    permissionMode: "bypassPermissions", // safe: evals only read/plan and tools are allow-listed
+    // bypassPermissions auto-approves every call, so the tool SET is the only real boundary.
+    permissionMode: "bypassPermissions",
     systemPrompt,
+    // `tools` is what actually RESTRICTS ("base set of available built-in tools"); `allowedTools`
+    // only auto-approves ("To restrict which tools are available, use the `tools` option instead"
+    // — the SDK's own docs). Passing only allowedTools left every tool available: an agent eval
+    // was observed editing a fixture on disk despite a Read/Grep/Glob "allow-list".
+    tools: allowedTools,
     allowedTools,
+    // Belt and braces: even if a preset/default ever widens `tools`, these stay out of context.
+    disallowedTools: [...MUTATING_TOOLS],
     cwd: opts.cwd ?? REPO_ROOT,
     // Default: do NOT load on-disk config — isolates the injected artifact. workflowTask overrides.
     settingSources: opts.settingSources ?? [],
