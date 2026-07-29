@@ -6,6 +6,7 @@
   "description": "Evals for the DevDigest Claude Code harness (skills + subagents + workflow). vitest + Claude Agent SDK, on the Claude Code subscription — no API token, no external services.",
   "scripts": {
     "eval": "vitest run",
+    "eval:all": "vitest run",
     "eval:gate": "tsx src/skill-quality.ts && vitest run src/records/stats.test.ts",
     "eval:summary": "tsx src/summary.ts",
     "eval:mine": "tsx src/mine-transcripts.ts",

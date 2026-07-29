@@ -31,11 +31,14 @@ on:
   workflow_dispatch:
     inputs:
       tier:
-        description: 'Model-backed tier to run (costs money)'
+        # `all` runs every tier in one go. It is the expensive one: the workflow tier spins a full
+        # Claude Code session per case (one of them dispatches a nested subagent), so prefer a
+        # single tier while iterating and keep `all` for a deliberate full sweep.
+        description: 'Model-backed tier to run (costs money; `all` = every tier)'
         required: true
         default: skills
         type: choice
-        options: [skills, agents, workflow]
+        options: [skills, agents, workflow, all]
 
 permissions:
   contents: read
