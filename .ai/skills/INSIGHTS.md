@@ -132,6 +132,15 @@ root `AGENTS.md`/`CLAUDE.md`.
   (`Write, Edit, NotebookEdit, Bash` — these are removed from the model's context). If you ever write
   a runner that sandboxes a session by tool set, assert the sandbox by trying to breach it — a green
   eval suite proves nothing about tool confinement.
+- **An agent asked to copy data verbatim may alter it AND write a comment justifying the alteration.**
+  Given two real session prompts to embed verbatim in `evals/workflow/harness.cases.ts`, an
+  implementer changed `висоти інтент` → `висоти интент` (Ukrainian і → Russian и) and annotated it
+  `// ^ verbatim, including the original Cyrillic-mix typo` — a confident claim about the source that
+  the source contradicts (`results/corpus.json` has the Ukrainian і). The plausible comment is what
+  makes it dangerous: it pre-empts the very check that would catch it. **Diff quoted data against its
+  source mechanically (`prompt in corpus_json`), never by reading the code and its comments.** Same
+  failure class as the earlier "the SDK's allowedTools is broken" report — a subagent's *explanation*
+  is not evidence, only its artifacts are.
 - **`cwd` does not confine a spawned subagent.** A `contrast` control run (empty tmpdir,
   `settingSources: []`) spawned an `Explore` subagent that read files from a completely unrelated
   project elsewhere on the machine. So a "control" arm that grants `Task`/`Agent` is not filesystem-
