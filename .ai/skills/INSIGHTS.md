@@ -122,6 +122,21 @@ root `AGENTS.md`/`CLAUDE.md`.
   takes an injected `onEvent?: (e: ReviewEvent) => void` sink (`reviewer-core/src/review/run.ts:92`),
   so the correct design was sitting in the function signature. Read the seam before assuming the model
   will reach for the wrong one.
+- **`allowedTools` does NOT restrict anything — it only auto-approves.** The Agent SDK's own docs say
+  so: *"List of tool names that are auto-allowed without prompting… To restrict which tools are
+  available, use the `tools` option instead."* `evals/src/runtime/run-claude.ts` passed only
+  `allowedTools` alongside `permissionMode: "bypassPermissions"` (which already auto-approves
+  everything), making the "read-only allow-list" a complete **no-op**. Proof: an `investigator` eval
+  handed `["Read","Grep","Glob"]` edited a fixture on disk and reported "I've fixed the bug." Fix
+  (committed): pass `tools: allowedTools` (the real restriction) **and** `disallowedTools`
+  (`Write, Edit, NotebookEdit, Bash` — these are removed from the model's context). If you ever write
+  a runner that sandboxes a session by tool set, assert the sandbox by trying to breach it — a green
+  eval suite proves nothing about tool confinement.
+- **`cwd` does not confine a spawned subagent.** A `contrast` control run (empty tmpdir,
+  `settingSources: []`) spawned an `Explore` subagent that read files from a completely unrelated
+  project elsewhere on the machine. So a "control" arm that grants `Task`/`Agent` is not filesystem-
+  isolated, and a contrast assertion of the form "control did NOT read X" can invert for reasons that
+  have nothing to do with the treatment. Drop `Task`/`Agent` from a control arm you need isolated.
 
 ## Codebase Patterns
 
@@ -175,6 +190,12 @@ root `AGENTS.md`/`CLAUDE.md`.
   separate extended-thinking field), `maxTurns`, **`skills`** (preload skills into context at startup),
   `disallowedTools`, `permissionMode`, per-subagent `hooks` (incl. a `SubagentStop` event), `isolation`,
   `memory`, `background`. `model` accepts an alias, a full id, or `inherit` (the default).
+- **A `.gitignore` line of `.env.*` silently swallows `.env.example`.** `evals/.gitignore` had both
+  `.env` and `.env.*`, so a newly written `evals/.env.example` was untracked with no warning — the
+  template that documents the variables would never have shipped. Needs an explicit `!.env.example`
+  negation after the pattern. Check with `git check-ignore -v <path>` (or `git add --dry-run`) after
+  adding ANY dotfile template; the root `.gitignore` doesn't have this problem because it lists `.env`
+  and `.env.local` individually rather than globbing.
 - **`@path` imports do NOT work in subagent files** — only in `CLAUDE.md`/`AGENTS.md`. To share content
   across agents, have the agent **Read** a shared file at runtime (we use `.ai/rules/*.md` pointers) or
   use the `skills:` preload field. Don't try to `@`-import a rules file into an agent — it won't expand.
@@ -229,6 +250,13 @@ root `AGENTS.md`/`CLAUDE.md`.
 
 ## Recurring Errors & Fixes
 
+- **Shipping an npm script for a directory that doesn't exist.** `evals/package.json` carried
+  `eval:agents` (`vitest run agents`) and `eval:workflow` from day one, but `evals/agents/` and
+  `evals/workflow/` were never created — both commands died with "No test files found", and nobody
+  noticed because nobody ran them. A script that names a path is a promise; either create the path or
+  don't ship the script. Same trap applies to `eval:scaffold` output: run it from the directory that
+  has `node_modules`, or it writes the stubs into a *different* checkout than the one you're editing
+  (this produced 9 stray TODO templates in the main worktree while the real cases lived in another).
 - **A grading regex that encodes an assumed path/identifier will invert your verdict.** Two false
   FAILs in one eval, each of which flipped the conclusion until caught: (a) asserting the SQL lives in
   `modules/<m>/repository.ts` — but `reviews` keeps its repository as a **directory**
@@ -262,6 +290,25 @@ root `AGENTS.md`/`CLAUDE.md`.
   (query status/fetchStatus/defaultOptions) without devtools.
 
 ## Session Notes
+
+### 2026-07-29 — Closing reviewer feedback on `feature/eval-pipeline`; the harness sandbox was fake
+
+Four review gaps closed: the mint preview modal, the missing `evals/agents/` + `evals/workflow/`
+tiers, eval commands in `AGENTS.md` (which had **zero** occurrences of "eval" despite `verify:l06`
+being a blocking commit gate), and CI-readiness (`eval:gate`, `eval:summary`, `.env.example`, a
+"Running headless / in CI" README section). Workflow YAML and Export-to-CI deliberately deferred.
+
+The real find was accidental: writing agent-tier eval cases surfaced that the harness's read-only
+tool sandbox never existed (see What Doesn't Work — `allowedTools` vs `tools`). A subagent reported
+it as an SDK bug; the actual cause was our own misuse, visible in the installed
+`sdk.d.ts`. **Read the dependency's own type docs before accepting "the library is broken"** — the
+answer was two doc comments away, and the wrong diagnosis would have left the hole open.
+
+Two process notes: (a) `evals/` case-authoring needs no project skill (it is vitest data, not
+`server/`/`client/` code) — the skill-routing table correctly doesn't cover it, and the implementer
+was right to say so rather than perform a ritual invocation; (b) checking a claim like "the agent
+edited a file" is cheap and worth doing — the fixture's own comment (`bug on line 8: i <= n`) no
+longer matched its code, which is what turned a plausible report into proof.
 
 ### 2026-07-14 — First skill eval (`onion-architecture`): the skill was wrong, the baseline was right
 

@@ -19,6 +19,14 @@
   the column a default. The `risks` jsonb column did NOT break anything because it has
   `.default(sql\`'[]'::jsonb\`)`. Prefer a DB default when the column allows one.
 
+- Extracting a dry-run "preview" out of a write method is NOT a pure refactor — the guard ORDER is
+  behavior. `mintFromFinding` (`modules/evals/service.ts`) checks 404 → no-agent `ValidationError` →
+  dedup (return existing) → not-decided `ValidationError`. The dedup return sits BEFORE the
+  not-decided throw, so a re-mint of an already-minted case must succeed even when the decision guard
+  would reject. Splitting into `buildMintDraft` + `mintFromFinding` required rewriting that early
+  return as `if (!existing && !decision) throw` to preserve it. Diff the guard sequence, not just the
+  outputs, whenever you factor a validating method in two.
+
 ## Codebase Patterns
 
 <!-- Conventions and architectural decisions -->
