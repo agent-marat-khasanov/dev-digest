@@ -71,6 +71,23 @@ export const EvalCaseSummary = z.object({
 });
 export type EvalCaseSummary = z.infer<typeof EvalCaseSummary>;
 
+/**
+ * Dry-run preview of what `mintFromFinding` would create — computed WITHOUT
+ * writing to the DB, so the client can show a confirmation modal before the
+ * case is actually minted (or run).
+ */
+export const EvalCaseMintPreview = z.object({
+  agent_id: z.string(),
+  agent_name: z.string(),
+  name: z.string(),
+  input_diff: z.string(),
+  expected_output: z.array(ExpectedFinding),
+  decision: z.enum(['accepted', 'dismissed']),
+  /** Non-null when a case for this finding already exists (dedup, R2). */
+  existing_case_id: z.string().nullable(),
+});
+export type EvalCaseMintPreview = z.infer<typeof EvalCaseMintPreview>;
+
 /** A persisted eval run row (one execution of a case), returned by the API. */
 export const EvalRunRecord = z.object({
   id: z.string(),
@@ -84,8 +101,31 @@ export const EvalRunRecord = z.object({
   citation_accuracy: z.number().nullable(),
   duration_ms: z.number().int().nullable(),
   cost_usd: z.number().nullable(),
+  agent_version: z.number().int().nullable(),
+  batch_id: z.string().nullable(),
 });
 export type EvalRunRecord = z.infer<typeof EvalRunRecord>;
+
+/**
+ * A run-level row (one batch) — the unit both the sidebar dashboard and the
+ * per-agent dashboard list. A "run" = a `batch_id` group of `eval_runs` rows
+ * produced by one run-all; a single-case run is its own one-row batch keyed
+ * by its own run id (see `service.ts` `groupByBatch`).
+ */
+export const EvalRunBatch = z.object({
+  batch_id: z.string(),
+  agent_id: z.string(),
+  agent_name: z.string(),
+  ran_at: z.string(),
+  agent_version: z.number().int().nullable(),
+  recall: z.number(),
+  precision: z.number(),
+  citation_accuracy: z.number(),
+  passed: z.number().int(),
+  total: z.number().int(),
+  cost_usd: z.number().nullable(),
+});
+export type EvalRunBatch = z.infer<typeof EvalRunBatch>;
 
 /** Result of running a single case: the metrics (EvalRun) + the persisted row id. */
 export const EvalRunResult = z.object({
@@ -125,10 +165,39 @@ export const EvalDashboard = z.object({
     citation_accuracy: z.number(),
   }),
   trend: z.array(EvalTrendPoint),
-  recent_runs: z.array(EvalRunRecord),
+  /** Batch count — the total number of distinct runs behind `trend`/`recent_runs`. */
+  runs_total: z.number().int(),
+  recent_runs: z.array(EvalRunBatch),
   alert: z.string().nullable(),
 });
 export type EvalDashboard = z.infer<typeof EvalDashboard>;
+
+/** One row in the sidebar "Eval Dashboard" — per-agent summary across the workspace. */
+export const EvalDashboardOverview = z.object({
+  agents: z.array(
+    z.object({
+      agent_id: z.string(),
+      agent_name: z.string(),
+      model: z.string(),
+      recall: z.number().nullable(),
+      precision: z.number().nullable(),
+      citation_accuracy: z.number().nullable(),
+      last_run_pass_count: z.object({ passed: z.number().int(), total: z.number().int() }).nullable(),
+      last_run: z
+        .object({
+          version: z.number().int().nullable(),
+          ran_at: z.string(),
+          passed: z.number().int(),
+          total: z.number().int(),
+        })
+        .nullable(),
+      /** Recall per batch, chronological (oldest first) — feeds a sparkline. Empty when no runs. */
+      trend: z.array(z.number()),
+    }),
+  ),
+  recent_runs: z.array(EvalRunBatch),
+});
+export type EvalDashboardOverview = z.infer<typeof EvalDashboardOverview>;
 
 // ===========================================================================
 // Compose Review

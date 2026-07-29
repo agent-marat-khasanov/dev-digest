@@ -50,6 +50,63 @@
       "evals": "Evals",
       "stats": "Stats",
       "ci": "CI"
+    },
+    "evals": {
+      "metrics": {
+        "heading": "Eval metrics",
+        "recall": "Recall",
+        "precision": "Precision",
+        "citationAccuracy": "Citation accuracy",
+        "tracesPassed": "Traces passed",
+        "viewDashboard": "View full dashboard →"
+      },
+      "casesHeading": "Eval cases",
+      "passing": "{passed} / {total} passing",
+      "runAll": "Run all evals",
+      "running": "Running…",
+      "estimating": "Estimating cost…",
+      "confirmRunAll": "{count} cases · ≈${cost} — run now?",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "newCase": "New eval case",
+      "expectedGot": "expected {n, plural, one {# finding} other {# findings}}, got {m}",
+      "neverRun": "never run",
+      "emptyBadge": "empty []",
+      "run": "Run this case",
+      "edit": "Edit this case",
+      "delete": "Delete this case",
+      "deleteConfirm": "Delete the eval case \"{name}\"? This cannot be undone.",
+      "emptyTitle": "No eval cases yet",
+      "emptyBody": "Eval cases assert the findings this agent should produce on a sample diff. They ship with the demo seed.",
+      "loadError": "Could not load eval cases.",
+      "caseEditor": {
+        "title": "Eval case · {name}",
+        "newTitle": "New eval case",
+        "subtitle": "{agent} · simulate a PR and assert the expected output",
+        "name": "Name",
+        "namePlaceholder": "e.g. sql-injection-must-find",
+        "input": "Input",
+        "tabs": {
+          "diff": "Diff",
+          "files": "Files",
+          "prMeta": "PR meta"
+        },
+        "diffPlaceholder": "Paste a unified diff…",
+        "filesEmpty": "No files recorded for this case.",
+        "prMetaEmpty": "No PR metadata recorded for this case.",
+        "expectedOutput": "Expected output",
+        "validJson": "valid JSON",
+        "invalidJson": "invalid JSON",
+        "addSkeleton": "+ Finding skeleton",
+        "expectedGot": "expected {n, plural, one {# finding} other {# findings}}, got {m}",
+        "lastRunPassed": "Last run passed",
+        "lastRunFailed": "Last run failed",
+        "runOnSave": "Run on save",
+        "runCase": "Run case",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saveError": "Could not save this eval case."
+      }
     }
   },
   "config": {

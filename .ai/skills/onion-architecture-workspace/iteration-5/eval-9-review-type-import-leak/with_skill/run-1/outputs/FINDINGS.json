@@ -1,0 +1,11 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/contracts/report.ts",
+      "lines": [3, 23],
+      "rule": "Shared contract must not import server infrastructure types (type-only imports count; dependencies point inward)",
+      "explanation": "The domain-layer contract imports the Drizzle row type ReportRunRow from modules/reports/repository (line 3) and embeds it in the wire type ReportDetailDto.latestRun (line 23). This makes the innermost, client-mirrored vendor/shared surface depend on server infrastructure (repository -> db/schema -> drizzle-orm), breaking both the dependency rule and the package mirror the moment the folder is synced into client/, and it lets a raw DB row (workspaceId, Date fields, internal columns) escape to HTTP unmapped instead of being converted at the boundary.",
+      "fix": "Define latestRun as a Zod schema in the contract (e.g. reportRunSchema with only wire-relevant fields and an ISO-string date), derive ReportDetailDto via z.infer, and map ReportRunRow to that shape in modules/reports/helpers.ts (toReportDetailDto)."
+    }
+  ]
+}

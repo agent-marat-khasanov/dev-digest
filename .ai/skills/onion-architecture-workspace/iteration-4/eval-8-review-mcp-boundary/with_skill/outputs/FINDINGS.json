@@ -1,0 +1,18 @@
+{
+  "findings": [
+    {
+      "file": "mcp/src/tools/get-conventions.ts",
+      "lines": [1, 3],
+      "rule": "mcp/ package boundary — never touch Drizzle/the DB (SKILL rule 8)",
+      "explanation": "An MCP tool imports drizzle-orm plus the server's db client and schema and runs SQL queries directly against Postgres. mcp/ is defined as a thin HTTP client of the REST API: it must never import server/ code and never touch the database, which is server infrastructure reachable only inside the server's own layering.",
+      "fix": "Fetch conventions over HTTP via the shared ApiClient (e.g. client.get('/repos/{owner}/{repo}/conventions')); if the API does not expose this data, add a new API endpoint on the server rather than querying the DB from mcp/."
+    },
+    {
+      "file": "mcp/src/tools/get-findings.ts",
+      "lines": [1, 2],
+      "rule": "mcp/ package boundary — never import server code (SKILL rule 8)",
+      "explanation": "An MCP tool imports the server's Container and ReviewsService and calls the application layer in-process, bypassing the REST API entirely. This also re-creates the composition root outside server/ — the Container is a server-side concept that only server/src/platform/container.ts may wire, and it does not apply inside mcp/.",
+      "fix": "Replace the in-process service call with an HTTP call through ApiClient to the reviews endpoint (e.g. GET the latest run's findings for the PR), adding a new API endpoint if one does not exist."
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "file": "mcp/src/tools/get-conventions.ts",
+      "lines": [1, 3],
+      "rule": "Package boundary: mcp must be a thin HTTP client — no direct DB access",
+      "explanation": "The MCP tool imports the server's Drizzle db client, schema tables, and the drizzle-orm SDK, then runs SQL queries directly. This bypasses the REST API boundary entirely and punches through every server ring (presentation, application) straight into infrastructure, requiring the mcp process to own a Postgres connection and duplicating repository logic outside server/.",
+      "fix": "Delete the drizzle/db/schema imports and call a REST endpoint via ApiClient (e.g. client.get('/repos/:owner/:repo/conventions')); keep the query in a server repository behind a route."
+    },
+    {
+      "file": "mcp/src/tools/get-findings.ts",
+      "lines": [1, 2],
+      "rule": "Package boundary: mcp must consume the REST API, not server application internals",
+      "explanation": "The MCP tool imports the server's ReviewsService (application layer) and Container across the package boundary. mcp is documented as a thin HTTP client of the REST API; linking server modules in-process makes mcp depend on the server's internal layering, DB, and secrets instead of its public HTTP contract.",
+      "fix": "Replace both imports with an ApiClient call to the reviews REST endpoint (e.g. client.get('/reviews/latest?...')) and map the JSON response to FindingSummary."
+    },
+    {
+      "file": "mcp/src/tools/get-findings.ts",
+      "lines": [11, 12],
+      "rule": "Compose only at the composition root",
+      "explanation": "The tool constructs `new Container()` and `new ReviewsService(container)` itself, wiring server concretes outside `server/src/platform/container.ts` — the only place allowed to know and stitch concrete classes. This creates a second ad-hoc composition root in a foreign package.",
+      "fix": "Remove the in-process wiring; once the tool talks to the REST API through ApiClient, no server objects need to be constructed in mcp at all."
+    }
+  ]
+}

@@ -28,7 +28,9 @@ export function FindingCard({
   focused,
   defaultExpanded,
   onAction,
+  onMintEvalCase,
   pending,
+  mintPending,
   repoFullName,
   headSha,
 }: {
@@ -36,7 +38,9 @@ export function FindingCard({
   focused?: boolean;
   defaultExpanded?: boolean;
   onAction?: (action: FindingActionKind, reply?: string) => void;
+  onMintEvalCase?: () => void;
   pending?: boolean;
+  mintPending?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
 }) {
@@ -108,6 +112,17 @@ export function FindingCard({
               onClick={() => onAction?.("dismiss")}
             >
               {t("finding.dismiss")}
+            </Button>
+            <Button
+              kind="ghost"
+              size="sm"
+              icon="FlaskConical"
+              disabled={!muted || mintPending}
+              loading={mintPending}
+              title={muted ? undefined : t("finding.mintDisabledTooltip")}
+              onClick={() => onMintEvalCase?.()}
+            >
+              {t("finding.mintEvalCase")}
             </Button>
           </div>
         </div>

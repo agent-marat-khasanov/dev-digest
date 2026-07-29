@@ -1,0 +1,11 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/contracts/report.ts",
+      "lines": [3, 23],
+      "rule": "Dependency rule — domain (vendor/shared) must not import infrastructure",
+      "explanation": "The shared contract imports ReportRunRow (a Drizzle $inferSelect row type) from modules/reports/repository.ts and embeds it in ReportDetailDto.latestRun. This points a domain-layer dependency outward at infrastructure, transitively drags drizzle-orm and db/schema types into vendor/shared (explicitly forbidden there), and hands a raw DB row shape to the HTTP wire — and because vendor/shared is mirrored into client/, it leaks server persistence internals (workspaceId, internal columns) across the package boundary. The same leak is what forces ReportDetailDto to be a plain interface instead of a Zod schema and makes buildDetail/toReportDetailDto pass runs[0] out unmapped.",
+      "fix": "Define latestRun in domain terms inside the contract (e.g. a reportRunSchema Zod object with only the fields the client needs) and extend reportSummarySchema with it; map ReportRunRow to that DTO in modules/reports/helpers.ts, and delete the repository import from vendor/shared."
+    }
+  ]
+}

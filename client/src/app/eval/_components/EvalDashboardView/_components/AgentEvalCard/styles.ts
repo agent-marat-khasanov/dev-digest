@@ -1,0 +1,50 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  card: {
+    display: "flex",
+    alignItems: "center",
+    gap: 18,
+    padding: "16px 18px",
+    borderRadius: 10,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+    textDecoration: "none",
+    color: "inherit",
+  } satisfies CSSProperties,
+  iconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    background: "var(--accent-bg)",
+    color: "var(--accent)",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  identity: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 } satisfies CSSProperties,
+  nameRow: { display: "flex", alignItems: "center", gap: 10 } satisfies CSSProperties,
+  name: { fontSize: 15, fontWeight: 700, color: "var(--text-primary)" } satisfies CSSProperties,
+  lastRun: {
+    fontSize: 12.5,
+    color: "var(--text-muted)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  } satisfies CSSProperties,
+  metricCol: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 3,
+    minWidth: 56,
+  } satisfies CSSProperties,
+  metricLabel: {
+    fontSize: 10.5,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  metricValue: { fontSize: 20, fontWeight: 700 } satisfies CSSProperties,
+  chevron: { color: "var(--text-muted)", flexShrink: 0 } satisfies CSSProperties,
+} as const;

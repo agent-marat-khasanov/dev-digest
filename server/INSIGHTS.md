@@ -157,6 +157,13 @@
 
 ## Session Notes
 
+### 2026-07-26 — Agent Eval Pipeline (L06, SPEC-04)
+- Extended the skill-scoped eval module to **agent-scoped**: mint eval cases from findings (accepted→non-empty `expected_output`, dismissed→`[]`); `POST /agents/:id/eval-runs` runs the set with the agent's OWN `systemPrompt`/`provider`/`model`/`strategy` + enabled skills (mirror `ReviewRunExecutor.runOneAgent` config resolution, MINUS the PR/repo-intel enrichment — an eval case is a stored diff, not a live PR, which keeps the diff the only variable and `reviewer-core` pure). Scoring stays pure (`scoreEval`, zero LLM); `verify:l06` gates it.
+- `container.priceBook` (`platform/price-book.ts`, `.estimate(model, tokensIn, tokensOut): number|null`) already exists — use it for cost estimates; don't invent a fallback table. Returns `null` off-catalog → surface "unknown cost", not a wrong number.
+- **Hand-authored unified-diff fixtures:** the `@@ -a,b +c,d @@` counts MUST match the body's actual context/added/removed line counts, or `parseUnifiedDiff`'s line mapping silently corrupts at eval-run time (there is NO validation at seed/insert). Sanity-check any new fixture diff with a throwaway `tsx` script against `adapters/git/diff-parser.ts`.
+- `fastify-type-provider-zod` + a Zod-literal response field (`{ ok: true }`): TS widens the handler's literal to `{ ok: boolean }` and fails the schema-derived return type — fix with `as const` at the return site (`return { ok: true as const }`).
+- Nullable no-default columns evolve a live table safely (`eval_runs.agent_version`, `batch_id`). A run-all's per-case rows share one `batch_id` so Compare/Trend/dashboard get a well-defined "run" unit. `aggregateBatch`/`batchTimestamp` use `Math.max` (the batch's LATEST case ts), not earliest — match it exactly anywhere else (client included).
+
 ### 2026-06-18 — Run Cost Badge
 - Added `cost_usd` column to `agent_runs` table (nullable `doublePrecision`)
 - Cost flows through shared Zod contracts: `RunStats`, `RunSummary`, `PrMeta`

@@ -1,0 +1,39 @@
+{
+  "eval_id": 8,
+  "eval_name": "review-mcp-boundary",
+  "config": "old_skill",
+  "run": "run-1",
+  "findings_reported": 3,
+  "expectations": [
+    {
+      "text": "[8.1] A finding reports the conventions tool querying the DevDigest database directly (drizzle + server db client/schema) instead of the REST API",
+      "passed": true,
+      "evidence": "matched: mcp/src/tools/get-conventions.ts:1-3 (Package boundary: mcp must be a thin HTTP client — no direct DB access)",
+      "rule": "Hard rule 8 — mcp never touches the DB"
+    },
+    {
+      "text": "[8.2] A finding reports the findings tool importing Container + ReviewsService and calling the service in-process instead of the REST API",
+      "passed": true,
+      "evidence": "matched: mcp/src/tools/get-findings.ts:1-2 (Package boundary: mcp must consume the REST API, not server application internals); mcp/src/tools/get-findings.ts:11-12 (Compose only at the composition root)",
+      "rule": "Hard rule 8 — mcp never imports server code"
+    },
+    {
+      "text": "[8.3] No finding flags the ApiClient fetch wrapper or the list-agents tool using it — container ports are a server-side concept and do not apply inside mcp/",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Hard rule 8 — plain fetch to the API is the sanctioned thin-client pattern in mcp/"
+    },
+    {
+      "text": "[8.4] No finding flags the env-validated config loader",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Config loaded at the package entry is correct"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1
+  }
+}

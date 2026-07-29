@@ -1,0 +1,39 @@
+{
+  "findings": [
+    {
+      "file": "server/src/modules/digests/routes.ts",
+      "lines": [18, 20],
+      "rule": "Presentation must not bypass the application layer / depend on infrastructure",
+      "explanation": "The route instantiates DigestsRepository directly and queries the database from the HTTP edge, skipping the DigestsService entirely. Presentation may only depend on the application layer; repositories are infrastructure and must be reached through a service.",
+      "fix": "Instantiate DigestsService once at plugin setup (as other modules do with the container) and have the handler call service.buildDigest(workspaceId, repoId, days)."
+    },
+    {
+      "file": "server/src/modules/digests/routes.ts",
+      "lines": [22, 35],
+      "rule": "No business logic in the presentation layer",
+      "explanation": "The bySeverity/topFiles aggregation is digest-assembly business logic living in the route handler, and it duplicates logic that already exists in the application layer (toDigestDto in helpers.ts). Route handlers must stay thin: validate, resolve context, delegate.",
+      "fix": "Delete the in-route aggregation and return the DigestDto produced by DigestsService.buildDigest / toDigestDto."
+    },
+    {
+      "file": "server/src/modules/digests/routes.ts",
+      "lines": [37, 41],
+      "rule": "Boundary mapping — do not leak persistence rows across the HTTP boundary",
+      "explanation": "The response returns raw Drizzle rows (runs, findings from $inferSelect) and an ad-hoc summary shape instead of the shared DigestDto contract defined in vendor/shared/contracts/digest.ts. Internal DB row shapes become the public API, coupling clients to the schema and ignoring the existing shared contract.",
+      "fix": "Return the DigestDto from the service and serialize the response with digestSchema (via fastify-type-provider-zod response schema) so the shared contract is the boundary shape."
+    },
+    {
+      "file": "server/src/modules/digests/service.ts",
+      "lines": [24, 36],
+      "rule": "External I/O must go through a port implemented by an adapter (dependency rule)",
+      "explanation": "The application-layer service calls fetch() against the Resend HTTP API directly, embedding a concrete external mail provider (URL, wire format, auth header) in the orchestration layer. All external I/O in this codebase goes through container-provided ports (e.g. GitHubClient, LLMProvider) implemented under server/src/adapters/.",
+      "fix": "Define a Mailer port (interface in vendor/shared), implement a ResendMailer in server/src/adapters/, wire it in platform/container.ts, and have DigestsService depend on the port (injected via the container)."
+    },
+    {
+      "file": "server/src/modules/digests/service.ts",
+      "lines": [27, 27],
+      "rule": "No direct env/secret access outside the composition root",
+      "explanation": "The service reads process.env.RESEND_API_KEY directly, bypassing the SecretsProvider port and platform config that the composition root uses to supply credentials. Only container.ts/adapters resolve secrets; application code must never touch process.env.",
+      "fix": "Resolve RESEND_API_KEY through the SecretsProvider inside the container when constructing the mail adapter, mirroring how GITHUB_TOKEN and LLM keys are wired."
+    }
+  ]
+}

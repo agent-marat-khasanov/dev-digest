@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/adapters.ts",
+      "lines": [16, 20],
+      "rule": "Server-local port parked in vendor/shared",
+      "explanation": "ArchiveStore is named only by server code (the exports service and its fs adapter) — nothing under client/ or reviewer-core/ references it. vendor/shared is the hand-synced surface mirrored into other packages; per the skill's port-placement rule, a server-only port belongs beside its adapter (the Tokenizer precedent, followed correctly here by Clock in adapters/clock/index.ts), not in the shared contracts package.",
+      "fix": "Move the ArchiveStore interface out of vendor/shared/adapters.ts into server/src/adapters/archive/index.ts, exported alongside FsArchiveStore, and import it from there in the container."
+    },
+    {
+      "file": "server/src/modules/exports/service.ts",
+      "lines": [20, 23],
+      "rule": "Adapter constructed inside the application layer (compose only at the root; external I/O via container ports)",
+      "explanation": "ExportsService imports the concrete FsArchiveStore from adapters/ and news it up inline, so the application ring is hard-wired to one infrastructure implementation and the archive cannot be swapped via ContainerOverrides in tests. The dependency table forbids a service importing adapter concretes; only platform/container.ts may know them — note the container currently wires no ArchiveStore at all.",
+      "fix": "Inject the ArchiveStore port into ExportsService (constructor parameter, like Clock), construct FsArchiveStore in platform/container.ts, and add an archive?: ArchiveStore slot to ContainerOverrides."
+    },
+    {
+      "file": "server/src/modules/exports/service.ts",
+      "lines": [21, 22],
+      "rule": "Config and secret read from process.env in the application layer, bypassing AppConfig and the SecretsProvider port",
+      "explanation": "The service reads ARCHIVE_DIR and EXPORT_SIGNING_SECRET directly from process.env. Configuration resolution belongs to the composition root (loadConfig/AppConfig), and secrets must be reached only through the SecretsProvider port — every other adapter in the container receives this.secrets, while this signing secret (with a hardcoded 'dev-secret' fallback) escapes that path entirely.",
+      "fix": "Resolve the archive directory from AppConfig and the signing secret via the SecretsProvider inside platform/container.ts when constructing FsArchiveStore; the service never touches process.env."
+    }
+  ]
+}

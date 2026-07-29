@@ -1,0 +1,50 @@
+{
+  "eval_id": 5,
+  "eval_name": "review-digests-module",
+  "config": "without_skill",
+  "findings_reported": 5,
+  "expectations": [
+    {
+      "text": "[5.1] A finding reports the route constructing DigestsRepository and calling it directly, bypassing the service layer",
+      "passed": true,
+      "evidence": "matched: server/src/modules/digests/routes.ts:18-20 (Presentation must not bypass the application layer / depend on infrastructure)",
+      "rule": "Hard rule 1/6 — route must go through the service; nothing composes outside the root"
+    },
+    {
+      "text": "[5.2] A finding reports business logic (severity aggregation / top-files ranking) living in the route",
+      "passed": true,
+      "evidence": "matched: server/src/modules/digests/routes.ts:22-35 (No business logic in the presentation layer)",
+      "rule": "Hard rule 4 — routes are thin"
+    },
+    {
+      "text": "[5.3] A finding reports raw Drizzle rows being returned to HTTP instead of the DigestDto mapping that helpers.ts already provides",
+      "passed": true,
+      "evidence": "matched: server/src/modules/digests/routes.ts:37-41 (Boundary mapping — do not leak persistence rows across the HTTP boundary)",
+      "rule": "Hard rule 5 — map at the boundary"
+    },
+    {
+      "text": "[5.4] A finding reports the service calling the mail API with fetch directly (and reading process.env) instead of an adapter behind a port resolved from the Container",
+      "passed": true,
+      "evidence": "matched: server/src/modules/digests/service.ts:24-36 (External I/O must go through a port implemented by an adapter (dependency rule)); server/src/modules/digests/service.ts:27-27 (No direct env/secret access outside the composition root)",
+      "rule": "Hard rule 3 — external I/O goes through container ports"
+    },
+    {
+      "text": "[5.6] No finding flags the concrete repository class / $inferSelect row types — rule-7 allowances, not violations",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Hard rule 7 — pragmatic allowances"
+    },
+    {
+      "text": "[5.7] No finding flags helpers.ts or the Zod contract — they are the correct pattern",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Correct boundary code is not noise"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  }
+}
