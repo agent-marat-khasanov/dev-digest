@@ -14,7 +14,7 @@
     { "cmd": ["wait", "--text", "generated without model"], "label": "AC-10: honest skeleton badge is shown, never a blank/error page" },
     { "cmd": ["wait", "--text", "no_data"], "label": "AC-10: badge names the real reason (no index run seeded in the hermetic e2e DB)" },
 
-    { "cmd": ["wait", "--text", "On this page"], "label": "AC-14: 'On this page' TOC renders" },
+    { "cmd": ["wait", "--text", "ON THIS PAGE"], "label": "AC-14: 'On this page' TOC renders" },
     { "cmd": ["wait", "--text", "Architecture"], "label": "AC-14: Architecture card renders" },
     { "cmd": ["wait", "--text", "Critical Paths"], "label": "AC-14: Critical Paths card renders" },
     { "cmd": ["wait", "--text", "How to Run Locally"], "label": "AC-14: How to Run Locally card renders" },

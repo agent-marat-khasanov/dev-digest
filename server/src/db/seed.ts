@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { createDb, type Db } from './client.js';
 import * as t from './schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
@@ -106,6 +106,41 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
   }
   const repoId = repo!.id;
 
+  // Patches for the two PR #482 files the seeded findings point at. Minting an eval
+  // case from a finding copies that file's patch as the case input, so without a
+  // patch the minted case would review an empty diff and could never reproduce the
+  // finding. Hunk header counts must match the body exactly, and each finding's line
+  // span must fall inside the new-side range (config.ts 12-12, users.ts 45-52) or
+  // the grounding gate drops it.
+  const DEMO_PATCHES: Record<string, string> = {
+    'src/config.ts': `--- a/src/config.ts
++++ b/src/config.ts
+@@ -10,4 +10,6 @@
+ export const config = {
+   port: Number(process.env.PORT ?? 3000),
++  stripeKey: "sk_live_EXAMPLE_NOT_A_REAL_KEY",
++  stripeWebhookSecret: "whsec_EXAMPLE_NOT_A_REAL_SECRET",
+   redisUrl: process.env.REDIS_URL,
+ };
+`,
+    'src/api/users.ts': `--- a/src/api/users.ts
++++ b/src/api/users.ts
+@@ -42,5 +42,12 @@
+ export async function listUsers(req: Request, res: Response) {
+   const users = await db.users.findMany({ take: 50 });
+
++  const enriched = [];
++  for (const user of users) {
++    const orders = await db.orders.findMany({ where: { userId: user.id } });
++    const profile = await db.profiles.findOne({ where: { userId: user.id } });
++    enriched.push({ ...user, orders, profile });
++  }
++
+   res.json(enriched);
+ }
+`,
+  };
+
   // ---- PR #482 (rate limiting) ----
   let [pr] = await db
     .select()
@@ -131,12 +166,24 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       })
       .returning();
 
-    // pr_files (subset)
+    // pr_files (subset) — the two files the findings point at carry a real patch.
     await db.insert(t.prFiles).values([
       { prId: pr!.id, path: 'src/middleware/ratelimit.ts', additions: 84, deletions: 0 },
       { prId: pr!.id, path: 'src/api/public/webhooks.ts', additions: 31, deletions: 6 },
-      { prId: pr!.id, path: 'src/config.ts', additions: 4, deletions: 0 },
-      { prId: pr!.id, path: 'src/api/users.ts', additions: 7, deletions: 2 },
+      {
+        prId: pr!.id,
+        path: 'src/config.ts',
+        additions: 4,
+        deletions: 0,
+        patch: DEMO_PATCHES['src/config.ts']!,
+      },
+      {
+        prId: pr!.id,
+        path: 'src/api/users.ts',
+        additions: 7,
+        deletions: 2,
+        patch: DEMO_PATCHES['src/api/users.ts']!,
+      },
     ]);
 
     // pr_commits
@@ -675,6 +722,217 @@ router.get('/api/v1/users', (req, res) => {
           workspaceId,
           ownerKind: 'skill',
           ownerId: rubricId,
+          name: ec.name,
+          inputDiff: ec.inputDiff,
+          expectedOutput: ec.expectedOutput,
+        });
+      }
+    }
+  }
+
+  // ---- backfill demo patches on pre-existing installs (L06) ----
+  // The pr_files rows above are only written when PR #482 is first created, so a
+  // database seeded before the patches existed keeps empty ones. Fill those in.
+  for (const [path, patch] of Object.entries(DEMO_PATCHES)) {
+    await db
+      .update(t.prFiles)
+      .set({ patch })
+      .where(and(eq(t.prFiles.prId, pr!.id), eq(t.prFiles.path, path), isNull(t.prFiles.patch)));
+  }
+
+  // ---- attach the demo review to an agent (L06) ----
+  // The sample review is seeded before the agents exist, so it lands with a null
+  // agent_id. A finding with no owning agent cannot be minted into an eval case
+  // (the case's owner IS the agent that produced the finding), which makes the
+  // "Turn into eval case" button unusable on demo data. Backfill it once the
+  // Security Reviewer exists. Idempotent: only fills rows that are still null.
+  if (securityId) {
+    await db
+      .update(t.reviews)
+      .set({ agentId: securityId })
+      .where(and(eq(t.reviews.workspaceId, workspaceId), isNull(t.reviews.agentId)));
+  }
+
+  // ---- agent-scoped eval cases for the Security Reviewer (agent Evals tab, L06) ----
+  // Must-find cases plant a real vulnerability (non-empty expected_output, no hint
+  // comments). Decoy cases are tempting-but-clean code (empty expected_output) — the
+  // agent must NOT flag them. Idempotent by (workspace, owner_kind, owner_id, name).
+  if (securityId) {
+    const securityEvalCases: Array<{ name: string; inputDiff: string; expectedOutput: unknown }> = [
+      {
+        name: 'aws-key-hardcoded',
+        inputDiff: `diff --git a/src/config/aws.ts b/src/config/aws.ts
+--- a/src/config/aws.ts
++++ b/src/config/aws.ts
+@@ -4,4 +4,6 @@
+ export const s3Config = {
+   region: "us-east-1",
++  accessKeyId: "AKIAIOSFODNN7EXAMPLE",
++  secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+   bucket: "acme-uploads",
+ };
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'Hardcoded AWS access key and secret',
+            file: 'src/config/aws.ts',
+            start_line: 6,
+            end_line: 7,
+          },
+        ],
+      },
+      {
+        name: 'ssrf-open-redirect-fetch',
+        inputDiff: `diff --git a/src/api/preview.ts b/src/api/preview.ts
+--- a/src/api/preview.ts
++++ b/src/api/preview.ts
+@@ -1,2 +1,5 @@
+ export async function fetchPreview(req: Request) {
++  const target = req.query.url as string;
++  const res = await fetch(target);
++  return res.text();
+ }
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'SSRF: preview fetches a caller-controlled URL',
+            file: 'src/api/preview.ts',
+            start_line: 2,
+            end_line: 3,
+          },
+        ],
+      },
+      {
+        name: 'missing-auth-admin-route',
+        inputDiff: `diff --git a/src/api/admin/users.ts b/src/api/admin/users.ts
+--- a/src/api/admin/users.ts
++++ b/src/api/admin/users.ts
+@@ -1,3 +1,7 @@
+ import { Router } from "express";
+ const router = Router();
++router.delete("/admin/users/:id", async (req, res) => {
++  await db.users.delete(req.params.id);
++  res.sendStatus(204);
++});
+ export default router;
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'Admin delete route has no auth/authorization check',
+            file: 'src/api/admin/users.ts',
+            start_line: 3,
+            end_line: 6,
+          },
+        ],
+      },
+      {
+        name: 'sql-injection-string-concat',
+        inputDiff: `diff --git a/src/repo/search.ts b/src/repo/search.ts
+--- a/src/repo/search.ts
++++ b/src/repo/search.ts
+@@ -6,2 +6,4 @@
+ export async function searchUsers(term: string) {
++  const query = "SELECT * FROM users WHERE name = '" + term + "'";
++  return db.raw(query);
+ }
+`,
+        expectedOutput: [
+          {
+            severity: 'CRITICAL',
+            category: 'security',
+            title: 'SQL injection via string-concatenated query',
+            file: 'src/repo/search.ts',
+            start_line: 7,
+            end_line: 8,
+          },
+        ],
+      },
+      {
+        name: 'secret-loaded-from-env',
+        inputDiff: `diff --git a/src/config/aws.ts b/src/config/aws.ts
+--- a/src/config/aws.ts
++++ b/src/config/aws.ts
+@@ -4,4 +4,6 @@
+ export const s3Config = {
+   region: "us-east-1",
++  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
++  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+   bucket: "acme-uploads",
+ };
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'fetch-with-allowlist-validation',
+        inputDiff: `diff --git a/src/api/preview.ts b/src/api/preview.ts
+--- a/src/api/preview.ts
++++ b/src/api/preview.ts
+@@ -1,2 +1,9 @@
++const ALLOWED_HOSTS = new Set(["cdn.acme.com", "static.acme.com"]);
+ export async function fetchPreview(req: Request) {
++  const target = new URL(req.query.url as string);
++  if (!ALLOWED_HOSTS.has(target.hostname)) {
++    throw new Error("host not allowed");
++  }
++  const res = await fetch(target);
++  return res.text();
+ }
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'admin-route-with-auth-middleware',
+        inputDiff: `diff --git a/src/api/admin/users.ts b/src/api/admin/users.ts
+--- a/src/api/admin/users.ts
++++ b/src/api/admin/users.ts
+@@ -1,3 +1,8 @@
+ import { Router } from "express";
++import { requireAdmin } from "../middleware/auth";
+ const router = Router();
++router.delete("/admin/users/:id", requireAdmin, async (req, res) => {
++  await db.users.delete(req.params.id);
++  res.sendStatus(204);
++});
+ export default router;
+`,
+        expectedOutput: [],
+      },
+      {
+        name: 'parameterized-search-query',
+        inputDiff: `diff --git a/src/repo/search.ts b/src/repo/search.ts
+--- a/src/repo/search.ts
++++ b/src/repo/search.ts
+@@ -6,2 +6,3 @@
+ export async function searchUsers(term: string) {
++  return db.raw("SELECT * FROM users WHERE name = ?", [term]);
+ }
+`,
+        expectedOutput: [],
+      },
+    ];
+    for (const ec of securityEvalCases) {
+      const [existing] = await db
+        .select()
+        .from(t.evalCases)
+        .where(
+          and(
+            eq(t.evalCases.workspaceId, workspaceId),
+            eq(t.evalCases.ownerKind, 'agent'),
+            eq(t.evalCases.ownerId, securityId),
+            eq(t.evalCases.name, ec.name),
+          ),
+        );
+      if (!existing) {
+        await db.insert(t.evalCases).values({
+          workspaceId,
+          ownerKind: 'agent',
+          ownerId: securityId,
           name: ec.name,
           inputDiff: ec.inputDiff,
           expectedOutput: ec.expectedOutput,

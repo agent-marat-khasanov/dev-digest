@@ -1,0 +1,39 @@
+{
+  "findings": [
+    {
+      "file": "server/src/modules/digests/routes.ts",
+      "lines": [18, 20],
+      "rule": "Route bypasses the application layer / reaches into infrastructure",
+      "explanation": "The route constructs DigestsRepository itself and queries it directly, skipping DigestsService entirely (which already implements buildDigest). Presentation may only call the service; only the composition-root pattern (service built from the container) may wire infrastructure.",
+      "fix": "Instantiate DigestsService once in digestRoutes (from app.container) and have the handler call service.buildDigest(workspaceId, repoId, days); delete the repository import and construction from routes.ts."
+    },
+    {
+      "file": "server/src/modules/digests/routes.ts",
+      "lines": [22, 35],
+      "rule": "Business logic in the route (routes are thin)",
+      "explanation": "Severity aggregation and top-files ranking are computed inline in the HTTP handler — orchestration/domain logic living in presentation, duplicating the logic that already exists in helpers.toDigestDto.",
+      "fix": "Remove the inline aggregation; let the service return the DTO produced by toDigestDto in helpers.ts, and have the route just return the service result."
+    },
+    {
+      "file": "server/src/modules/digests/routes.ts",
+      "lines": [37, 41],
+      "rule": "Map at the boundary — raw Drizzle rows leaked to HTTP",
+      "explanation": "The handler returns raw ReviewRunRow/FindingRow arrays (including internal columns like workspaceId) in an ad-hoc shape instead of the DigestDto defined by digestSchema in vendor/shared/contracts/digest.ts; the contract and helpers mapping are bypassed.",
+      "fix": "Return the DigestDto from the service (built via toDigestDto) and attach digestSchema as the route's response schema so the wire shape is the Zod contract, never table rows."
+    },
+    {
+      "file": "server/src/modules/digests/service.ts",
+      "lines": [24, 36],
+      "rule": "External I/O not behind a container port (ports & adapters, composition root)",
+      "explanation": "The service performs cross-process I/O by calling the Resend mail API with a raw fetch and reads the secret straight from process.env.RESEND_API_KEY, hard-wiring a vendor into the application ring, bypassing SecretsProvider, and making the service unmockable.",
+      "fix": "Define a server-local Mailer port beside its adapter (adapters/mailer/index.ts), implement it there using the key obtained via the container's SecretsProvider, wire it in platform/container.ts with a ContainerOverrides slot, and have the service resolve it via this.container."
+    },
+    {
+      "file": "server/src/modules/digests/service.ts",
+      "lines": [11, 13],
+      "rule": "Application layer imports infrastructure (Db) instead of taking the Container",
+      "explanation": "DigestsService's constructor takes the Drizzle Db handle from db/client — the application layer may import domain, its own repository, and the Container, but not db/*. It also leaves the service unable to resolve any port (which sendDigest needs).",
+      "fix": "Follow the AgentsService pattern: constructor(private container: Container) { this.repository = new DigestsRepository(container.db) }, dropping the direct db/client import."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+node_modules/
+results/
+*.tsbuildinfo
+.env
+.env.*
+# ...but the template carries no secrets and MUST be committed.
+!.env.example

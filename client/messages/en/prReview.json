@@ -9,7 +9,31 @@
     "replyToAuthor": "Reply to author",
     "replyPlaceholder": "Reply to the author about this finding…",
     "sendReply": "Send reply",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "mintEvalCase": "Turn into eval case",
+    "mintDisabledTooltip": "Accept or dismiss this finding first",
+    "mintSuccess": "Eval case created",
+    "mintModal": {
+      "title": "Turn into eval case",
+      "loading": "Loading preview…",
+      "previewError": "Couldn’t load the preview.",
+      "name": "Name",
+      "agent": "Agent",
+      "caseType": "Type",
+      "mustFind": "Must-find",
+      "decoy": "Decoy (must-not-flag)",
+      "alreadyExists": "An eval case for this finding already exists.",
+      "viewCase": "View case",
+      "diffHeading": "Diff",
+      "expectedHeading": "Expected findings",
+      "decoyTitle": "No findings expected",
+      "decoyBody": "This case verifies the agent stays quiet on this diff.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saveAndRun": "Save & Run",
+      "saveSuccess": "Eval case created",
+      "saveAndRunSuccess": "Eval case created and run"
+    }
   },
   "trifecta": {
     "lethal": "LETHAL TRIFECTA — ALL 3 PRESENT",

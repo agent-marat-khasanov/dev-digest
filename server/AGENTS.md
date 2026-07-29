@@ -8,6 +8,8 @@ Fastify 5 API with Drizzle ORM on Postgres 16 + pgvector. DI-based, modular plug
 pnpm dev                     # tsx watch src/server.ts (hot reload)
 pnpm test                    # unit + integration tests
 pnpm exec vitest run --exclude "**/*.it.test.ts"  # unit only (no Docker)
+pnpm verify:l06              # eval scorer (src/modules/evals/score.test.ts) — pure, no LLM.
+                             #   .claude/hooks/test-gate.sh runs this on `git commit` and BLOCKS a red one.
 pnpm typecheck               # tsc --noEmit
 pnpm db:migrate              # apply Drizzle migrations (manual, NOT on boot)
 pnpm db:seed                 # seed demo data (idempotent)

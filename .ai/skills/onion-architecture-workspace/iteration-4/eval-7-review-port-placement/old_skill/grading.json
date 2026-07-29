@@ -1,0 +1,51 @@
+{
+  "eval_id": 7,
+  "eval_name": "review-port-placement",
+  "config": "old_skill",
+  "run": "run-1",
+  "findings_reported": 2,
+  "expectations": [
+    {
+      "text": "[7.1] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+      "passed": true,
+      "evidence": "matched: server/src/vendor/shared/adapters.ts:16-20 (Server-local port placement (port declared where only its namers can see it))",
+      "rule": "Where does the port interface go? — nothing outside server/ names ArchiveStore"
+    },
+    {
+      "text": "[7.2] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+      "passed": true,
+      "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / external I/O through container ports (rules 3 & 6))",
+      "rule": "Hard rules 3+6 — adapters are constructed only at the composition root"
+    },
+    {
+      "text": "[7.3] A finding reports the direct process.env reads inside the service",
+      "passed": true,
+      "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Compose only at the root / external I/O through container ports (rules 3 & 6))",
+      "rule": "Config convention — env is read at the composition root, not in a service"
+    },
+    {
+      "text": "[7.4] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Where does the port interface go? — server-local port beside its adapter is sanctioned"
+    },
+    {
+      "text": "[7.5] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Genuinely shared ports belong in vendor/shared"
+    },
+    {
+      "text": "[7.6] No finding flags the exports route — validate, call service, parse through the contract is exactly right",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Thin route is correct"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6,
+    "pass_rate": 1
+  }
+}

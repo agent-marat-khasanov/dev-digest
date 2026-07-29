@@ -5,8 +5,8 @@ import type { EvalOwnerKind } from '@devdigest/shared';
 
 /**
  * Eval data-access. Owns `eval_cases` and `eval_runs`. Workspace-scoped.
- * Cases are created via the DB seed for now (no create/edit route this lesson);
- * this module reads cases + persists run results.
+ * Skill-owned cases come from the DB seed; agent-owned cases are also minted
+ * from findings and created/edited via the L06 routes. Persists run results.
  */
 
 export type EvalCaseRow = typeof t.evalCases.$inferSelect;
@@ -16,11 +16,34 @@ export interface InsertEvalRun {
   caseId: string;
   actualOutput: unknown;
   pass: boolean;
-  recall: number;
-  precision: number;
-  citationAccuracy: number;
+  /** Null when the run failed before scoring (AC-13). */
+  recall: number | null;
+  precision: number | null;
+  citationAccuracy: number | null;
   durationMs: number;
   costUsd: number | null;
+  /** Agent config version the run executed under (AC-44); null for skill-owned runs. */
+  agentVersion?: number | null;
+  /** Groups the per-case rows produced by one run-all into a logical "run" (R1). */
+  batchId?: string | null;
+}
+
+export interface InsertEvalCase {
+  workspaceId: string;
+  ownerKind: EvalOwnerKind;
+  ownerId: string;
+  name: string;
+  inputDiff: string;
+  inputMeta?: unknown;
+  expectedOutput: unknown;
+  notes?: string | null;
+}
+
+export interface UpdateEvalCase {
+  name?: string;
+  inputDiff?: string;
+  notes?: string | null;
+  expectedOutput?: unknown;
 }
 
 export class EvalsRepository {
@@ -61,6 +84,62 @@ export class EvalsRepository {
     return rows.length > 0;
   }
 
+  async insertCase(values: InsertEvalCase): Promise<EvalCaseRow> {
+    const [row] = await this.db
+      .insert(t.evalCases)
+      .values({
+        workspaceId: values.workspaceId,
+        ownerKind: values.ownerKind,
+        ownerId: values.ownerId,
+        name: values.name,
+        inputDiff: values.inputDiff,
+        inputMeta: (values.inputMeta ?? null) as object | null,
+        expectedOutput: values.expectedOutput as object,
+        notes: values.notes ?? null,
+      })
+      .returning();
+    return row!;
+  }
+
+  async updateCase(
+    workspaceId: string,
+    caseId: string,
+    patch: UpdateEvalCase,
+  ): Promise<EvalCaseRow | undefined> {
+    const [row] = await this.db
+      .update(t.evalCases)
+      .set({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.inputDiff !== undefined ? { inputDiff: patch.inputDiff } : {}),
+        ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
+        ...(patch.expectedOutput !== undefined
+          ? { expectedOutput: patch.expectedOutput as object }
+          : {}),
+      })
+      .where(and(eq(t.evalCases.workspaceId, workspaceId), eq(t.evalCases.id, caseId)))
+      .returning();
+    return row;
+  }
+
+  /**
+   * Find an agent-owned case that was minted from the given finding, by
+   * matching `inputMeta.source_finding_id` in JS (dedup pointer — R2, no DB
+   * column). The case set per owner is small, so filtering client-side after
+   * one query is fine.
+   */
+  async findCaseBySourceFinding(
+    workspaceId: string,
+    ownerKind: EvalOwnerKind,
+    ownerId: string,
+    findingId: string,
+  ): Promise<EvalCaseRow | undefined> {
+    const cases = await this.listCasesForOwner(workspaceId, ownerKind, ownerId);
+    return cases.find((c) => {
+      const meta = c.inputMeta as { source_finding_id?: string } | null;
+      return meta?.source_finding_id === findingId;
+    });
+  }
+
   async insertRun(values: InsertEvalRun): Promise<EvalRunRow> {
     const [row] = await this.db
       .insert(t.evalRuns)
@@ -73,9 +152,21 @@ export class EvalsRepository {
         citationAccuracy: values.citationAccuracy,
         durationMs: values.durationMs,
         costUsd: values.costUsd,
+        agentVersion: values.agentVersion ?? null,
+        batchId: values.batchId ?? null,
       })
       .returning();
     return row!;
+  }
+
+  /** All runs for a set of cases (any case's history), newest first. */
+  async listRunsForCases(caseIds: string[]): Promise<EvalRunRow[]> {
+    if (caseIds.length === 0) return [];
+    return this.db
+      .select()
+      .from(t.evalRuns)
+      .where(inArray(t.evalRuns.caseId, caseIds))
+      .orderBy(desc(t.evalRuns.ranAt));
   }
 
   /**

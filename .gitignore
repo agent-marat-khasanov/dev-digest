@@ -21,5 +21,14 @@ clones/
 playwright-report/
 test-results/
 
+# Recorded subagent dispatches (.claude/hooks/dispatch-observe.py). Raw session prompts —
+# they can contain anything a user pasted, so this accumulates locally and is never committed.
+.ai/observability/
+
 # emdash worktree config (local)
 .emdash.json
+
+# Agent worktrees — transient scratch checkouts, never part of a branch. 56 of these were tracked
+# as gitlinks (added by b9dd72a) until they were untracked; git clones would have got 56 empty
+# directories and permanently noisy `git status`. Keep this rule so `git add -A` can't re-add them.
+.claude/worktrees/

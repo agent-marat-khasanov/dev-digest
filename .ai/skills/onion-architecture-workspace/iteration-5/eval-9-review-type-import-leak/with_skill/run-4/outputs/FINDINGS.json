@@ -1,0 +1,11 @@
+{
+  "findings": [
+    {
+      "file": "server/src/vendor/shared/contracts/report.ts",
+      "lines": [3, 23],
+      "rule": "Dependency rule / type-only import leak: shared domain contract imports an infrastructure row type (SKILL rules 1 & 9)",
+      "explanation": "The client-mirrored domain contract imports the Drizzle row type ReportRunRow from modules/reports/repository.ts and embeds it in ReportDetailDto.latestRun. This is a domain-to-infrastructure dependency (import type counts), it couples the hand-synced vendor/shared surface to server DB internals (the '../../modules/...' path does not exist in the client mirror), and it lets a raw Drizzle row — including internal fields like workspaceId — flow to HTTP unmapped instead of being converted at the boundary. ReportDetailDto is consequently a hand-written interface rather than a Zod-derived shape.",
+      "fix": "Define latestRun as a Zod schema in the contract (only the wire fields, e.g. reportDetailSchema extending reportSummarySchema) and derive ReportDetailDto via z.infer; map ReportRunRow to that shape in modules/reports/helpers.ts (toReportDetailDto) so no server type is named in vendor/shared and no raw row reaches HTTP."
+    }
+  ]
+}

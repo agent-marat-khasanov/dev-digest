@@ -1,0 +1,50 @@
+{
+  "eval_id": 7,
+  "eval_name": "review-port-placement",
+  "config": "without_skill",
+  "findings_reported": 3,
+  "expectations": [
+    {
+      "text": "[7.1] A finding reports the server-only ArchiveStore port declared in the client-mirrored vendor/shared/adapters.ts instead of beside its adapter",
+      "passed": false,
+      "evidence": "no finding overlaps server/src/vendor/shared/adapters.ts:15-21 | server/src/adapters/archive/fs.ts:1-6",
+      "rule": "Where does the port interface go? — nothing outside server/ names ArchiveStore"
+    },
+    {
+      "text": "[7.2] A finding reports the service importing and constructing FsArchiveStore itself instead of receiving the port from the Container (with an override slot)",
+      "passed": true,
+      "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Composition root is the only place that wires concretes (dependency inversion)); server/src/modules/exports/service.ts:21-22 (Configuration/environment access belongs to the composition root)",
+      "rule": "Hard rules 3+6 — adapters are constructed only at the composition root"
+    },
+    {
+      "text": "[7.3] A finding reports the direct process.env reads inside the service",
+      "passed": true,
+      "evidence": "matched: server/src/modules/exports/service.ts:20-23 (Composition root is the only place that wires concretes (dependency inversion)); server/src/modules/exports/service.ts:21-22 (Configuration/environment access belongs to the composition root)",
+      "rule": "Config convention — env is read at the composition root, not in a service"
+    },
+    {
+      "text": "[7.4] No finding flags the Clock port declared beside its adapter — that is the Tokenizer-precedent pattern, not a violation",
+      "passed": false,
+      "evidence": "false positive: server/src/adapters/clock/index.ts:1-4 (Port interfaces belong in the domain layer (vendor/shared), not in infrastructure) — The Clock port is declared inside the adapters directory, so the application layer (service.ts:1) and the container import the port type from infrastructure — the service's source dependency points outward instead of inward to vendor/shared, where all other adapter interfaces (LLMProvider, GitHubClient, SecretsProvider, ArchiveStore) live.",
+      "rule": "Where does the port interface go? — server-local port beside its adapter is sanctioned"
+    },
+    {
+      "text": "[7.5] No finding flags LLMProvider/GitHubClient/SecretsProvider in vendor/shared/adapters.ts",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Genuinely shared ports belong in vendor/shared"
+    },
+    {
+      "text": "[7.6] No finding flags the exports route — validate, call service, parse through the contract is exactly right",
+      "passed": true,
+      "evidence": "correctly not flagged",
+      "rule": "Thin route is correct"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 2,
+    "total": 6,
+    "pass_rate": 0.6666666666666666
+  }
+}

@@ -19,6 +19,27 @@
   the column a default. The `risks` jsonb column did NOT break anything because it has
   `.default(sql\`'[]'::jsonb\`)`. Prefer a DB default when the column allows one.
 
+- **`overrides: { llm: { [llm.id]: llm } }` mocks ONE provider — any code path that sweeps *other*
+  agents then makes REAL network calls.** `agent-eval-routes.it.test.ts` seeded the demo data
+  (`seed()` creates Security Reviewer on `provider: 'openrouter'` with 8 eval cases, `db/seed.ts:16`)
+  but registered its `MockLLMProvider('openai')` under `openai` only. `POST /eval-runs`
+  (`runAllAgentsInWorkspace`) iterates **every** agent in the workspace, so those 8 cases resolved
+  the live openrouter adapter — 21-51s each, timing the test out at 120s. Fix: build the override as
+  `Object.fromEntries(Provider.options.map((p) => [p, llm]))`. Rule of thumb: if a test seeds the demo
+  workspace AND exercises a workspace-wide route, mock **every** provider, not the one you happen to
+  construct. Symptom to recognise: an integration test that times out rather than failing an
+  assertion, and gets *slower* the more the seed grows. `agent-eval.it.test.ts` has the same
+  single-provider override but is not exposed today (it never calls a workspace-wide route) — it will
+  be the moment someone adds one.
+
+- Extracting a dry-run "preview" out of a write method is NOT a pure refactor — the guard ORDER is
+  behavior. `mintFromFinding` (`modules/evals/service.ts`) checks 404 → no-agent `ValidationError` →
+  dedup (return existing) → not-decided `ValidationError`. The dedup return sits BEFORE the
+  not-decided throw, so a re-mint of an already-minted case must succeed even when the decision guard
+  would reject. Splitting into `buildMintDraft` + `mintFromFinding` required rewriting that early
+  return as `if (!existing && !decision) throw` to preserve it. Diff the guard sequence, not just the
+  outputs, whenever you factor a validating method in two.
+
 ## Codebase Patterns
 
 <!-- Conventions and architectural decisions -->
@@ -156,6 +177,13 @@
 - Reset all -> docker compose down -v && ./scripts/dev.sh
 
 ## Session Notes
+
+### 2026-07-26 — Agent Eval Pipeline (L06, SPEC-04)
+- Extended the skill-scoped eval module to **agent-scoped**: mint eval cases from findings (accepted→non-empty `expected_output`, dismissed→`[]`); `POST /agents/:id/eval-runs` runs the set with the agent's OWN `systemPrompt`/`provider`/`model`/`strategy` + enabled skills (mirror `ReviewRunExecutor.runOneAgent` config resolution, MINUS the PR/repo-intel enrichment — an eval case is a stored diff, not a live PR, which keeps the diff the only variable and `reviewer-core` pure). Scoring stays pure (`scoreEval`, zero LLM); `verify:l06` gates it.
+- `container.priceBook` (`platform/price-book.ts`, `.estimate(model, tokensIn, tokensOut): number|null`) already exists — use it for cost estimates; don't invent a fallback table. Returns `null` off-catalog → surface "unknown cost", not a wrong number.
+- **Hand-authored unified-diff fixtures:** the `@@ -a,b +c,d @@` counts MUST match the body's actual context/added/removed line counts, or `parseUnifiedDiff`'s line mapping silently corrupts at eval-run time (there is NO validation at seed/insert). Sanity-check any new fixture diff with a throwaway `tsx` script against `adapters/git/diff-parser.ts`.
+- `fastify-type-provider-zod` + a Zod-literal response field (`{ ok: true }`): TS widens the handler's literal to `{ ok: boolean }` and fails the schema-derived return type — fix with `as const` at the return site (`return { ok: true as const }`).
+- Nullable no-default columns evolve a live table safely (`eval_runs.agent_version`, `batch_id`). A run-all's per-case rows share one `batch_id` so Compare/Trend/dashboard get a well-defined "run" unit. `aggregateBatch`/`batchTimestamp` use `Math.max` (the batch's LATEST case ts), not earliest — match it exactly anywhere else (client included).
 
 ### 2026-06-18 — Run Cost Badge
 - Added `cost_usd` column to `agent_runs` table (nullable `doublePrecision`)

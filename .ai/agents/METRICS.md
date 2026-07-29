@@ -50,6 +50,14 @@ Agent tool result (the `subagent_tokens` line); `outcome` is one of:
 | 2026-07-13 | implementer | SPEC-03 T11 e2e + 2 findings fixes | sonnet/medium | ~72-105k/run | accepted | e2e honestly asserts error-state (no LLM key, no skeleton); RepoFileViewer extraction −250 lines |
 | 2026-07-13 | plan-verifier | SPEC-03 coverage (pass 1 + final) | sonnet/high | ~125k+100k | accepted | Pass 1: 24/24 functionally MET, 2 test-debt PARTIALs; final pass re-ran all suites itself, approve |
 | 2026-07-13 | architecture-reviewer | SPEC-03 diff review (pass 1 + scoped re-check) | sonnet/high | ~67k+31k | accepted | Caught the thrice-extract threshold crossing; re-check confirmed resolved |
+| 2026-07-26 | Explore (×3) | L06 eval-pipeline recon: scaffolding+verify, backend, frontend | opus | ~70-110k/run | accepted | Surfaced the 3-eval-systems distinction + existing skill-scoped module → homework is extend-not-rebuild |
+| 2026-07-26 | spec-creator | SPEC-04 eval-pipeline (author + finalize) | opus | ~90k+65k | accepted | 44 EARS ACs; 10 [NEEDS CLARIFICATION] resolved by user, folded in → approved |
+| 2026-07-26 | implementation-planner | SPEC-04 plan (12 tasks, 5 waves) | opus | ~138k | accepted | 4 open decisions (R1-R4) resolved by orchestrator; all 44 ACs traced |
+| 2026-07-26 | implementer | T1–T12 (12 runs, 5 waves) | opus | ~83-198k/run | accepted | Zero redone; disjoint-file waves; merge-then-commit worktrees needed range-diff integration |
+| 2026-07-26 | implementer | 2 findings-gate fixes (AC-31 edit; AC-27/34 batch + AgentVersion contract) | opus | ~128k+173k | accepted | Both green; client batch aggregation matched backend; contract synced to client shared |
+| 2026-07-26 | plan-verifier | SPEC-04 coverage (pass 1 + scoped re-check) | opus | ~137k+70k | accepted | Pass 1: 41/44 COVERED + 3 PARTIAL; re-check: 44/44 after fixes |
+| 2026-07-26 | architecture-reviewer | SPEC-04 diff review (pass 1 + re-check) | opus | ~83k+69k | accepted | comment→approve; reviewer-core untouched; 1 WARNING (local type) resolved |
+| 2026-07-26 | doc-writer | L06 eval-pipeline docs (learnings + README maps) | opus | ~113k | accepted | Honestly marked manual/unverified ACs; no code changed |
 
 ## Review cadence
 

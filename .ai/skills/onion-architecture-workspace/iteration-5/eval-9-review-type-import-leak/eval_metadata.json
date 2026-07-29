@@ -1,0 +1,13 @@
+{
+  "eval_id": 9,
+  "eval_name": "review-type-import-leak",
+  "prompt": "Review the proposed reports feature (fixture: fixtures/reports-slice/) strictly for architecture violations and report each one as a structured finding.",
+  "assertions": [
+    "[9.1][detect] A finding reports contracts/report.ts importing the Drizzle row type ReportRunRow from modules/reports/repository and using it in ReportDetailDto",
+    "[9.2][decoy] No finding flags the modules' own helpers importing row types from their repository — the identical-looking import is legal inside the module boundary",
+    "[9.3][decoy] No finding flags the schedules module, the reports repository, or the clean contracts (common.ts, schedule.ts)",
+    "[9.4][decoy] No finding flags the services constructing their repository in the constructor — that is the repo-wide convention (9 real modules)",
+    "[9.5][decoy] No finding flags the ReportRenderer port beside its adapter or the container wiring"
+  ],
+  "note": "5 trials per arm; hit-rate metric = assertion 9.1 (the single planted type-only import leak). old_skill = pre-rule-8/9 snapshot."
+}

@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "file": "server/src/modules/exports/service.ts",
+      "lines": [20, 23],
+      "rule": "Composition root is the only place that wires concretes (dependency inversion)",
+      "explanation": "The application-layer service imports and instantiates the concrete infrastructure adapter FsArchiveStore instead of depending on the ArchiveStore port already defined in vendor/shared/adapters.ts. Only platform/container.ts may construct concrete adapters; a service must reach external I/O through a container-provided port.",
+      "fix": "Constructor-inject `archive: ArchiveStore` into ExportsService and construct FsArchiveStore in the container (with an override slot, like the other adapters), wiring it into the exports service there."
+    },
+    {
+      "file": "server/src/modules/exports/service.ts",
+      "lines": [21, 22],
+      "rule": "Configuration/environment access belongs to the composition root",
+      "explanation": "The service reads process.env (ARCHIVE_DIR, EXPORT_SIGNING_SECRET) directly. In this project all config is loaded once at the composition root (platform/config via loadConfig, secrets via SecretsProvider) and injected; no module code touches the environment.",
+      "fix": "Move both values into AppConfig (or SecretsProvider for the signing secret) and pass them to FsArchiveStore where it is constructed in the container."
+    },
+    {
+      "file": "server/src/adapters/clock/index.ts",
+      "lines": [1, 4],
+      "rule": "Port interfaces belong in the domain layer (vendor/shared), not in infrastructure",
+      "explanation": "The Clock port is declared inside the adapters directory, so the application layer (service.ts:1) and the container import the port type from infrastructure — the service's source dependency points outward instead of inward to vendor/shared, where all other adapter interfaces (LLMProvider, GitHubClient, SecretsProvider, ArchiveStore) live.",
+      "fix": "Move `interface Clock` into server/src/vendor/shared/adapters.ts and have SystemClock in adapters/clock implement it; service and container then import the Clock type from vendor/shared."
+    }
+  ]
+}

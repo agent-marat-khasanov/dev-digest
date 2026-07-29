@@ -1,0 +1,145 @@
+# Harness suite — the AI harness itself (.ai/skills, .ai/agents, CLAUDE.md, hooks) and the
+# evals/ package that tests it. None of these paths are covered by the five product workflows,
+# so before this file a change to a skill, a subagent, or an eval case triggered NOTHING.
+#
+# The default job is deliberately FREE: static gates and pure unit tests, no model, no secret.
+# Model-backed evals are probabilistic and cost money, so they run only on an explicit manual
+# dispatch — see the `llm` job.
+name: evals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'evals/**'
+      - '.ai/**'
+      - '.claude/hooks/**'
+      - '.claude/settings.json'
+      - 'AGENTS.md'
+      - '.github/workflows/evals.yml'
+  pull_request:
+    paths:
+      - 'evals/**'
+      - '.ai/**'
+      - '.claude/hooks/**'
+      - '.claude/settings.json'
+      - 'AGENTS.md'
+      - '.github/workflows/evals.yml'
+
+  # Manual, for the paid tier. `tier` picks which eval set runs; see evals/README.md
+  # "Running headless / in CI" for why each tier needs the model it needs.
+  workflow_dispatch:
+    inputs:
+      tier:
+        # `all` runs every tier in one go. It is the expensive one: the workflow tier spins a full
+        # Claude Code session per case (one of them dispatches a nested subagent), so prefer a
+        # single tier while iterating and keep `all` for a deliberate full sweep.
+        description: 'Model-backed tier to run (costs money; `all` = every tier)'
+        required: true
+        default: skills
+        type: choice
+        options: [skills, agents, workflow, all]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Free, deterministic, no secrets — safe to require on every PR.
+  gate:
+    name: gate (no model)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      # Hooks run on every tool call locally; a syntax error there breaks the whole session,
+      # and nothing else in CI ever imports them.
+      - name: Hooks compile
+        run: python3 -m py_compile .claude/hooks/*.py
+
+      - name: Install
+        working-directory: evals
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: evals
+        run: pnpm typecheck
+
+      # eval:quality = static SKILL.md structure gate; plus the pure statistics unit tests.
+      # No API key, no network, under a second.
+      - name: Gate
+        working-directory: evals
+        run: pnpm eval:gate
+
+  # Real model calls. Manual only — these cases are judged by an LLM and are NOT calibrated yet
+  # (see evals/README.md), so wiring them to PRs would fail the build at random.
+  llm:
+    name: ${{ inputs.tier }} evals (real model)
+    if: github.event_name == 'workflow_dispatch'
+    needs: gate
+    runs-on: ubuntu-latest
+    env:
+      # The default `subscription` backend strips ANTHROPIC_API_KEY on purpose, so it cannot
+      # authenticate off-machine. OpenRouter is the only headless path. Tool tiers (agents,
+      # workflow) run inside the Agent SDK and need an anthropic/* slug; the skills tier calls
+      # OpenRouter directly and can use anything.
+      EVAL_BACKEND: openrouter
+      EVAL_MODEL: ${{ inputs.tier == 'skills' && 'deepseek/deepseek-chat' || 'anthropic/claude-haiku-4.5' }}
+      EVAL_JUDGE_MODEL: anthropic/claude-haiku-4.5
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_QUIET: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      # `secrets` is not available in a job-level `if`, so the guard lives here: fail loudly with
+      # an actionable message rather than burning minutes on runs that cannot authenticate.
+      - name: Require OPENROUTER_API_KEY
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error::OPENROUTER_API_KEY is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: evals
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ${{ inputs.tier }} evals
+        working-directory: evals
+        run: pnpm eval:${{ inputs.tier }}
+
+      - name: Summary
+        if: always()
+        working-directory: evals
+        run: pnpm eval:summary >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ inputs.tier }}
+          path: evals/results/**
+          if-no-files-found: ignore

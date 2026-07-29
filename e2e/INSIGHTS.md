@@ -9,6 +9,34 @@
 
 <!-- Dead ends and anti-patterns — the most valuable section, don't skip -->
 
+- **`wait --text` asserts the RENDERED text, so `text-transform: uppercase` silently breaks it.**
+  `SectionLabel` (`client/src/vendor/ui/primitives/SectionLabel.tsx`) uppercases its children, so
+  the JSX `<SectionLabel>PR brief</SectionLabel>` must be asserted as `"PR BRIEF"`. Same for the
+  tour TOC title. This produced a red suite whose message ("Command failed: wait --text PR brief")
+  points at the assertion, not the cause, and the string is right there in the component — so the
+  natural reaction is to disbelieve the failure. Prefer an accessibility hook when one exists:
+  `find role navigation --name "On this page"` reads the `aria-label`, which no CSS can rewrite.
+- **`wait --text` cannot see a `placeholder`** — it is an attribute, not text. `agent-browser` has
+  a dedicated locator: `find placeholder "…" text`. The `find` verb's full locator set is
+  `role, text, label, placeholder, alt, title, testid, first, last, nth` (`agent-browser find --help`),
+  which is wider than this README documented for a long time.
+- **`find text X click` never waits — and the suite shares ONE browser session.** Whether `X` has
+  rendered when the click fires depends on what the *previous* flow left on screen, so the same
+  missing-wait bug surfaces in a different flow every time you fix one. Diagnostic signature: the
+  failure MOVES when you change unrelated flows. Always emit `wait --text X` immediately before
+  `find text X click`; four flows were missing it.
+- **`./scripts/e2e.sh` green does NOT mean CI green — the two run different builds.** The script
+  serves the client with `next dev` (`scripts/e2e.sh:148`), CI does `pnpm build` + `pnpm start`
+  (`e2e-web.yml`, "Build + start web"). A `find role navigation --name "On this page"` assertion
+  passed locally twice and still failed in CI; swapping it for `wait --text "ON THIS PAGE"` — the
+  same rendered-uppercase trick already proven in CI by flow 10 — is what held. **Treat a local
+  pass as necessary, not sufficient; confirm on CI before calling an e2e fix done.** Prefer the
+  assertion style that CI has already demonstrated over a theoretically-nicer locator.
+- **A local `npm test` in `e2e/` is not the CI run.** Your dev DB has extra imported repos, so the
+  home redirect lands on the wrong one and flows 02/04/05 fail for reasons CI will never see. Use
+  `./scripts/e2e.sh` (ephemeral Postgres on alternate ports) — it reproduced CI's failures exactly,
+  which is what made them fixable.
+
 ## Codebase Patterns
 
 <!-- Conventions and architectural decisions -->

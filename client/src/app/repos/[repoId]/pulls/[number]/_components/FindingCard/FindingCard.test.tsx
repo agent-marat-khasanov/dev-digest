@@ -57,4 +57,23 @@ describe("FindingCard (smoke, both themes)", () => {
     fireEvent.click(screen.getByText("Dismiss"));
     expect(onAction).toHaveBeenCalledWith("dismiss");
   });
+
+  it("disables 'Turn into eval case' until the finding is accepted or dismissed", () => {
+    const onMintEvalCase = vi.fn();
+    const { rerender } = renderWithIntl(
+      <FindingCard f={FINDING} defaultExpanded onAction={() => {}} onMintEvalCase={onMintEvalCase} />,
+    );
+    expect(screen.getByText("Turn into eval case")).toBeDisabled();
+
+    const accepted = { ...FINDING, accepted_at: "2026-01-01T00:00:00Z" };
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
+        <FindingCard f={accepted} defaultExpanded onAction={() => {}} onMintEvalCase={onMintEvalCase} />
+      </NextIntlClientProvider>,
+    );
+    const mintButton = screen.getByText("Turn into eval case");
+    expect(mintButton).toBeEnabled();
+    fireEvent.click(mintButton);
+    expect(onMintEvalCase).toHaveBeenCalled();
+  });
 });

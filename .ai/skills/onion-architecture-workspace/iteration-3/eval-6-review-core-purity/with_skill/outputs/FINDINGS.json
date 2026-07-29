@@ -1,0 +1,33 @@
+{
+  "findings": [
+    {
+      "file": "insight-core/src/store.ts",
+      "lines": [1, 3],
+      "rule": "Keep the core pure / dependencies point inward (rules 1 & 2)",
+      "explanation": "A pure core package imports drizzle-orm and reaches into server infrastructure (server/src/db/client, server/src/db/schema) to persist reports. This is the exact anti-pattern from examples.md #4: the core now needs a database, inverting the dependency direction (a core package depending on server infrastructure) and making it untestable without Postgres. run.ts calling persistReport is the same violation surfacing in the orchestrator.",
+      "fix": "Delete store.ts from insight-core and remove the persistReport import/call from run.ts; runInsights returns the InsightReport, and a server-side module (service + repository, wired via the Container) persists it."
+    },
+    {
+      "file": "insight-core/src/enrich.ts",
+      "lines": [13, 16],
+      "rule": "All external I/O through container-provided ports (rules 2 & 3)",
+      "explanation": "The core performs a raw network call (fetch to api.github.com) directly. Raw network calls are on the forbidden-imports checklist for the core, and cross-process I/O (GitHub) is required to go through a port — the core must say what it needs, never call the vendor API itself.",
+      "fix": "Inject a port (the existing GitHubClient from vendor/shared/adapters.ts, or a minimal ownership-lookup interface passed into runInsights) and have the server resolve the concrete adapter from the Container; enrichWithOwnership then calls the port."
+    },
+    {
+      "file": "insight-core/src/summary.ts",
+      "lines": [1, 4],
+      "rule": "Keep the core pure — no vendor SDKs / self-constructed dependencies in the core (rules 2 & 6)",
+      "explanation": "The core imports pino and constructs a logger singleton at module scope, wiring a concrete side-effecting dependency (stdout I/O) into the pure core instead of receiving it. The core must stay free of vendor SDKs and perform zero I/O except through injected ports.",
+      "fix": "Remove the pino import and logger; if progress/diagnostics are needed, use the already-injected onProgress callback or accept an optional logger port via RunInsightsOptions."
+    },
+    {
+      "file": "insight-core/src/run.ts",
+      "lines": [7, 9],
+      "rule": "Cross-package port belongs in vendor/shared/adapters.ts",
+      "explanation": "run.ts declares its own local LLMProvider interface with an incompatible shape. Per the skill's port-location rule, a port named by a package outside server/ must live in vendor/shared/adapters.ts — that is exactly why the real LLMProvider is there (reviewer-core names it). Duplicating it creates a parallel port that drifts from the one the server's adapters and Container actually implement."
+      ,
+      "fix": "Import LLMProvider from @devdigest/shared instead of redeclaring it (extending the shared port there if insight-core needs a capability it lacks), so the server can hand insight-core the same container-resolved adapter."
+    }
+  ]
+}

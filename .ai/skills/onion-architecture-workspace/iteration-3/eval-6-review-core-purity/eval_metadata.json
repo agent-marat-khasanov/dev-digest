@@ -1,0 +1,12 @@
+{
+  "eval_id": 6,
+  "eval_name": "review-core-purity",
+  "prompt": "Review the proposed insight-core package (fixture: evals/fixtures/insight-core/) strictly for architecture violations and report each one as a structured finding.",
+  "assertions": [
+    "[6.1][detect] A finding reports insight-core importing the server's db client/schema and persisting reports itself",
+    "[6.2][detect] A finding reports insight-core fetching the GitHub API directly in enrich.ts",
+    "[6.3][detect] A finding reports the pino logger import/use inside the core",
+    "[6.4][decoy] No finding flags the injected-LLM call via the options port or the onProgress callback — that is exactly how a pure core is supposed to do I/O (a finding on the run.ts:7-9 local redeclaration of LLMProvider is legitimate and excluded from this span)",
+    "[6.5][decoy] No finding flags prompt.ts or types.ts — pure, dependency-free core code"
+  ]
+}

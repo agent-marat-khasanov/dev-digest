@@ -21,6 +21,10 @@ on:
       - 'server/**'
       - '.github/workflows/server-integration.yml'
 
+  # Manual trigger. The repo is a fork, so `push` (main-only) and `pull_request` are the only
+  # other events — without this there is no way to re-run a suite without inventing a commit.
+  workflow_dispatch:
+
 permissions:
   contents: read
 
