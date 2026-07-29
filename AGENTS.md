@@ -22,6 +22,8 @@ cd server && pnpm verify:l06  # product eval scorer (pure, no LLM). Also the loc
 cd evals && pnpm eval:gate      # eval:quality + stats unit tests — no model, no key, <1s. Run this in CI.
 cd evals && pnpm eval:quality   # static SKILL.md gate — no model, no key, always free
 cd evals && pnpm eval:summary   # markdown table of the last run (pipe into $GITHUB_STEP_SUMMARY)
+cd evals && pnpm eval:mine      # real routing events from session transcripts → results/corpus.json
+cd evals && pnpm eval:mine --agent <name> | --skill <name>   # the real prompts behind them
 cd evals && pnpm eval:skills    # LLM-judged evals for .ai/skills/*
 cd evals && pnpm eval:agents    # LLM-judged evals for .ai/agents/*
 cd evals && pnpm eval:workflow  # trace-asserted evals: skill activation, subagent dispatch, CLAUDE.md effect
@@ -64,6 +66,18 @@ Three unrelated things in this repo are called "evals". Confusing them wastes a 
 
 Product evals are a *feature you ship*; harness evals are a *tool you develop with*. Legacy skill
 evals are dead — do not extend them.
+
+**Eval cases are derived from collected data, never invented.** Two collectors feed this:
+
+| Collector | Records | Read it with |
+|---|---|---|
+| `.claude/hooks/dispatch-observe.py` (PostToolUse on `Task\|Agent`) | every real subagent dispatch → `.ai/observability/dispatches.jsonl` | plain `jq` |
+| `evals/src/mine-transcripts.ts` | routing events reconstructed from past session transcripts | `pnpm eval:mine` |
+
+Both are gitignored — they hold raw session prompts. **Attribution rule:** a dispatch is only
+evidence that a prompt *caused* routing when `turns_since_human` is small (0–2). Past that, the
+dispatch was orchestrator-driven and claiming the prompt caused it is fabrication — the mistake
+that made transcript-only mining unusable in the first place.
 
 ## Coding Rules
 
