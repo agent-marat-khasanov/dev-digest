@@ -6,6 +6,7 @@ import {
   ExpectedFinding,
   type EvalCase,
   type EvalCaseInput,
+  type EvalCaseMintPreview,
   type EvalCaseSummary,
   type EvalDashboard,
   type EvalDashboardOverview,
@@ -151,13 +152,14 @@ export class EvalsService {
   // ==========================================================================
 
   /**
-   * Mint an eval case from a finding (AC-1/2/4/5). Owner is resolved via
-   * finding → review → agentId; a finding produced by no agent (agentId
-   * null) has no case owner to mint into. `input_diff` is the patch of the
-   * single file the finding is on. Re-minting the same finding returns the
-   * existing case instead of duplicating it (dedup via `inputMeta`, R2).
+   * Pure derivation of what `mintFromFinding` would create — no DB write.
+   * Backs the dry-run preview modal (AC-1/2/4/5 minus persistence): resolves
+   * the finding's context/owner/decision/diff and checks for an existing
+   * case, but never inserts one. Mirrors `mintFromFinding`'s check ORDER
+   * exactly (404 → no-agent ValidationError → dedup → not-decided
+   * ValidationError) so the preview and the real mint agree byte-for-byte.
    */
-  async mintFromFinding(workspaceId: string, findingId: string): Promise<EvalCase> {
+  async buildMintDraft(workspaceId: string, findingId: string): Promise<EvalCaseMintPreview> {
     const ctx = await this.container.reviewRepo.findingContext(findingId);
     if (!ctx || ctx.pull.workspaceId !== workspaceId) {
       throw new NotFoundError('Finding not found');
@@ -172,6 +174,7 @@ export class EvalsService {
         'This finding did not come from an agent review, so it has no agent to own the eval case. Run an agent review on this PR and mint a case from one of its findings.',
       );
     }
+    const agent = await this.requireAgent(workspaceId, agentId);
 
     const existing = await this.repo.findCaseBySourceFinding(
       workspaceId,
@@ -179,7 +182,6 @@ export class EvalsService {
       agentId,
       findingId,
     );
-    if (existing) return toEvalCase(existing);
 
     const { finding } = ctx;
     const decision: 'accepted' | 'dismissed' | null = finding.acceptedAt
@@ -187,7 +189,7 @@ export class EvalsService {
       : finding.dismissedAt
         ? 'dismissed'
         : null;
-    if (!decision) {
+    if (!existing && !decision) {
       throw new ValidationError('Finding must be accepted or dismissed before minting an eval case');
     }
 
@@ -209,14 +211,44 @@ export class EvalsService {
           ]
         : [];
 
+    return {
+      agent_id: agentId,
+      agent_name: agent.name,
+      name: `Finding: ${finding.title}`.slice(0, 200),
+      input_diff: inputDiff,
+      expected_output: expectedOutput,
+      decision: decision ?? 'accepted',
+      existing_case_id: existing?.id ?? null,
+    };
+  }
+
+  /** Dry-run preview for the mint modal (AC-39) — no DB write. */
+  async previewMintFromFinding(workspaceId: string, findingId: string): Promise<EvalCaseMintPreview> {
+    return this.buildMintDraft(workspaceId, findingId);
+  }
+
+  /**
+   * Mint an eval case from a finding (AC-1/2/4/5). Owner is resolved via
+   * finding → review → agentId; a finding produced by no agent (agentId
+   * null) has no case owner to mint into. `input_diff` is the patch of the
+   * single file the finding is on. Re-minting the same finding returns the
+   * existing case instead of duplicating it (dedup via `inputMeta`, R2).
+   */
+  async mintFromFinding(workspaceId: string, findingId: string): Promise<EvalCase> {
+    const draft = await this.buildMintDraft(workspaceId, findingId);
+    if (draft.existing_case_id) {
+      const existing = await this.repo.getCase(workspaceId, draft.existing_case_id);
+      return toEvalCase(existing!);
+    }
+
     const row = await this.repo.insertCase({
       workspaceId,
       ownerKind: 'agent',
-      ownerId: agentId,
-      name: `Finding: ${finding.title}`.slice(0, 200),
-      inputDiff,
+      ownerId: draft.agent_id,
+      name: draft.name,
+      inputDiff: draft.input_diff,
       inputMeta: { source_finding_id: findingId },
-      expectedOutput,
+      expectedOutput: draft.expected_output,
     });
     return toEvalCase(row);
   }

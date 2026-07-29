@@ -9,6 +9,7 @@ import type {
   AgentVersion,
   EvalCase,
   EvalCaseInput,
+  EvalCaseMintPreview,
   EvalCaseSummary,
   EvalDashboard,
   EvalDashboardOverview,
@@ -120,6 +121,14 @@ export function useAgentEvalRuns(agentId: string | null | undefined) {
     queryKey: agentEvalRunsKey(agentId ?? ""),
     queryFn: () => api.get<EvalRunRecord[]>(`/agents/${agentId}/eval-runs`),
     enabled: !!agentId,
+  });
+}
+
+export function useMintEvalCasePreview(findingId: string | null) {
+  return useQuery({
+    queryKey: ["findings", findingId, "eval-case", "preview"],
+    queryFn: () => api.get<EvalCaseMintPreview>(`/findings/${findingId}/eval-case/preview`),
+    enabled: !!findingId,
   });
 }
 

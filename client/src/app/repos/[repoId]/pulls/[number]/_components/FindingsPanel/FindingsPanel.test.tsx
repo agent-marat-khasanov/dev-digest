@@ -8,13 +8,10 @@ vi.mock("@/lib/hooks/reviews", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-const mintMutate = vi.fn();
-vi.mock("@/lib/hooks/agent-evals", () => ({
-  useMintEvalCaseFromFinding: () => ({ mutate: mintMutate, isPending: false, variables: undefined }),
-}));
-
-vi.mock("@/lib/toast", () => ({
-  useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), toast: vi.fn() }),
+vi.mock("../MintEvalCaseModal", () => ({
+  MintEvalCaseModal: ({ findingId }: { findingId: string }) => (
+    <div data-testid="mint-eval-case-modal">{findingId}</div>
+  ),
 }));
 
 import { FindingsPanel } from "./FindingsPanel";
@@ -62,10 +59,13 @@ describe("FindingsPanel (smoke)", () => {
     expect(screen.getByText("No findings match")).toBeInTheDocument();
   });
 
-  it("mints an eval case for an accepted finding", () => {
+  it("opens the mint eval case modal for an accepted finding", () => {
     const accepted: FindingRecord[] = [{ ...FINDINGS[0]!, accepted_at: "2026-01-01T00:00:00Z" }];
     renderWithIntl(<FindingsPanel findings={accepted} prId="pr1" />);
+    expect(screen.queryByTestId("mint-eval-case-modal")).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByText("Turn into eval case"));
-    expect(mintMutate).toHaveBeenCalledWith("f1", expect.anything());
+
+    expect(screen.getByTestId("mint-eval-case-modal")).toHaveTextContent("f1");
   });
 });

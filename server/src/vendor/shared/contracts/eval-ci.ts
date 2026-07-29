@@ -71,6 +71,23 @@ export const EvalCaseSummary = z.object({
 });
 export type EvalCaseSummary = z.infer<typeof EvalCaseSummary>;
 
+/**
+ * Dry-run preview of what `mintFromFinding` would create — computed WITHOUT
+ * writing to the DB, so the client can show a confirmation modal before the
+ * case is actually minted (or run).
+ */
+export const EvalCaseMintPreview = z.object({
+  agent_id: z.string(),
+  agent_name: z.string(),
+  name: z.string(),
+  input_diff: z.string(),
+  expected_output: z.array(ExpectedFinding),
+  decision: z.enum(['accepted', 'dismissed']),
+  /** Non-null when a case for this finding already exists (dedup, R2). */
+  existing_case_id: z.string().nullable(),
+});
+export type EvalCaseMintPreview = z.infer<typeof EvalCaseMintPreview>;
+
 /** A persisted eval run row (one execution of a case), returned by the API. */
 export const EvalRunRecord = z.object({
   id: z.string(),

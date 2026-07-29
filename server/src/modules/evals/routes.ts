@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   EvalCase,
   EvalCaseInput,
+  EvalCaseMintPreview,
   EvalCaseSummary,
   EvalDashboard,
   EvalDashboardOverview,
@@ -24,6 +25,7 @@ import { EvalsService } from './service.js';
  *   DELETE /skills/:id/evals/:caseId      → delete a case
  *
  * Agent-scoped flow (L06):
+ *   GET    /findings/:id/eval-case/preview     → dry-run preview of the mint (no DB write)
  *   POST   /findings/:id/eval-case            → mint a case from an accepted/dismissed finding
  *   GET    /agents/:id/evals                  → agent's eval cases + latest-run summary
  *   GET    /agents/:id/eval-runs/estimate      → pre-run-all cost estimate
@@ -87,6 +89,15 @@ export default async function evalsRoutes(appBase: FastifyInstance) {
   // ==========================================================================
   // Agent-scoped flow (L06)
   // ==========================================================================
+
+  app.get(
+    '/findings/:id/eval-case/preview',
+    { schema: { params: IdParams, response: { 200: EvalCaseMintPreview } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.previewMintFromFinding(workspaceId, req.params.id);
+    },
+  );
 
   app.post(
     '/findings/:id/eval-case',

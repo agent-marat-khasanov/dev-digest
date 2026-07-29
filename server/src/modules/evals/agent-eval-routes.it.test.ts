@@ -156,6 +156,128 @@ d('T3 agent-eval routes (Testcontainers pg)', () => {
     await app.close();
   });
 
+  it('GET /findings/:id/eval-case/preview returns a dry-run draft, no case is persisted', async () => {
+    const llm = new MockLLMProvider('openai', { structured: REVIEW_FIXTURE });
+    const app = await appWith(llm);
+    const agentName = `Preview Agent ${Math.random().toString(36).slice(2)}`;
+    const agent = await createAgent(app, agentName);
+    const { finding } = await createPrWithFinding(agent.id, 'accepted');
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/findings/${finding.id}/eval-case/preview`,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.agent_id).toBe(agent.id);
+    expect(body.agent_name).toBe(agentName);
+    expect(body.decision).toBe('accepted');
+    expect(body.expected_output).toHaveLength(1);
+    expect(body.existing_case_id).toBeNull();
+
+    const list = await app.inject({ method: 'GET', url: `/agents/${agent.id}/evals` });
+    expect(list.json()).toHaveLength(0);
+
+    await app.close();
+  });
+
+  it('GET /findings/:id/eval-case/preview 404s for a cross-workspace finding', async () => {
+    const llm = new MockLLMProvider('openai', { structured: REVIEW_FIXTURE });
+    const app = await appWith(llm);
+
+    const [otherWs] = await pg.handle.db
+      .insert(t.workspaces)
+      .values({ name: 'other-ws-preview' })
+      .returning();
+    const agentsRepo = new (await import('../agents/repository.js')).AgentsRepository(pg.handle.db);
+    const otherAgent = await agentsRepo.insert({
+      workspaceId: otherWs!.id,
+      name: 'Other-workspace agent',
+      provider: 'openai',
+      model: 'gpt-4.1',
+      systemPrompt: 'x',
+    });
+    const { finding } = await createPrWithFinding(otherAgent.id, 'accepted', otherWs!.id);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/findings/${finding.id}/eval-case/preview`,
+    });
+    expect(res.statusCode).toBe(404);
+
+    await app.close();
+  });
+
+  it('GET /findings/:id/eval-case/preview rejects a finding with no owning agent (422)', async () => {
+    const llm = new MockLLMProvider('openai', { structured: REVIEW_FIXTURE });
+    const app = await appWith(llm);
+
+    const repoRepo = new RepoRepository(pg.handle.db);
+    const name = `eval-preview-no-agent-${Math.random().toString(36).slice(2)}`;
+    const repo = await repoRepo.insert({
+      workspaceId,
+      owner: 'acme',
+      name,
+      fullName: `acme/${name}`,
+      createdBy: (await pg.handle.db.select().from(t.users).limit(1))[0]!.id,
+    });
+    const [pr] = await pg.handle.db
+      .insert(t.pullRequests)
+      .values({
+        workspaceId,
+        repoId: repo.id,
+        number: 900 + Math.floor(Math.random() * 10000),
+        title: 'No agent PR',
+        author: 'marisa.koch',
+        branch: 'feat/no-agent',
+        base: 'main',
+        headSha: 'a1b2c3d5',
+        additions: 1,
+        deletions: 0,
+        filesCount: 1,
+        status: 'needs_review',
+      })
+      .returning();
+    const [review] = await pg.handle.db
+      .insert(t.reviews)
+      .values({
+        workspaceId,
+        prId: pr!.id,
+        agentId: null,
+        runId: null,
+        kind: 'review',
+        verdict: 'approve',
+        summary: 'Imported review, no agent.',
+        score: 90,
+        model: 'gpt-4.1',
+      })
+      .returning();
+    const [finding] = await pg.handle.db
+      .insert(t.findings)
+      .values({
+        reviewId: review!.id,
+        file: 'src/config.ts',
+        startLine: 1,
+        endLine: 1,
+        severity: 'WARNING',
+        category: 'security',
+        title: 'No agent finding',
+        rationale: 'x',
+        confidence: 0.5,
+        acceptedAt: new Date(),
+        dismissedAt: null,
+      })
+      .returning();
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/findings/${finding!.id}/eval-case/preview`,
+    });
+    expect(res.statusCode).toBe(422);
+
+    await app.close();
+  });
+
   it('AC-6: GET /agents/:id/evals returns EvalCaseSummary[]', async () => {
     const llm = new MockLLMProvider('openai', { structured: REVIEW_FIXTURE });
     const app = await appWith(llm);
