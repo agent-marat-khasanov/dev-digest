@@ -29,11 +29,27 @@ A spec lives in `specs/NN-name.flow.json`:
   (they time out and exit non-zero if the condition never holds).
 - Optional `"assert": { "stdoutIncludes": "…" }` adds a substring check on the
   command's stdout.
-- Locators are deterministic only (`--url`, `--text`, `find role|text|label`).
+- Locators are deterministic only (`--url`, `--text`, `find role|text|label|placeholder`).
   We never use the AI `chat` command, so runs are stable and key-free.
 
 Flows target **read-only seeded data** (the demo repo `acme/payments-api`, PR
 #482, the seeded agents), so nothing triggers a model call.
+
+### Three traps `wait --text` sets for you
+
+All three cost a red suite once. `wait --text` matches the **rendered** text of the page:
+
+1. **`text-transform: uppercase` changes what you must assert.** `SectionLabel`
+   (`client/src/vendor/ui/primitives/SectionLabel.tsx`) and the tour's TOC title uppercase their
+   contents, so the JSX says `PR brief` but the page says `PR BRIEF` — assert the latter. Better
+   still, assert something styling cannot touch: the tour TOC is matched via
+   `find role navigation --name "On this page"`, because the `aria-label` survives any CSS.
+2. **A `placeholder` is an attribute, not text.** `wait --text "Filter documents…"` can never
+   pass; use `find placeholder "Filter documents…" text`.
+3. **`find text X click` does not wait.** It acts immediately, and whether `X` has rendered
+   depends on what the *previous flow* left on screen — the whole suite shares one browser
+   session. Always precede a click with `wait --text X`. Symptom: a failure that moves between
+   flows as you "fix" them, which is what happened here.
 
 > **Precondition: a freshly-seeded DB.** Flow `02` follows the home redirect to
 > the *first* repo, so it assumes the seeded demo repo is the only one. CI
