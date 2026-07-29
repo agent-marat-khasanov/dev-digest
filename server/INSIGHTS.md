@@ -19,6 +19,19 @@
   the column a default. The `risks` jsonb column did NOT break anything because it has
   `.default(sql\`'[]'::jsonb\`)`. Prefer a DB default when the column allows one.
 
+- **`overrides: { llm: { [llm.id]: llm } }` mocks ONE provider — any code path that sweeps *other*
+  agents then makes REAL network calls.** `agent-eval-routes.it.test.ts` seeded the demo data
+  (`seed()` creates Security Reviewer on `provider: 'openrouter'` with 8 eval cases, `db/seed.ts:16`)
+  but registered its `MockLLMProvider('openai')` under `openai` only. `POST /eval-runs`
+  (`runAllAgentsInWorkspace`) iterates **every** agent in the workspace, so those 8 cases resolved
+  the live openrouter adapter — 21-51s each, timing the test out at 120s. Fix: build the override as
+  `Object.fromEntries(Provider.options.map((p) => [p, llm]))`. Rule of thumb: if a test seeds the demo
+  workspace AND exercises a workspace-wide route, mock **every** provider, not the one you happen to
+  construct. Symptom to recognise: an integration test that times out rather than failing an
+  assertion, and gets *slower* the more the seed grows. `agent-eval.it.test.ts` has the same
+  single-provider override but is not exposed today (it never calls a workspace-wide route) — it will
+  be the moment someone adds one.
+
 - Extracting a dry-run "preview" out of a write method is NOT a pure refactor — the guard ORDER is
   behavior. `mintFromFinding` (`modules/evals/service.ts`) checks 404 → no-agent `ValidationError` →
   dedup (return existing) → not-decided `ValidationError`. The dedup return sits BEFORE the

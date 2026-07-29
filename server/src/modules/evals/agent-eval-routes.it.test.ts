@@ -6,6 +6,7 @@ import { seed } from '../../db/seed.js';
 import { MockLLMProvider } from '../../adapters/mocks.js';
 import { RepoRepository } from '../repos/repository.js';
 import * as t from '../../db/schema.js';
+import { Provider } from '@devdigest/shared';
 import type { LLMProvider, Review } from '@devdigest/shared';
 
 /**
@@ -42,10 +43,15 @@ d('T3 agent-eval routes (Testcontainers pg)', () => {
   });
 
   function appWith(llm: LLMProvider) {
+    // Register the mock under EVERY provider, not just `llm.id`. `seed()` above creates agents on
+    // `openrouter` (Security Reviewer, with 8 eval cases), and workspace-wide run-all executes them
+    // too — so keying the override by the mock's own id left those cases resolving the REAL adapter
+    // and making live network calls, which timed out the AC-41/43 test at 120s.
+    const everyProvider = Object.fromEntries(Provider.options.map((p) => [p, llm]));
     return buildApp({
       config: config(),
       db: pg.handle.db,
-      overrides: { llm: { [llm.id]: llm } },
+      overrides: { llm: everyProvider },
     });
   }
 
