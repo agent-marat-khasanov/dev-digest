@@ -19,7 +19,9 @@ Evals — two different things, do not mix them up (see [Eval systems](#eval-sys
 cd server && pnpm verify:l06  # product eval scorer (pure, no LLM). Also the local commit gate
                               #   enforced by .claude/hooks/test-gate.sh — a red scorer blocks commits.
 
+cd evals && pnpm eval:gate      # eval:quality + stats unit tests — no model, no key, <1s. Run this in CI.
 cd evals && pnpm eval:quality   # static SKILL.md gate — no model, no key, always free
+cd evals && pnpm eval:summary   # markdown table of the last run (pipe into $GITHUB_STEP_SUMMARY)
 cd evals && pnpm eval:skills    # LLM-judged evals for .ai/skills/*
 cd evals && pnpm eval:agents    # LLM-judged evals for .ai/agents/*
 cd evals && pnpm eval:workflow  # trace-asserted evals: skill activation, subagent dispatch, CLAUDE.md effect
@@ -29,7 +31,9 @@ cd evals && pnpm eval:benchmark skills/<name> -n 5             # measured lift (
 ```
 
 Everything under `evals/` except `eval:quality` makes real model calls. It runs on the Claude Code
-subscription by default; for headless runs (no subscription) see **Backends** in `evals/README.md`.
+subscription by default. **A headless run needs `EVAL_BACKEND=openrouter`** — the default
+`subscription` backend strips `ANTHROPIC_API_KEY` on purpose, so it cannot authenticate off-machine.
+Recipe: *Running headless / in CI* in `evals/README.md`; variables: `evals/.env.example`.
 
 Per-module commands: see each module AGENTS.md.
 

@@ -86,6 +86,45 @@ pnpm eval:skills
 > **Gotcha:** always set `EVAL_MODEL` together with `EVAL_BACKEND=openrouter` — the default
 > `claude-haiku-4-5` is an Anthropic ID and OpenRouter won't find it. Use an OpenRouter slug.
 
+## Running headless / in CI
+
+There are no workflow files in this repo yet — this section is the recipe for when you add them.
+All the pieces the YAML needs already exist, so a workflow stays declarative.
+
+**The one thing that will bite you:** the default `EVAL_BACKEND=subscription` **cannot work
+headlessly**. `runtime/env.ts` deliberately deletes `ANTHROPIC_API_KEY` so local runs can never
+bill per token — on a runner there is no subscription to fall back to, so every model-backed case
+fails at auth. Use `EVAL_BACKEND=openrouter`, which routes the SDK through OpenRouter's
+Anthropic-compatible endpoint. One secret covers all three tiers:
+
+| Tier | `EVAL_BACKEND` | `EVAL_MODEL` | Why |
+|---|---|---|---|
+| skills | `openrouter` | `deepseek/deepseek-chat` | content tier calls OpenRouter directly — any cheap model works |
+| agents | `openrouter` | `anthropic/claude-haiku-4.5` | tool tier runs inside the SDK — needs an `anthropic/*` slug |
+| workflow | `openrouter` | `anthropic/claude-haiku-4.5` | same |
+
+Set `EVAL_JUDGE_MODEL=anthropic/claude-haiku-4.5` and provide `OPENROUTER_API_KEY`. Full variable
+list: `.env.example`.
+
+Two commands exist specifically for this shape:
+
+```bash
+pnpm eval:gate                          # deterministic, no model, no secret — the always-run job
+pnpm eval:summary >> "$GITHUB_STEP_SUMMARY"   # markdown table of the last run
+```
+
+`eval:gate` is `eval:quality` + the stats unit tests: it is free, takes under a second, and is the
+job that should gate every PR. The model-backed tiers belong behind a path filter (or
+`workflow_dispatch`), because they cost money and are probabilistic.
+
+**Cost and flakiness.** Gate on `eval:skills`/`eval:agents` only once `pnpm eval:repeat <path> -n 5`
+shows a stable pass rate — an uncalibrated judge case will fail CI at random. The `workflow` tier
+is the most expensive (a full session, sometimes with a nested subagent), so schedule it nightly
+rather than per-PR, and let it report without blocking.
+
+**Artifacts.** `results/` is gitignored and append-only, so `results/**` uploads as-is
+(`records.jsonl`, `history.jsonl`, and full model output under `outputs/<run_id>/`).
+
 ## Module layout — `src/` (the engine)
 
 Split by responsibility with one-directional dependencies (config knows nothing of runtime;
@@ -326,7 +365,9 @@ need cheap-model CI):
   on cheap non-Anthropic models. The content-tier OpenRouter path (`run-openrouter.ts`) is still here.
 - **`scripts/litellm-proxy.sh`** + the `proxy:up/down/wait` npm scripts.
 - **`.github/workflows/eval-*.yml`** — the per-PR CI workflows and `scripts/ci-detect.mjs`
-  change-detector. See the upstream repo for the proxy-based Actions recipe.
+  change-detector. The package is CI-*ready* without them — see
+  [Running headless / in CI](#running-headless--in-ci) for the recipe, `eval:gate`, and
+  `eval:summary`; only the YAML itself is missing.
 
 ## Deferred (recorded so it isn't rediscovered)
 
