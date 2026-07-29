@@ -28,6 +28,7 @@ test-results/
 # emdash worktree config (local)
 .emdash.json
 
-# Agent worktrees — transient. NOTE: 56 of these gitlinks are already tracked (added by b9dd72a),
-# and .gitignore does not untrack anything; this only stops NEW ones being swept in by `git add -A`.
+# Agent worktrees — transient scratch checkouts, never part of a branch. 56 of these were tracked
+# as gitlinks (added by b9dd72a) until they were untracked; git clones would have got 56 empty
+# directories and permanently noisy `git status`. Keep this rule so `git add -A` can't re-add them.
 .claude/worktrees/
